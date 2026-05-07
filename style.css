@@ -250,6 +250,12 @@ img {
     display: flex;
     align-items: center;
     gap: 1.5rem;
+    flex: 1;
+    justify-content: center;
+}
+
+.nav-right-start {
+    margin-left: auto;
 }
 
 .nav-links li {
@@ -909,6 +915,10 @@ img {
         visibility: hidden;
         transform: translateY(-10px);
         transition: var(--transition-smooth);
+    }
+    
+    .nav-right-start {
+        margin-left: 0;
     }
     
     .nav-links.active {
