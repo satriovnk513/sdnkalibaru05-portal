@@ -820,17 +820,6 @@ img {
 .delay-3 { transition-delay: 0.45s; }
 
 /* ==========================================================================
-   Responsive Design
-   ========================================================================== */
-@media (max-width: 992px) {
-    .section-title { font-size: 2.5rem; }
-    .hero-title, .page-hero-title { font-size: 3.5rem; }
-    .contact-wrapper { grid-template-columns: 1fr; }
-    .profil-card { grid-template-columns: 1fr; gap: 2rem; }
-    .profil-grid { grid-template-columns: 1fr; }
-}
-
-/* ==========================================================================
    Profil Section Layout & Image Defaults
    ========================================================================== */
 
@@ -889,6 +878,17 @@ img {
     font-size: 1rem;
 }
 
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+@media (max-width: 992px) {
+    .section-title { font-size: 2.5rem; }
+    .hero-title, .page-hero-title { font-size: 3.5rem; }
+    .contact-wrapper { grid-template-columns: 1fr; }
+    .profil-card { grid-template-columns: 1fr; gap: 2rem; }
+    .profil-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 768px) {
     .section { padding: 4rem 0; }
     .section-title { font-size: 2rem; margin-bottom: 2.5rem; }
@@ -932,7 +932,8 @@ img {
         text-align: center;
     }
     
-    .profil-card { padding: 1.5rem; }
+    .profil-grid { grid-template-columns: 1fr; gap: 2rem; }
+    .profil-card { grid-template-columns: 1fr; gap: 1.5rem; padding: 1.5rem; }
     .stat-item h4 { font-size: 2.5rem; }
     
     .contact-info, .contact-form { padding: 2.5rem 1.5rem; }
