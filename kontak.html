@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Hubungi SDN Kalibaru 05 Pagi.">
+    <title>Kontak Kami - SDN Kalibaru 05 Pagi</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav id="navbar">
+        <div class="nav-container">
+            <div class="logo-container">
+                <img src="logo.png" alt="Logo SDN Kalibaru 05 Pagi" class="logo-img"
+                    onerror="this.onerror=null; this.src='https://via.placeholder.com/50x50.png?text=Logo';">
+                <span class="logo-text">SDN Kalibaru 05</span>
+            </div>
+            <div class="menu-toggle" id="mobile-menu">
+                <i class="fas fa-bars"></i>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Beranda</a></li>
+                <li><a href="profil.html">Profil</a></li>
+                <li><a href="guru-staff.html">Guru & Staf</a></li>
+                <li><a href="ekstrakurikuler.html">Ekstrakurikuler</a></li>
+                <li><a href="berita.html">Berita & Pengumuman</a></li>
+                <li><a href="https://www.instagram.com/sdnkalibaru05/" target="_blank"><i class="fab fa-instagram" style="margin-right: 5px;"></i>Foto<br>Galeri</a></li>
+                <li><a href="admin.html"><i class="fas fa-edit"></i> Admin</a></li>
+                <li><a href="kontak.html" class="active">Kontak Kami</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <header class="page-hero" style="background-image: url('https://images.unsplash.com/photo-1516382799247-87df95d790b7?auto=format&fit=crop&w=2000&q=80');">
+        <div class="page-hero-overlay"></div>
+        <div class="page-hero-content">
+            <h1 class="page-hero-title animate-up">Kontak Kami</h1>
+            <p class="hero-subtitle animate-up delay-1" style="margin-bottom:0; color: #f8fafc;">Silakan hubungi kami untuk informasi lebih lanjut mengenai sekolah</p>
+        </div>
+    </header>
+
+    <section class="section">
+        <div class="container">
+            <h2 class="section-title">Hubungi Sekolah Kami</h2>
+            <div class="contact-wrapper animate-up">
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div>
+                            <h4>Alamat Lengkap</h4>
+                            <p>Jl. Kalibaru Timur, Kelurahan Kalibaru,<br>Kecamatan Cilincing, Jakarta Utara,<br>DKI Jakarta</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-phone-alt"></i>
+                        <div>
+                            <h4>Telepon</h4>
+                            <p>(021) 1234-5678</p>
+                            <p>Senin - Jumat: 07:00 - 15:00 WIB</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <h4>Email Resmi</h4>
+                            <p>info@sdnkalibaru05.sch.id</p>
+                        </div>
+                    </div>
+                </div>
+                <form class="contact-form" onsubmit="event.preventDefault(); alert('Pesan Anda telah terkirim!');">
+                    <div class="form-group">
+                        <input type="text" placeholder="Nama Lengkap" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="email" placeholder="Alamat Email" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" placeholder="Subjek Pesan" required>
+                    </div>
+                    <div class="form-group">
+                        <textarea rows="5" placeholder="Tuliskan pesan atau pertanyaan Anda di sini..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary">Kirim Pesan <i class="fas fa-paper-plane" style="margin-left: 0.5rem;"></i></button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2026 SDN Kalibaru 05 Pagi. All rights reserved.</p>
+                <div class="social-links">
+                    <a href="#"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#"><i class="fab fa-instagram"></i></a>
+                    <a href="#"><i class="fab fa-youtube"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+</body>
+</html>
