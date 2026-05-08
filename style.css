@@ -482,6 +482,34 @@ img {
     border: 1px solid var(--border-color);
 }
 
+.stats-card {
+    background: var(--bg-light);
+    border-radius: var(--radius-md);
+    padding: 3rem;
+    box-shadow: var(--shadow-lg);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3rem;
+    position: relative;
+    border: 1px solid var(--border-color);
+    text-align: center;
+}
+
+@media (max-width: 992px) {
+    .stats-card {
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .stats-card {
+        grid-template-columns: 1fr;
+        padding: 2rem;
+        gap: 1.5rem;
+    }
+}
+
 .stat-item h4 {
     font-size: 3.5rem;
     font-weight: 800;
