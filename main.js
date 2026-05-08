@@ -111,3 +111,13 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(section);
     });
 });
+
+// Slider functionality
+window.scrollSlider = function(button, direction) {
+    const container = button.parentElement.querySelector('.slider-container');
+    const scrollAmount = 300; // Adjust as needed
+    container.scrollBy({
+        left: direction * scrollAmount,
+        behavior: 'smooth'
+    });
+};

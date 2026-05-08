@@ -385,6 +385,89 @@ img {
 }
 
 /* ==========================================================================
+   Sliders
+   ========================================================================== */
+.slider-wrapper {
+    position: relative;
+    padding: 0 50px;
+    margin: 0 -10px;
+}
+
+.slider-container {
+    display: flex !important;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 2.5rem;
+    padding: 10px;
+    padding-bottom: 2rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    scroll-behavior: smooth;
+}
+
+.slider-container::-webkit-scrollbar {
+    display: none;
+}
+
+.slider-container > * {
+    scroll-snap-align: start;
+    flex: 0 0 calc(33.333% - 1.67rem);
+    min-width: 280px;
+}
+
+.slider-btn {
+    position: absolute;
+    top: calc(50% - 1rem);
+    transform: translateY(-50%);
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    color: var(--primary-color);
+    z-index: 10;
+    transition: var(--transition-spring);
+}
+
+.slider-btn:hover {
+    background: var(--primary-color);
+    color: var(--white);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.slider-btn.left {
+    left: 0;
+}
+
+.slider-btn.right {
+    right: 0;
+}
+
+@media (max-width: 992px) {
+    .slider-container > * {
+        flex: 0 0 calc(50% - 1.25rem);
+    }
+}
+
+@media (max-width: 768px) {
+    .slider-wrapper {
+        padding: 0;
+        margin: 0;
+    }
+    .slider-btn {
+        display: none;
+    }
+    .slider-container > * {
+        flex: 0 0 calc(85% - 1rem);
+    }
+}
+
+/* ==========================================================================
    Bento Grid Layouts & Cards
    ========================================================================== */
 .profil-card {
