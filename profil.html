@@ -12,6 +12,44 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <style>
+        .misi-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem 3rem;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .misi-grid .misi-col {
+            text-align: justify;
+        }
+        .misi-grid .misi-item {
+            margin-bottom: 1.2rem;
+            line-height: 1.8;
+            font-size: 1rem;
+            color: var(--text-main);
+        }
+        .misi-grid .misi-item strong {
+            color: var(--primary-color);
+            margin-right: 0.3rem;
+        }
+        .visi-text {
+            text-align: center;
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: var(--secondary-color);
+            max-width: 900px;
+            margin: -2rem auto 0;
+            line-height: 1.7;
+            font-family: var(--font-heading);
+        }
+        @media (max-width: 768px) {
+            .misi-grid {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+        }
+    </style>
 </head>
 <body>
     <nav id="navbar">
@@ -27,9 +65,9 @@
             <ul class="nav-links">
                 <li><a href="index.html">Beranda</a></li>
                 <li><a href="profil.html" class="active">Profil</a></li>
-                <li><a href="guru-staff.html">Guru & Staf</a></li>
+                <li><a href="guru-staff.html">Guru &amp; Staf</a></li>
                 <li><a href="ekstrakurikuler.html">Ekstrakurikuler</a></li>
-                <li><a href="berita.html">Berita & Pengumuman</a></li>
+                <li><a href="berita.html">Berita &amp; Pengumuman</a></li>
                 <li><a href="admin.html"><i class="fas fa-edit"></i> Admin</a></li>
                 <li class="nav-right-start"><a href="https://www.instagram.com/sdnkalibaru05/" target="_blank"><i class="fab fa-instagram" style="margin-right: 5px;"></i>Foto<br>Galeri</a></li>
                 <li><a href="kontak.html" class="btn-primary-outline">Kontak Kami</a></li>
@@ -45,46 +83,56 @@
         </div>
     </header>
 
+    <!-- Visi -->
     <section class="section">
         <div class="container">
-            <h2 class="section-title">Visi & Misi</h2>
-            <div class="profil-grid">
-                <div class="profil-text">
-                    <h3>Visi</h3>
-                    <p>Terwujudnya satuan pendidikan yang berakhlak mulia, cerdas berkarakter, cakap berkomunikasi, unggul dalam IPTEK, dan berwawasan lingkungan.</p>
-                    <h3>Misi</h3>
-                    <ul class="misi-list">
-                        <li><i class="fas fa-check-circle"></i> Menanamkan nilai-nilai religius melalui kegiataan keagamaan dan pembiasaan sikap santun dalam kehidupan sehari-hari.</li>
-                        <li><i class="fas fa-check-circle"></i> Membangun karakter yang memimiliki kemampuan bernalar kritis, kreatif, mandiri, dan mampu berkolaborasi melalui kegiatan intrakurikuler dan ekstrakurikuler.</li>
-                        <li><i class="fas fa-check-circle"></i> Mengembangkan karakter positif siswa, seperti rasa ingin tahu, tanggung jawab, disiplin, dan empati, melalui proyek pembelajaran yang bermakna dan kegiatan ko-kurikuler yang mendukung pembentukan sikap.</li>
-                        <li><i class="fas fa-check-circle"></i> Menumbuhkan budaya literasi dan berpikir kritis melalui kegiatan Literapedia (Literasi Pelita Dunia Anak).</li>
-                        <li><i class="fas fa-check-circle"></i> Meningkatkan kemampuan komunikasi dengan membiasakan siswa menyampaikan pendapat, bertanya, bercerita, dan berdiskusi aktif baik dalam bahasa Indonesia yang baik dan benar maupun dalam bahasa asing secara bertahap.</li>
-                        <li><i class="fas fa-check-circle"></i> Meningkatkan mutu pembelajaran berbasis IPTEK melalui pemanfaatan teknologi informasi dan inovasi dalam proses digitalisasi sekolah.</li>
-                        <li><i class="fas fa-check-circle"></i> Mewujudkan lingkungan sekolah yang sehat melalui budaya hidup bersih, olahraga rutin, dan pelayanan kesehatan yang optimal.</li>
-                        <li><i class="fas fa-check-circle"></i> Membangun lingkungan sekolah yang bertoleransi dalam kebhinekaan global, mencintai budaya lokal dan menjunjung nilai gotong royong melalui aktivitas kebhinekaan.</li>
-                        <li><i class="fas fa-check-circle"></i> Membangun kesadaran, kepedulian dan tanggung jawab pada lingkungan sekitar melalui kegiatan peduli lingkungan.</li>
-                        <li><i class="fas fa-check-circle"></i> Menjalin kemitraan dengan instansi terkait yang menunjang pelaksanaan Pendidikan di sekolah.</li>
-                    </ul>
+            <h2 class="section-title">Visi</h2>
+            <p class="visi-text animate-up">
+                &ldquo;Terwujudnya satuan pendidikan yang berakhlak mulia, cerdas berkarakter, cakap berkomunikasi, unggul dalam IPTEK, dan berwawasan lingkungan.&rdquo;
+            </p>
+        </div>
+    </section>
+
+    <!-- Misi -->
+    <section class="section bg-light">
+        <div class="container">
+            <h2 class="section-title">Misi</h2>
+            <div class="misi-grid animate-up">
+                <!-- Kolom Kiri: 1-5 -->
+                <div class="misi-col">
+                    <p class="misi-item"><strong>1.</strong> Menanamkan nilai-nilai religius melalui kegiataan keagamaan dan pembiasaan sikap santun dalam kehidupan sehari-hari.</p>
+                    <p class="misi-item"><strong>2.</strong> Membangun karakter yang memimiliki kemampuan bernalar kritis, kreatif, mandiri, dan mampu berkolaborasi melalui kegiatan intrakurikuler dan ekstrakurikuler.</p>
+                    <p class="misi-item"><strong>3.</strong> Mengembangkan karakter positif siswa, seperti rasa ingin tahu, tanggung jawab, disiplin, dan empati, melalui proyek pembelajaran yang bermakna dan kegiatan ko-kurikuler yang mendukung pembentukan sikap.</p>
+                    <p class="misi-item"><strong>4.</strong> Menumbuhkan budaya literasi dan berpikir kritis melalui kegiatan Literapedia (Literasi Pelita Dunia Anak).</p>
+                    <p class="misi-item"><strong>5.</strong> Meningkatkan kemampuan komunikasi dengan membiasakan siswa menyampaikan pendapat, bertanya, bercerita, dan berdiskusi aktif baik dalam bahasa Indonesia yang baik dan benar maupun dalam bahasa asing secara bertahap.</p>
                 </div>
-                <div class="profil-image-container">
-                    <div class="profil-card">
-                        <div class="stat-item">
-                            <h4 class="counter" data-target="450">0</h4>
-                            <p>Siswa Aktif</p>
-                        </div>
-                        <div class="stat-item">
-                            <h4 class="counter" data-target="25">0</h4>
-                            <p>Guru Berdedikasi</p>
-                        </div>
-                        <div class="stat-item">
-                            <h4 class="counter" data-target="15">0</h4>
-                            <p>Penghargaan</p>
-                        </div>
-                        <div class="stat-item">
-                            <h4 class="counter" data-target="8">0</h4>
-                            <p>Ekstrakurikuler</p>
-                        </div>
-                    </div>
+                <!-- Kolom Kanan: 6-10 -->
+                <div class="misi-col">
+                    <p class="misi-item"><strong>6.</strong> Meningkatkan mutu pembelajaran berbasis IPTEK melalui pemanfaatan teknologi informasi dan inovasi dalam proses digitalisasi sekolah.</p>
+                    <p class="misi-item"><strong>7.</strong> Mewujudkan lingkungan sekolah yang sehat melalui budaya hidup bersih, olahraga rutin, dan pelayanan kesehatan yang optimal.</p>
+                    <p class="misi-item"><strong>8.</strong> Membangun lingkungan sekolah yang bertoleransi dalam kebhinekaan global, mencintai budaya lokal dan menjunjung nilai gotong royong melalui aktivitas kebhinekaan.</p>
+                    <p class="misi-item"><strong>9.</strong> Membangun kesadaran, kepedulian dan tanggung jawab pada lingkungan sekitar melalui kegiatan peduli lingkungan.</p>
+                    <p class="misi-item"><strong>10.</strong> Menjalin kemitraan dengan instansi terkait yang menunjang pelaksanaan Pendidikan di sekolah.</p>
+                </div>
+            </div>
+
+            <!-- Statistik Sekolah -->
+            <div class="profil-card animate-up delay-1" style="margin-top: 4rem; grid-template-columns: repeat(4, 1fr);">
+                <div class="stat-item">
+                    <h4 class="counter" data-target="533">0</h4>
+                    <p>Siswa Aktif</p>
+                </div>
+                <div class="stat-item">
+                    <h4 class="counter" data-target="25">0</h4>
+                    <p>Guru &amp; Tendik Berdedikasi</p>
+                </div>
+                <div class="stat-item">
+                    <h4 class="counter" data-target="17">0</h4>
+                    <p>Rombel</p>
+                </div>
+                <div class="stat-item">
+                    <h4 class="counter" data-target="12">0</h4>
+                    <p>Ekstrakurikuler</p>
                 </div>
             </div>
         </div>
