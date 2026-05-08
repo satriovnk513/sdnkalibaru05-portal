@@ -1,114 +1,286 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generator Berita - SDN Kalibaru 05 Pagi</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
-        body { background-color: #f8fafc; padding: 2rem; }
-        .admin-container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
-        .admin-card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .form-group { margin-bottom: 1.5rem; }
-        .form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #1e293b; }
-        .form-group input, .form-group textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; }
-        .form-group textarea { height: 100px; resize: vertical; }
-        h1 { margin-bottom: 2rem; color: #da251c; text-align: center; font-family: 'Poppins', sans-serif; }
-        .code-box { background: #1e293b; color: #e2e8f0; padding: 1.5rem; border-radius: 8px; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem; overflow-x: auto; position: relative;}
-        .copy-btn { margin-top: 1rem; width: 100%; background: #da251c; color: white; border: none; padding: 1rem; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        .copy-btn:hover { background: #b91c13; }
-        .preview-section { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .help-text { font-size: 0.85rem; color: #64748b; margin-top: 0.25rem; display: block; }
-        .login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        .login-box { background: white; padding: 3rem 2rem; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
-        .login-box input { width: 100%; padding: 0.75rem; margin: 1.5rem 0 1rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 1rem; text-align: center; }
-        .login-box button { width: 100%; background: #da251c; color: white; border: none; padding: 0.75rem; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; transition: 0.3s; }
-        .login-box button:hover { background: #b91c13; }
-        #mainContent { display: none; }
-        @media (max-width: 768px) { .admin-container { grid-template-columns: 1fr; } }
+        body {
+            background-color: #f8fafc;
+            padding: 2rem;
+        }
+
+        .admin-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .admin-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #1e293b;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .form-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+
+        h1 {
+            margin-bottom: 2rem;
+            color: #da251c;
+            text-align: center;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .code-box {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .copy-btn {
+            margin-top: 1rem;
+            width: 100%;
+            background: #da251c;
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: #b91c13;
+        }
+
+        .preview-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .help-text {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+            display: block;
+        }
+
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #f8fafc;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .login-box {
+            background: white;
+            padding: 3rem 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 0.75rem;
+            margin: 1.5rem 0 1rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .login-box button {
+            width: 100%;
+            background: #da251c;
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.3s;
+        }
+
+        .login-box button:hover {
+            background: #b91c13;
+        }
+
+        .login-box .back-btn {
+            display: block;
+            width: 100%;
+            background: #f1f5f9;
+            color: #334155;
+            text-decoration: none;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+            margin-top: 0.75rem;
+            transition: 0.3s;
+            box-sizing: border-box;
+        }
+
+        .login-box .back-btn:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        #mainContent {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .admin-container {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
+
 <body>
     <!-- Login Overlay -->
     <div class="login-overlay" id="loginOverlay">
         <div class="login-box">
             <h2 style="color: #da251c; font-family: 'Poppins', sans-serif; margin-bottom: 0.5rem;">Login Admin</h2>
-            <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.5rem;">Masukkan email dan password untuk mengakses Generator Berita.</p>
-            <input type="email" id="adminEmail" placeholder="Alamat Email" onkeypress="if(event.key === 'Enter') checkLogin()" style="margin-top: 0;">
-            <input type="password" id="adminPassword" placeholder="Password" onkeypress="if(event.key === 'Enter') checkLogin()" style="margin-top: 0.5rem;">
+            <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.5rem;">SDN Kalibaru 05.</p>
+            <input type="email" id="adminEmail" placeholder="Alamat Email"
+                onkeypress="if(event.key === 'Enter') checkLogin()" style="margin-top: 0;">
+            <input type="password" id="adminPassword" placeholder="Password"
+                onkeypress="if(event.key === 'Enter') checkLogin()" style="margin-top: 0.5rem;">
             <button onclick="checkLogin()" style="margin-top: 1rem;">Masuk</button>
-            <p id="loginError" style="color: #da251c; font-size: 0.85rem; margin-top: 1rem; display: none;">Email atau password salah! Coba lagi.</p>
+            <a href="index.html" class="back-btn">Kembali ke Beranda</a>
+            <p id="loginError" style="color: #da251c; font-size: 0.85rem; margin-top: 1rem; display: none;">Email atau
+                password salah! Coba lagi.</p>
         </div>
     </div>
 
     <!-- Main Content -->
     <div id="mainContent">
-    <h1>Generator Berita SDN Kalibaru 05</h1>
-    
-    <div class="admin-container">
-        <!-- Input Form -->
-        <div class="admin-card">
-            <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Data Berita</h2>
-            
-            <div class="form-group">
-                <label for="newsTitle">Judul Berita</label>
-                <input type="text" id="newsTitle" placeholder="Contoh: Juara 1 Lomba Cerdas Cermat" oninput="generateHTML()">
-            </div>
-            
-            <div class="form-group">
-                <label for="newsDate">Tanggal</label>
-                <input type="text" id="newsDate" placeholder="Contoh: 15 Agustus 2026" oninput="generateHTML()">
-            </div>
-            
-            <div class="form-group">
-                <label for="newsImage">URL Gambar (Link)</label>
-                <input type="text" id="newsImage" placeholder="https://images.unsplash.com/..." oninput="generateHTML()">
-                <span class="help-text">Gunakan link gambar langsung (akhiran .jpg / .png).</span>
-            </div>
-            
-            <div class="form-group">
-                <label for="newsDesc">Cuplikan Berita</label>
-                <textarea id="newsDesc" placeholder="Tuliskan deskripsi singkat berita di sini..." oninput="generateHTML()"></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label for="newsLink">Link Target (Opsional)</label>
-                <input type="text" id="newsLink" placeholder="berita-detail.html" value="#" oninput="generateHTML()">
-                <span class="help-text">Biarkan "#" jika belum ada halaman detail.</span>
-            </div>
-        </div>
+        <h1>Generator Berita SDN Kalibaru 05</h1>
 
-        <!-- Output & Preview -->
-        <div class="preview-section">
-            <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Preview Tampilan</h2>
-            
-            <!-- Live Preview -->
-            <div class="news-grid" style="grid-template-columns: 1fr; margin-bottom: 2rem;">
-                <article class="news-card" id="livePreview">
-                    <div class="news-img" style="background-image: url('https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=600&q=80')"></div>
-                    <div class="news-content">
-                        <span class="news-date">DD Bulan YYYY</span>
-                        <h3 class="news-title">Judul Berita Akan Muncul Di Sini</h3>
-                        <p>Cuplikan berita akan muncul di sini. Harap diisi.</p>
-                        <a href="#" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
-                    </div>
-                </article>
+        <div class="admin-container">
+            <!-- Input Form -->
+            <div class="admin-card">
+                <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Data Berita</h2>
+
+                <div class="form-group">
+                    <label for="newsTitle">Judul Berita</label>
+                    <input type="text" id="newsTitle" placeholder="Contoh: Juara 1 Lomba Cerdas Cermat"
+                        oninput="generateHTML()">
+                </div>
+
+                <div class="form-group">
+                    <label for="newsDate">Tanggal</label>
+                    <input type="text" id="newsDate" placeholder="Contoh: 15 Agustus 2026" oninput="generateHTML()">
+                </div>
+
+                <div class="form-group">
+                    <label for="newsImage">URL Gambar (Link)</label>
+                    <input type="text" id="newsImage" placeholder="https://images.unsplash.com/..."
+                        oninput="generateHTML()">
+                    <span class="help-text">Gunakan link gambar langsung (akhiran .jpg / .png).</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="newsDesc">Cuplikan Berita</label>
+                    <textarea id="newsDesc" placeholder="Tuliskan deskripsi singkat berita di sini..."
+                        oninput="generateHTML()"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="newsLink">Link Target (Opsional)</label>
+                    <input type="text" id="newsLink" placeholder="berita-detail.html" value="#"
+                        oninput="generateHTML()">
+                    <span class="help-text">Biarkan "#" jika belum ada halaman detail.</span>
+                </div>
             </div>
 
-            <h2 style="margin-bottom: 1rem; font-family: 'Poppins', sans-serif; font-size: 1.2rem;">Kode HTML (Copy ini)</h2>
-            <div class="code-box" id="codeOutput"></div>
-            <button class="copy-btn" onclick="copyCode()" id="copyBtn">📋 Copy Kode HTML</button>
-            <p style="margin-top: 1rem; font-size: 0.9rem; color: #64748b;">
-                <strong>Cara Pakai:</strong><br>
-                1. Isi form di sebelah kiri.<br>
-                2. Klik tombol Copy di atas.<br>
-                3. Buka file <code>berita.html</code> menggunakan Notepad / Editor.<br>
-                4. Cari tulisan <code>&lt;!-- PASTE BERITA BARU DI SINI --&gt;</code><br>
-                5. Paste (tempel) kode di bawahnya, lalu Save.
-            </p>
+            <!-- Output & Preview -->
+            <div class="preview-section">
+                <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Preview Tampilan</h2>
+
+                <!-- Live Preview -->
+                <div class="news-grid" style="grid-template-columns: 1fr; margin-bottom: 2rem;">
+                    <article class="news-card" id="livePreview">
+                        <div class="news-img"
+                            style="background-image: url('https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=600&q=80')">
+                        </div>
+                        <div class="news-content">
+                            <span class="news-date">DD Bulan YYYY</span>
+                            <h3 class="news-title">Judul Berita Akan Muncul Di Sini</h3>
+                            <p>Cuplikan berita akan muncul di sini. Harap diisi.</p>
+                            <a href="#" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                    </article>
+                </div>
+
+                <h2 style="margin-bottom: 1rem; font-family: 'Poppins', sans-serif; font-size: 1.2rem;">Kode HTML (Copy
+                    ini)</h2>
+                <div class="code-box" id="codeOutput"></div>
+                <button class="copy-btn" onclick="copyCode()" id="copyBtn">📋 Copy Kode HTML</button>
+                <p style="margin-top: 1rem; font-size: 0.9rem; color: #64748b;">
+                    <strong>Cara Pakai:</strong><br>
+                    1. Isi form di sebelah kiri.<br>
+                    2. Klik tombol Copy di atas.<br>
+                    3. Buka file <code>berita.html</code> menggunakan Notepad / Editor.<br>
+                    4. Cari tulisan <code>&lt;!-- PASTE BERITA BARU DI SINI --&gt;</code><br>
+                    5. Paste (tempel) kode di bawahnya, lalu Save.
+                </p>
+            </div>
         </div>
-    </div>
     </div>
 
     <script>
@@ -117,7 +289,7 @@
         function checkLogin() {
             let email = document.getElementById('adminEmail').value.trim();
             let pass = document.getElementById('adminPassword').value;
-            
+
             // Email dan Password default
             if (email === 'admin@sdnkalibaru05.sch.id' && pass === 'admin123') {
                 document.getElementById('loginOverlay').style.display = 'none';
@@ -148,7 +320,7 @@
 
             // Update Code Box
             let codeHTML = `<article class="news-card animate-up">\n    <div class="news-img" style="background-image: url('${image}')"></div>\n    <div class="news-content">\n        <span class="news-date">${date}</span>\n        <h3 class="news-title">${title}</h3>\n        <p>${desc}</p>\n        <a href="${link}" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>\n    </div>\n</article>`;
-            
+
             document.getElementById('codeOutput').innerText = codeHTML;
         }
 
@@ -169,4 +341,5 @@
         generateHTML();
     </script>
 </body>
+
 </html>
