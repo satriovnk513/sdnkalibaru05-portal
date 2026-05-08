@@ -492,77 +492,8 @@ img {
     transform: translateX(5px);
 }
 
-/* ==========================================================================
-   Staff / Guru Cards
-   ========================================================================== */
-.staff-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 2.5rem;
-}
+/* Staff / Guru Cards — see consolidated rules below (after Ekstrakurikuler) */
 
-.staff-card {
-    background: var(--bg-light);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--border-color);
-    transition: var(--transition-spring);
-    text-align: center;
-    padding: 1.5rem 1.5rem 2rem;
-}
-
-.staff-card:hover {
-    transform: translateY(-8px);
-    box-shadow: var(--shadow-lg);
-    border-color: rgba(225, 29, 72, 0.2);
-}
-
-.principal-card {
-    max-width: 380px;
-    margin: 0 auto;
-}
-
-.staff-img-wrapper {
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    overflow: hidden;
-    background: #f1f5f9;
-    border-radius: 16px;
-}
-
-.staff-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 16px;
-    transition: transform 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
-}
-
-.staff-card:hover .staff-img {
-    transform: scale(1.05);
-}
-
-.staff-name {
-    font-family: var(--font-heading);
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: var(--text-main);
-    margin: 1.5rem 0 0.4rem;
-    letter-spacing: -0.02em;
-}
-
-.staff-role {
-    font-size: 0.95rem;
-    color: var(--primary-color);
-    font-weight: 600;
-    margin-bottom: 0.3rem;
-}
-
-.staff-nip {
-    font-size: 0.8rem;
-    color: var(--text-light);
-}
 
 /* Ekstrakurikuler Cards (Bento Style) */
 .ekskul-grid {
@@ -640,17 +571,17 @@ img {
     font-size: 0.95rem;
 }
 
-/* Staff Cards */
+/* Staff Cards (Large Square Photos) */
 .staff-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 2.5rem;
 }
 
 .staff-card {
     background: var(--bg-light);
     border-radius: var(--radius-md);
-    padding: 1.5rem;
+    padding: 1.5rem 1.5rem 2rem;
     text-align: center;
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
@@ -659,54 +590,75 @@ img {
 
 .staff-card:hover {
     transform: translateY(-8px);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lg);
+    border-color: rgba(225, 29, 72, 0.2);
 }
 
 .principal-card {
-    max-width: 400px;
+    max-width: 420px;
     margin: 0 auto;
-    padding: 2.5rem;
+    padding: 2rem 2rem 2.5rem;
     background: linear-gradient(145deg, #ffffff, #f8fafc);
 }
 
 .staff-img-wrapper {
-    width: 140px;
-    height: 140px;
+    width: 100%;
+    aspect-ratio: 1 / 1;
     margin: 0 auto 1.5rem;
-    border-radius: 50%;
-    padding: 5px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #f1f5f9;
+    position: relative;
+}
+
+.staff-img-wrapper::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
     background: linear-gradient(135deg, var(--primary-color), #f43f5e);
-    box-shadow: var(--shadow-glow);
+    border-radius: 0 0 4px 4px;
 }
 
 .principal-card .staff-img-wrapper {
-    width: 180px;
-    height: 180px;
+    width: 100%;
+    aspect-ratio: 1 / 1;
 }
 
 .staff-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 50%;
-    border: 4px solid var(--white);
+    border-radius: 16px;
+    transition: transform 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.staff-card:hover .staff-img {
+    transform: scale(1.05);
 }
 
 .staff-name {
-    font-size: 1.25rem;
-    margin-bottom: 0.25rem;
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 1.2rem 0 0.3rem;
+    letter-spacing: -0.02em;
 }
 
 .staff-role {
     color: var(--primary-color);
     font-weight: 600;
     font-size: 0.95rem;
+    margin-bottom: 0.3rem;
 }
 
 .staff-nip {
     color: var(--text-light);
     font-size: 0.85rem;
-    margin-top: 0.5rem;
+    margin-top: 0.25rem;
 }
 
 /* ==========================================================================
