@@ -830,6 +830,8 @@ img {
 .contact-item p {
     opacity: 0.9;
     font-size: 0.95rem;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .form-group {
