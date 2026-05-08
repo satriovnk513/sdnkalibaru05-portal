@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     counter.innerText = Math.ceil(count + inc);
                     setTimeout(updateCount, 15);
                 } else {
-                    counter.innerText = target + (target > 50 ? '+' : '');
+                    counter.innerText = target;
                 }
             };
             updateCount();
