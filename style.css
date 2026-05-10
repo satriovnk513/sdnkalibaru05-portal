@@ -415,6 +415,7 @@ img {
     scroll-snap-align: start;
     flex: 0 0 calc(33.333% - 1.67rem);
     min-width: 280px;
+    flex-shrink: 0 !important;
 }
 
 .slider-btn {
@@ -469,9 +470,10 @@ img {
         gap: 1.5rem;
     }
     .slider-container > * {
-        flex: 0 0 85%;
+        flex: 0 0 85% !important;
         min-width: 0;
         scroll-snap-align: center;
+        flex-shrink: 0 !important;
     }
 }
 
