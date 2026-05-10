@@ -77,10 +77,8 @@ function updateSubRoles() {
         subGrp.style.display = 'none';
         subSel.innerHTML = '<option value="Kepala Sekolah">Kepala Sekolah</option>';
     } else if (cat === 'Guru Kelas') {
-        subGrp.style.display = 'block';
-        for(let i=1; i<=6; i++) {
-            subSel.innerHTML += `<option value="Wali Kelas ${i}">Wali Kelas ${i}</option>`;
-        }
+        subGrp.style.display = 'none';
+        subSel.innerHTML = '<option value="Guru Kelas">Guru Kelas</option>';
     } else if (cat === 'Guru Mata Pelajaran') {
         subGrp.style.display = 'block';
         subSel.innerHTML += `<option value="Guru Pendidikan Agama Islam">Guru Pendidikan Agama Islam</option>`;
