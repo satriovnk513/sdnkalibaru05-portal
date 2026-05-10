@@ -45,10 +45,10 @@ async function loadStaff() {
         return;
     }
 
-    // Sort client-side: by order_index ascending, NULLs last
+    // Sort client-side: by order_index ascending, 0/NULLs last
     data.sort((a, b) => {
-        const aIdx = (a.order_index === null || a.order_index === undefined) ? 9999 : Number(a.order_index);
-        const bIdx = (b.order_index === null || b.order_index === undefined) ? 9999 : Number(b.order_index);
+        const aIdx = (!a.order_index || a.order_index === 0) ? 9999 : Number(a.order_index);
+        const bIdx = (!b.order_index || b.order_index === 0) ? 9999 : Number(b.order_index);
         return aIdx - bIdx;
     });
 
