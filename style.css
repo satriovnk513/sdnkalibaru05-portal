@@ -332,7 +332,7 @@ img {
 }
 
 .hero {
-    background-image: url('https://images.unsplash.com/photo-1509062522246-3755977927d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80');
+    background-image: url('https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/hero-bg.jpg');
 }
 
 .hero-overlay, .page-hero-overlay {
