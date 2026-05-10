@@ -403,6 +403,7 @@ img {
     scrollbar-width: none;
     -ms-overflow-style: none;
     scroll-behavior: smooth;
+    scroll-padding: 20px;
 }
 
 .slider-container::-webkit-scrollbar {
@@ -462,8 +463,14 @@ img {
     .slider-btn {
         display: none;
     }
+    .slider-container {
+        padding: 10px 7.5%;
+        gap: 1.5rem;
+    }
     .slider-container > * {
-        flex: 0 0 calc(85% - 1rem);
+        flex: 0 0 85%;
+        min-width: 0;
+        scroll-snap-align: center;
     }
 }
 
@@ -526,6 +533,8 @@ img {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 2.5rem;
+    justify-content: center;
+    justify-items: center;
 }
 
 .news-card {
@@ -537,6 +546,8 @@ img {
     transition: var(--transition-spring);
     display: flex;
     flex-direction: column;
+    width: 100%;
+    max-width: 400px;
 }
 
 .news-card:hover {
@@ -611,6 +622,8 @@ img {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 2rem;
+    justify-content: center;
+    justify-items: center;
 }
 
 .ekskul-card {
@@ -624,6 +637,8 @@ img {
     position: relative;
     overflow: hidden;
     z-index: 1;
+    width: 100%;
+    max-width: 350px;
 }
 
 .ekskul-card::before {
@@ -684,8 +699,9 @@ img {
 
 /* Staff Cards (Large Square Photos) */
 .staff-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 2.5rem;
 }
 
@@ -697,6 +713,9 @@ img {
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
     transition: var(--transition-spring);
+    width: 100%;
+    flex: 0 1 300px;
+    max-width: 350px;
 }
 
 .staff-card:hover {
