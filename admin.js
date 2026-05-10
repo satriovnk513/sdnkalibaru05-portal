@@ -37,7 +37,7 @@ function showTab(tabId) {
 
 // Supabase Logic
 async function loadStaff() {
-    const { data, error } = await supabase.from('staff').select('*').order('order_index', { ascending: true });
+    const { data, error } = await supabaseClient.from('staff').select('*').order('order_index', { ascending: true });
     if (error) {
         console.error('Error loading staff:', error);
         return;
@@ -78,18 +78,18 @@ async function saveStaff(e) {
             const file = fileInput.files[0];
             const fileExt = file.name.split('.').pop();
             const fileName = `${Date.now()}.${fileExt}`;
-            const { data: uploadData, error: uploadError } = await supabase.storage
+            const { data: uploadData, error: uploadError } = await supabaseClient.storage
                 .from('photos')
                 .upload(fileName, file);
 
             if (uploadError) throw uploadError;
 
             // Get public URL
-            const { data: publicUrlData } = supabase.storage.from('photos').getPublicUrl(fileName);
+            const { data: publicUrlData } = supabaseClient.storage.from('photos').getPublicUrl(fileName);
             imageUrl = publicUrlData.publicUrl;
         }
 
-        const { error } = await supabase.from('staff').insert([{
+        const { error } = await supabaseClient.from('staff').insert([{
             name, role, nip, image_url: imageUrl
         }]);
 
@@ -111,7 +111,7 @@ async function saveStaff(e) {
 async function deleteStaff(id) {
     if(!confirm("Yakin ingin menghapus data ini?")) return;
     
-    const { error } = await supabase.from('staff').delete().eq('id', id);
+    const { error } = await supabaseClient.from('staff').delete().eq('id', id);
     if(error) {
         alert("Gagal menghapus data.");
         console.error(error);
