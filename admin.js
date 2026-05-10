@@ -54,11 +54,54 @@ async function loadStaff() {
             <td>${staff.role}</td>
             <td>${staff.nip || '-'}</td>
             <td>
+                <button onclick="editStaff('${staff.id}', '${staff.name.replace(/'/g, "\\'")}', '${staff.role}', '${(staff.nip || '').replace(/'/g, "\\'")}', '${staff.image_url}')" style="background: #eab308; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Edit</button>
                 <button onclick="deleteStaff('${staff.id}')" style="background: #dc2626; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Hapus</button>
             </td>
         `;
         tbody.appendChild(tr);
     });
+}
+
+let editStaffId = null;
+let currentEditImageUrl = null;
+
+function editStaff(id, name, role, nip, imageUrl) {
+    editStaffId = id;
+    currentEditImageUrl = imageUrl;
+    
+    document.getElementById('staffName').value = name;
+    document.getElementById('staffRole').value = role;
+    document.getElementById('staffNip').value = nip;
+    
+    const btn = document.getElementById('saveStaffBtn');
+    btn.innerText = "Update Data";
+    btn.style.background = "#eab308";
+    
+    // Add cancel button if it doesn't exist
+    if (!document.getElementById('cancelEditBtn')) {
+        const cancelBtn = document.createElement('button');
+        cancelBtn.id = 'cancelEditBtn';
+        cancelBtn.type = 'button';
+        cancelBtn.innerText = 'Batal Edit';
+        cancelBtn.style.cssText = 'width: 100%; background: #64748b; color: white; border: none; padding: 1rem; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 0.5rem; transition: 0.3s;';
+        cancelBtn.onclick = cancelEdit;
+        btn.parentNode.appendChild(cancelBtn);
+    }
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelEdit() {
+    editStaffId = null;
+    currentEditImageUrl = null;
+    document.getElementById('staffForm').reset();
+    
+    const btn = document.getElementById('saveStaffBtn');
+    btn.innerText = "Simpan Data";
+    btn.style.background = "#da251c";
+    
+    const cancelBtn = document.getElementById('cancelEditBtn');
+    if (cancelBtn) cancelBtn.remove();
 }
 
 async function saveStaff(e) {
@@ -72,7 +115,7 @@ async function saveStaff(e) {
         const role = document.getElementById('staffRole').value;
         const nip = document.getElementById('staffNip').value;
         const fileInput = document.getElementById('staffPhoto');
-        let imageUrl = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=500&q=80"; // default
+        let imageUrl = currentEditImageUrl || "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=500&q=80"; // default
 
         if (fileInput.files.length > 0) {
             const file = fileInput.files[0];
@@ -84,26 +127,34 @@ async function saveStaff(e) {
 
             if (uploadError) throw uploadError;
 
-            // Get public URL
             const { data: publicUrlData } = supabaseClient.storage.from('photos').getPublicUrl(fileName);
             imageUrl = publicUrlData.publicUrl;
         }
 
-        const { error } = await supabaseClient.from('staff').insert([{
-            name, role, nip, image_url: imageUrl
-        }]);
-
-        if (error) throw error;
-
-        document.getElementById('staffForm').reset();
-        alert('Data berhasil disimpan!');
+        if (editStaffId) {
+            const { error } = await supabaseClient.from('staff').update({
+                name, role, nip, image_url: imageUrl
+            }).eq('id', editStaffId);
+            if (error) throw error;
+            alert('Data berhasil diupdate!');
+            cancelEdit();
+        } else {
+            const { error } = await supabaseClient.from('staff').insert([{
+                name, role, nip, image_url: imageUrl
+            }]);
+            if (error) throw error;
+            document.getElementById('staffForm').reset();
+            alert('Data berhasil ditambahkan!');
+        }
+        
         loadStaff();
 
     } catch (err) {
         console.error(err);
         alert('Terjadi kesalahan: ' + (err.message || err.error_description || JSON.stringify(err)));
     } finally {
-        btn.innerText = "Simpan Data";
+        const btn = document.getElementById('saveStaffBtn');
+        btn.innerText = editStaffId ? "Update Data" : "Simpan Data";
         btn.disabled = false;
     }
 }
