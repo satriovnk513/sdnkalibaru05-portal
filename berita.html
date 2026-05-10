@@ -48,54 +48,8 @@
     <section class="section bg-light">
         <div class="container">
             <h2 class="section-title">Semua Berita</h2>
-            <div class="news-grid">
-                <!-- PASTE BERITA BARU DI SINI -->
-                <article class="news-card animate-up">
-                    <div class="news-img" style="background-image: url('https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=600&q=80')"></div>
-                    <div class="news-content">
-                        <span class="news-date">12 Agustus 2026</span>
-                        <h3 class="news-title">Penerimaan Peserta Didik Baru (PPDB) 2026/2027</h3>
-                        <p>Pendaftaran PPDB untuk tahun ajaran baru akan segera dibuka. Siapkan dokumen persyaratan Anda.</p>
-                        <a href="#" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
-                    </div>
-                </article>
-                <article class="news-card animate-up delay-1">
-                    <div class="news-img" style="background-image: url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=600&q=80')"></div>
-                    <div class="news-content">
-                        <span class="news-date">05 Agustus 2026</span>
-                        <h3 class="news-title">Juara 1 Lomba Cerdas Cermat Tingkat Kota</h3>
-                        <p>Selamat kepada tim cerdas cermat SDN Kalibaru 05 yang telah mengharumkan nama sekolah.</p>
-                        <a href="#" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
-                    </div>
-                </article>
-                <article class="news-card animate-up delay-2">
-                    <div class="news-img" style="background-image: url('https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&w=600&q=80')"></div>
-                    <div class="news-content">
-                        <span class="news-date">28 Juli 2026</span>
-                        <h3 class="news-title">Rapat Orang Tua Murid Awal Tahun Ajaran</h3>
-                        <p>Mengundang seluruh orang tua/wali murid untuk menghadiri rapat sosialisasi program sekolah.</p>
-                        <a href="#" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
-                    </div>
-                </article>
-                <!-- Add a few more placeholders to make it a dedicated page -->
-                <article class="news-card animate-up">
-                    <div class="news-img" style="background-image: url('https://images.unsplash.com/photo-1511629091441-ee46146481b6?auto=format&fit=crop&w=600&q=80')"></div>
-                    <div class="news-content">
-                        <span class="news-date">10 Juli 2026</span>
-                        <h3 class="news-title">Pelaksanaan Kegiatan Pesantren Kilat</h3>
-                        <p>Dalam rangka mengisi bulan suci Ramadhan, SDN Kalibaru 05 Pagi mengadakan kegiatan Pesantren Kilat.</p>
-                        <a href="#" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
-                    </div>
-                </article>
-                <article class="news-card animate-up delay-1">
-                    <div class="news-img" style="background-image: url('https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=600&q=80')"></div>
-                    <div class="news-content">
-                        <span class="news-date">15 Juni 2026</span>
-                        <h3 class="news-title">Pembagian Rapor Semester Genap</h3>
-                        <p>Pengumuman kelulusan dan kenaikan kelas akan dilaksanakan serentak bersama orang tua wali.</p>
-                        <a href="#" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
-                    </div>
-                </article>
+            <div class="news-grid" id="newsContainer">
+                <!-- Data loaded from Supabase -->
             </div>
         </div>
     </section>
@@ -113,6 +67,10 @@
         </div>
     </footer>
 
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="news-fetch.js"></script>
     <script src="main.js"></script>
 </body>
 </html>

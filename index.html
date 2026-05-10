@@ -144,38 +144,8 @@
             <h2 class="section-title">Berita & Pengumuman</h2>
             <div class="slider-wrapper animate-up">
                 <button class="slider-btn left" onclick="scrollSlider(this, -1)"><i class="fas fa-chevron-left"></i></button>
-                <div class="news-grid slider-container">
-                    <!-- PASTE BERITA BARU DI SINI -->
-                    <article class="news-card">
-                        <div class="news-img"
-                            style="background-image: url('https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=600&q=80')">
-                        </div>
-                        <div class="news-content">
-                            <span class="news-date">12 Agustus 2026</span>
-                            <h3 class="news-title">Penerimaan Peserta Didik Baru (PPDB) 2026/2027</h3>
-                            <a href="berita.html" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
-                        </div>
-                    </article>
-                    <article class="news-card">
-                        <div class="news-img"
-                            style="background-image: url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=600&q=80')">
-                        </div>
-                        <div class="news-content">
-                            <span class="news-date">05 Agustus 2026</span>
-                            <h3 class="news-title">Juara 1 Lomba Cerdas Cermat Tingkat Kota</h3>
-                            <a href="berita.html" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
-                        </div>
-                    </article>
-                    <article class="news-card">
-                        <div class="news-img"
-                            style="background-image: url('https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&w=600&q=80')">
-                        </div>
-                        <div class="news-content">
-                            <span class="news-date">28 Juli 2026</span>
-                            <h3 class="news-title">Rapat Orang Tua Murid Awal Tahun Ajaran</h3>
-                            <a href="berita.html" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
-                        </div>
-                    </article>
+                <div class="news-grid slider-container" id="indexNewsContainer">
+                    <!-- Data loaded from Supabase -->
                 </div>
                 <button class="slider-btn right" onclick="scrollSlider(this, 1)"><i class="fas fa-chevron-right"></i></button>
             </div>
@@ -220,26 +190,49 @@
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                const { data, error } = await supabaseClient.from('staff').select('*').order('order_index', { ascending: true }).limit(6);
-                if (error) return console.error('Supabase error:', error);
+                const { data: staffData, error: staffError } = await supabaseClient.from('staff').select('*').order('order_index', { ascending: true }).limit(6);
+                if (staffError) return console.error('Supabase staff error:', staffError);
                 
-                const container = document.getElementById('indexStaffContainer');
-                if (!container || !data) return;
-                
-                data.forEach(staff => {
-                    const parts = staff.role.split('|');
-                    const displayRole = parts[1] || parts[0];
-                    container.innerHTML += `
-                        <div class="staff-card">
-                            <div class="staff-img-wrapper">
-                                <img src="${staff.image_url}" alt="${staff.name}" class="staff-img" style="object-position: center top;">
+                const staffContainer = document.getElementById('indexStaffContainer');
+                if (staffContainer && staffData) {
+                    staffData.forEach(staff => {
+                        const parts = staff.role.split('|');
+                        const displayRole = parts[1] || parts[0];
+                        staffContainer.innerHTML += `
+                            <div class="staff-card">
+                                <div class="staff-img-wrapper">
+                                    <img src="${staff.image_url}" alt="${staff.name}" class="staff-img" style="object-position: center top;">
+                                </div>
+                                <h3 class="staff-name">${staff.name}</h3>
+                                <p class="staff-role">${displayRole}</p>
                             </div>
-                            <h3 class="staff-name">${staff.name}</h3>
-                            <p class="staff-role">${displayRole}</p>
-                        </div>
-                    `;
-                });
-            } catch (err) { console.error('Fetch error:', err); }
+                        `;
+                    });
+                }
+            } catch (err) { console.error('Fetch staff error:', err); }
+
+            try {
+                const { data: newsData, error: newsError } = await supabaseClient.from('news').select('*').order('created_at', { ascending: false }).limit(3);
+                if (newsError) return console.error('Supabase news error:', newsError);
+
+                const newsContainer = document.getElementById('indexNewsContainer');
+                if (newsContainer && newsData) {
+                    newsData.forEach((news, index) => {
+                        const delayClass = index === 0 ? '' : `delay-${index}`;
+                        newsContainer.innerHTML += `
+                            <article class="news-card animate-up ${delayClass}">
+                                <div class="news-img" style="background-image: url('${news.image_url}')"></div>
+                                <div class="news-content">
+                                    <span class="news-date">${news.date}</span>
+                                    <h3 class="news-title">${news.title}</h3>
+                                    <p>${news.description}</p>
+                                    <a href="${news.link || '#'}" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
+                                </div>
+                            </article>
+                        `;
+                    });
+                }
+            } catch (err) { console.error('Fetch news error:', err); }
         });
     </script>
     <script src="main.js"></script>

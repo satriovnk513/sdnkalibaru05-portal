@@ -135,27 +135,48 @@
         <div id="tabNews" class="tab-content">
             <div class="admin-container">
                 <div class="admin-card">
-                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Data Berita (Manual HTML)</h2>
-                    <div class="form-group">
-                        <label>Judul Berita</label>
-                        <input type="text" id="newsTitle" oninput="generateHTML()">
-                    </div>
-                    <div class="form-group">
-                        <label>Tanggal</label>
-                        <input type="text" id="newsDate" oninput="generateHTML()">
-                    </div>
-                    <div class="form-group">
-                        <label>URL Gambar</label>
-                        <input type="text" id="newsImage" oninput="generateHTML()">
-                    </div>
-                    <div class="form-group">
-                        <label>Cuplikan Berita</label>
-                        <textarea id="newsDesc" oninput="generateHTML()"></textarea>
-                    </div>
+                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Tambah Berita</h2>
+                    <form id="newsForm" onsubmit="saveNews(event)">
+                        <div class="form-group">
+                            <label>Judul Berita</label>
+                            <input type="text" id="newsTitle" required placeholder="Contoh: Juara 1 Lomba Cerdas Cermat">
+                        </div>
+                        <div class="form-group">
+                            <label>Tanggal</label>
+                            <input type="text" id="newsDate" required placeholder="Contoh: 15 Agustus 2026">
+                        </div>
+                        <div class="form-group">
+                            <label>Cuplikan Berita</label>
+                            <textarea id="newsDesc" required placeholder="Tuliskan deskripsi singkat berita di sini..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Link Target (Opsional)</label>
+                            <input type="text" id="newsLink" placeholder="Contoh: berita-detail.html" value="#">
+                        </div>
+                        <div class="form-group">
+                            <label>Upload Gambar Berita</label>
+                            <input type="file" id="newsPhoto" accept="image/*">
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Kosongkan jika tidak ada foto (akan pakai foto default).</small>
+                        </div>
+                        <button type="submit" class="btn-submit" id="saveNewsBtn">Simpan Berita</button>
+                    </form>
                 </div>
-                <div class="admin-card">
-                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Kode HTML (Copy ini)</h2>
-                    <div style="background: #1e293b; color: #e2e8f0; padding: 1.5rem; border-radius: 8px; font-family: monospace; white-space: pre-wrap; font-size: 0.9rem;" id="codeOutput"></div>
+                
+                <div class="admin-card" style="overflow-x: auto;">
+                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Daftar Berita</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Gambar</th>
+                                <th>Judul</th>
+                                <th>Tanggal</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="newsTableBody">
+                            <tr><td colspan="4">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -163,18 +184,5 @@
 
     <!-- Custom Scripts -->
     <script src="admin.js"></script>
-    <script>
-        // News logic kept simple inline
-        function generateHTML() {
-            let title = document.getElementById('newsTitle').value || "Judul";
-            let date = document.getElementById('newsDate').value || "Tanggal";
-            let img = document.getElementById('newsImage').value || "https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=600&q=80";
-            let desc = document.getElementById('newsDesc').value || "Deskripsi...";
-            
-            let code = `<article class="news-card animate-up">\n    <div class="news-img" style="background-image: url('${img}')"></div>\n    <div class="news-content">\n        <span class="news-date">${date}</span>\n        <h3 class="news-title">${title}</h3>\n        <p>${desc}</p>\n        <a href="#" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>\n    </div>\n</article>`;
-            document.getElementById('codeOutput').innerText = code;
-        }
-        generateHTML();
-    </script>
 </body>
 </html>
