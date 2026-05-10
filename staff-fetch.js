@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         data.forEach(staff => {
             const html = `
-                <div class="staff-card ${staff.role === 'Kepala Sekolah' ? 'principal-card animate-up' : ''}">
+                <div class="staff-card ${staff.role === 'Kepala Sekolah' ? 'principal-card' : ''}">
                     <div class="staff-img-wrapper">
                         <img src="${staff.image_url}" alt="${staff.name}" class="staff-img" style="object-position: center top;">
                     </div>
