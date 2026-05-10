@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sdnkalibaru05.sch.id/sitemap.xml
+
+# Block admin page from indexing
+User-agent: *
+Disallow: /admin.html
+Disallow: /admin.js
