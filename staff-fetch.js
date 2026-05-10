@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        const { data, error } = await supabaseClient.from('staff').select('*').order('order_index', { ascending: true });
+        const { data, error } = await supabaseClient.from('staff').select('*').order('order_index', { ascending: true, nullsFirst: false });
         
         if (error) {
             console.error('Supabase error:', error);
