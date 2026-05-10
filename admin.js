@@ -57,9 +57,9 @@ async function loadStaff() {
             <td><img src="${staff.image_url}" alt="Foto" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;"></td>
             <td>${staff.name}</td>
             <td>${displayRole}</td>
-            <td>${staff.nip || '-'}</td>
+            <td>${staff.order_index || 99}</td>
             <td>
-                <button onclick="editStaff('${staff.id}', '${staff.name.replace(/'/g, "\\'")}', '${staff.role.replace(/'/g, "\\'")}', '${(staff.nip || '').replace(/'/g, "\\'")}', '${staff.image_url}')" style="background: #eab308; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Edit</button>
+                <button onclick="editStaff('${staff.id}', '${staff.name.replace(/'/g, "\\'")}', '${staff.role.replace(/'/g, "\\'")}', '${(staff.nip || '').replace(/'/g, "\\'")}', '${staff.image_url}', ${staff.order_index})" style="background: #eab308; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Edit</button>
                 <button onclick="deleteStaff('${staff.id}')" style="background: #dc2626; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Hapus</button>
             </td>
         `;
@@ -96,7 +96,7 @@ function updateSubRoles() {
 let editStaffId = null;
 let currentEditImageUrl = null;
 
-function editStaff(id, name, fullRole, nip, imageUrl) {
+function editStaff(id, name, fullRole, nip, imageUrl, orderIndex) {
     editStaffId = id;
     currentEditImageUrl = imageUrl;
     
@@ -109,6 +109,7 @@ function editStaff(id, name, fullRole, nip, imageUrl) {
     document.getElementById('staffSubRole').value = parts[1] || parts[0];
     
     document.getElementById('staffNip').value = nip;
+    document.getElementById('staffOrder').value = orderIndex || 99;
     
     const btn = document.getElementById('saveStaffBtn');
     btn.innerText = "Update Data";
@@ -154,6 +155,7 @@ async function saveStaff(e) {
         const sub = document.getElementById('staffSubRole').value;
         const role = cat + '|' + sub;
         const nip = document.getElementById('staffNip').value;
+        const orderIndex = document.getElementById('staffOrder').value || 99;
         const fileInput = document.getElementById('staffPhoto');
         let imageUrl = currentEditImageUrl || "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=500&q=80"; // default
 
@@ -173,14 +175,14 @@ async function saveStaff(e) {
 
         if (editStaffId) {
             const { error } = await supabaseClient.from('staff').update({
-                name, role, nip, image_url: imageUrl
+                name, role, nip, image_url: imageUrl, order_index: orderIndex
             }).eq('id', editStaffId);
             if (error) throw error;
             alert('Data berhasil diupdate!');
             cancelEdit();
         } else {
             const { error } = await supabaseClient.from('staff').insert([{
-                name, role, nip, image_url: imageUrl
+                name, role, nip, image_url: imageUrl, order_index: orderIndex
             }]);
             if (error) throw error;
             document.getElementById('staffForm').reset();

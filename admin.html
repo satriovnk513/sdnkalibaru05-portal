@@ -103,7 +103,12 @@
                             <input type="text" id="staffNip" placeholder="Contoh: NIP. 19880112 201001 1 002">
                         </div>
                         <div class="form-group">
-                            <label>Upload Foto</label>
+                            <label>Urutan Tampil (Angka)</label>
+                            <input type="number" id="staffOrder" value="99" required placeholder="Contoh: 1">
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Gunakan angka 1 untuk Kepala Sekolah, 2 untuk Wakil Kepala, dst. Semakin kecil angkanya, semakin awal munculnya.</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Upload Foto Baru</label>
                             <input type="file" id="staffPhoto" accept="image/*">
                             <small style="color: #64748b; margin-top: 0.25rem; display: block;">Kosongkan jika tidak ada foto (akan pakai foto default).</small>
                         </div>
@@ -119,7 +124,7 @@
                                 <th>Foto</th>
                                 <th>Nama</th>
                                 <th>Jabatan</th>
-                                <th>NIP</th>
+                                <th>Urutan</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>

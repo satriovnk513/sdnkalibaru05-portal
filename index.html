@@ -190,7 +190,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                const { data: staffData, error: staffError } = await supabaseClient.from('staff').select('*').order('order_index', { ascending: true });
+                const { data: staffData, error: staffError } = await supabaseClient.from('staff').select('*').order('order_index', { ascending: true }).limit(9);
                 if (staffError) return console.error('Supabase staff error:', staffError);
                 
                 const staffContainer = document.getElementById('indexStaffContainer');
