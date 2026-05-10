@@ -395,6 +395,7 @@ img {
 
 .slider-container {
     display: flex !important;
+    flex-wrap: nowrap !important;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     gap: 2.5rem;
