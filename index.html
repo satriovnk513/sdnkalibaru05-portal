@@ -227,13 +227,15 @@
                 if (!container || !data) return;
                 
                 data.forEach(staff => {
+                    const parts = staff.role.split('|');
+                    const displayRole = parts[1] || parts[0];
                     container.innerHTML += `
                         <div class="staff-card">
                             <div class="staff-img-wrapper">
                                 <img src="${staff.image_url}" alt="${staff.name}" class="staff-img" style="object-position: center top;">
                             </div>
                             <h3 class="staff-name">${staff.name}</h3>
-                            <p class="staff-role">${staff.role}</p>
+                            <p class="staff-role">${displayRole}</p>
                         </div>
                     `;
                 });

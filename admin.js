@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('adminLoggedIn') === 'true') {
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('mainContent').style.display = 'block';
+        updateSubRoles();
         loadStaff();
     }
 });
@@ -47,14 +48,17 @@ async function loadStaff() {
     tbody.innerHTML = '';
     
     data.forEach(staff => {
+        const parts = staff.role.split('|');
+        const displayRole = parts[1] || parts[0];
+        
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><img src="${staff.image_url}" alt="Foto" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;"></td>
             <td>${staff.name}</td>
-            <td>${staff.role}</td>
+            <td>${displayRole}</td>
             <td>${staff.nip || '-'}</td>
             <td>
-                <button onclick="editStaff('${staff.id}', '${staff.name.replace(/'/g, "\\'")}', '${staff.role}', '${(staff.nip || '').replace(/'/g, "\\'")}', '${staff.image_url}')" style="background: #eab308; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Edit</button>
+                <button onclick="editStaff('${staff.id}', '${staff.name.replace(/'/g, "\\'")}', '${staff.role.replace(/'/g, "\\'")}', '${(staff.nip || '').replace(/'/g, "\\'")}', '${staff.image_url}')" style="background: #eab308; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Edit</button>
                 <button onclick="deleteStaff('${staff.id}')" style="background: #dc2626; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Hapus</button>
             </td>
         `;
@@ -62,15 +66,49 @@ async function loadStaff() {
     });
 }
 
+function updateSubRoles() {
+    const cat = document.getElementById('staffRole').value;
+    const subGrp = document.getElementById('subRoleGroup');
+    const subSel = document.getElementById('staffSubRole');
+    subSel.innerHTML = '';
+    
+    if (cat === 'Kepala Sekolah') {
+        subGrp.style.display = 'none';
+        subSel.innerHTML = '<option value="Kepala Sekolah">Kepala Sekolah</option>';
+    } else if (cat === 'Guru Kelas') {
+        subGrp.style.display = 'block';
+        for(let i=1; i<=6; i++) {
+            subSel.innerHTML += `<option value="Wali Kelas ${i}">Wali Kelas ${i}</option>`;
+        }
+    } else if (cat === 'Guru Mata Pelajaran') {
+        subGrp.style.display = 'block';
+        subSel.innerHTML += `<option value="Guru Pendidikan Agama Islam">Guru Pendidikan Agama Islam</option>`;
+        subSel.innerHTML += `<option value="Guru Olahraga">Guru Olahraga</option>`;
+        subSel.innerHTML += `<option value="Guru Bahasa Inggris">Guru Bahasa Inggris</option>`;
+    } else if (cat === 'Tenaga Kependidikan') {
+        subGrp.style.display = 'block';
+        subSel.innerHTML += `<option value="Penata Kelola Sistem & IT">Penata Kelola Sistem & IT</option>`;
+        subSel.innerHTML += `<option value="Operator">Operator</option>`;
+        subSel.innerHTML += `<option value="Tenaga Kebersihan">Tenaga Kebersihan</option>`;
+        subSel.innerHTML += `<option value="Kepala Tata Usaha">Kepala Tata Usaha</option>`;
+    }
+}
+
 let editStaffId = null;
 let currentEditImageUrl = null;
 
-function editStaff(id, name, role, nip, imageUrl) {
+function editStaff(id, name, fullRole, nip, imageUrl) {
     editStaffId = id;
     currentEditImageUrl = imageUrl;
     
     document.getElementById('staffName').value = name;
-    document.getElementById('staffRole').value = role;
+    
+    // Parse role
+    const parts = fullRole.split('|');
+    document.getElementById('staffRole').value = parts[0];
+    updateSubRoles();
+    document.getElementById('staffSubRole').value = parts[1] || parts[0];
+    
     document.getElementById('staffNip').value = nip;
     
     const btn = document.getElementById('saveStaffBtn');
@@ -95,6 +133,7 @@ function cancelEdit() {
     editStaffId = null;
     currentEditImageUrl = null;
     document.getElementById('staffForm').reset();
+    updateSubRoles();
     
     const btn = document.getElementById('saveStaffBtn');
     btn.innerText = "Simpan Data";
@@ -112,7 +151,9 @@ async function saveStaff(e) {
 
     try {
         const name = document.getElementById('staffName').value;
-        const role = document.getElementById('staffRole').value;
+        const cat = document.getElementById('staffRole').value;
+        const sub = document.getElementById('staffSubRole').value;
+        const role = cat + '|' + sub;
         const nip = document.getElementById('staffNip').value;
         const fileInput = document.getElementById('staffPhoto');
         let imageUrl = currentEditImageUrl || "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=500&q=80"; // default
