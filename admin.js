@@ -39,11 +39,18 @@ function showTab(tabId) {
 
 // Supabase Logic
 async function loadStaff() {
-    const { data, error } = await supabaseClient.from('staff').select('*').order('order_index', { ascending: true });
+    const { data, error } = await supabaseClient.from('staff').select('*');
     if (error) {
         console.error('Error loading staff:', error);
         return;
     }
+
+    // Sort client-side: by order_index ascending, NULLs last
+    data.sort((a, b) => {
+        const aIdx = (a.order_index === null || a.order_index === undefined) ? 9999 : Number(a.order_index);
+        const bIdx = (b.order_index === null || b.order_index === undefined) ? 9999 : Number(b.order_index);
+        return aIdx - bIdx;
+    });
 
     const tbody = document.getElementById('staffTableBody');
     tbody.innerHTML = '';
