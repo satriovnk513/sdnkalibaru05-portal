@@ -101,7 +101,7 @@ async function saveStaff(e) {
 
     } catch (err) {
         console.error(err);
-        alert('Terjadi kesalahan saat menyimpan data.');
+        alert('Terjadi kesalahan: ' + (err.message || err.error_description || JSON.stringify(err)));
     } finally {
         btn.innerText = "Simpan Data";
         btn.disabled = false;
