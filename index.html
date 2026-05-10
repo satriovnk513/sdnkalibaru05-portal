@@ -97,42 +97,8 @@
             
             <div class="slider-wrapper animate-up">
                 <button class="slider-btn left" onclick="scrollSlider(this, -1)"><i class="fas fa-chevron-left"></i></button>
-                <div class="staff-grid slider-container">
-                    <div class="staff-card">
-                        <div class="staff-img-wrapper">
-                            <img src="lilis-kholisoh.jpg" alt="Kepala Sekolah" class="staff-img">
-                        </div>
-                        <h3 class="staff-name">Lilis Kholisoh, S.Pd.</h3>
-                        <p class="staff-role">Kepala Sekolah</p>
-                    </div>
-                    <div class="staff-card">
-                        <div class="staff-img-wrapper">
-                            <img src="https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=500&q=80" alt="Guru" class="staff-img">
-                        </div>
-                        <h3 class="staff-name">Budi Santoso, S.Pd.</h3>
-                        <p class="staff-role">Wali Kelas 1</p>
-                    </div>
-                    <div class="staff-card">
-                        <div class="staff-img-wrapper">
-                            <img src="https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&w=500&q=80" alt="Guru" class="staff-img">
-                        </div>
-                        <h3 class="staff-name">Rina Wati, S.Pd.</h3>
-                        <p class="staff-role">Wali Kelas 2</p>
-                    </div>
-                    <div class="staff-card">
-                        <div class="staff-img-wrapper">
-                            <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=500&q=80" alt="Guru" class="staff-img">
-                        </div>
-                        <h3 class="staff-name">Ahmad Fauzi, S.Ag.</h3>
-                        <p class="staff-role">Guru Agama</p>
-                    </div>
-                    <div class="staff-card">
-                        <div class="staff-img-wrapper">
-                            <img src="josua.jpg" alt="Guru" class="staff-img" style="object-position: center 20%;">
-                        </div>
-                        <h3 class="staff-name">Josua Prasetyo</h3>
-                        <p class="staff-role">Guru Olahraga</p>
-                    </div>
+                <div class="staff-grid slider-container" id="indexStaffContainer">
+                    <!-- Data loaded from Supabase -->
                 </div>
                 <button class="slider-btn right" onclick="scrollSlider(this, 1)"><i class="fas fa-chevron-right"></i></button>
             </div>
@@ -248,6 +214,32 @@
         </div>
     </footer>
 
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const { data, error } = await supabase.from('staff').select('*').order('order_index', { ascending: true }).limit(6);
+                if (error) return console.error('Supabase error:', error);
+                
+                const container = document.getElementById('indexStaffContainer');
+                if (!container || !data) return;
+                
+                data.forEach(staff => {
+                    container.innerHTML += `
+                        <div class="staff-card">
+                            <div class="staff-img-wrapper">
+                                <img src="${staff.image_url}" alt="${staff.name}" class="staff-img" style="object-position: center top;">
+                            </div>
+                            <h3 class="staff-name">${staff.name}</h3>
+                            <p class="staff-role">${staff.role}</p>
+                        </div>
+                    `;
+                });
+            } catch (err) { console.error('Fetch error:', err); }
+        });
+    </script>
     <script src="main.js"></script>
 </body>
 

@@ -52,13 +52,8 @@
     <section class="section">
         <div class="container">
             <h2 class="section-title">Kepala Sekolah</h2>
-            <div class="staff-card principal-card animate-up">
-                <div class="staff-img-wrapper">
-                    <img src="lilis-kholisoh.jpg" alt="Kepala Sekolah" class="staff-img">
-                </div>
-                <h3 class="staff-name">Lilis Kholisoh, S.Pd.</h3>
-                <p class="staff-role">Kepala Sekolah</p>
-                <p class="staff-nip">NIP. 196905071994112001</p>
+            <div id="kepsekContainer" style="display: flex; justify-content: center;">
+                <!-- Data loaded from Supabase -->
             </div>
         </div>
     </section>
@@ -67,55 +62,8 @@
     <section class="section bg-light">
         <div class="container">
             <h2 class="section-title">Guru Kelas</h2>
-            <div class="staff-grid animate-up delay-1">
-                <div class="staff-card">
-                    <div class="staff-img-wrapper">
-                        <img src="https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=500&q=80" alt="Guru" class="staff-img">
-                    </div>
-                    <h3 class="staff-name">Budi Santoso, S.Pd.</h3>
-                    <p class="staff-role">Wali Kelas 1</p>
-                    <p class="staff-nip">NIP. 19880112 201001 1 002</p>
-                </div>
-                <div class="staff-card">
-                    <div class="staff-img-wrapper">
-                        <img src="https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&w=500&q=80" alt="Guru" class="staff-img">
-                    </div>
-                    <h3 class="staff-name">Rina Wati, S.Pd.</h3>
-                    <p class="staff-role">Wali Kelas 2</p>
-                    <p class="staff-nip">NIP. 19900325 201402 2 001</p>
-                </div>
-                <div class="staff-card">
-                    <div class="staff-img-wrapper">
-                        <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=500&q=80" alt="Guru" class="staff-img">
-                    </div>
-                    <h3 class="staff-name">Agus Setiawan, S.Pd.</h3>
-                    <p class="staff-role">Wali Kelas 3</p>
-                    <p class="staff-nip">NIP. 19851108 200903 1 004</p>
-                </div>
-                <div class="staff-card">
-                    <div class="staff-img-wrapper">
-                        <img src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=500&q=80" alt="Guru" class="staff-img">
-                    </div>
-                    <h3 class="staff-name">Dewi Lestari, S.Pd.</h3>
-                    <p class="staff-role">Wali Kelas 4</p>
-                    <p class="staff-nip">NIP. 19920714 201504 2 003</p>
-                </div>
-                <div class="staff-card">
-                    <div class="staff-img-wrapper">
-                        <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=80" alt="Guru" class="staff-img">
-                    </div>
-                    <h3 class="staff-name">Hendra Gunawan, S.Pd.</h3>
-                    <p class="staff-role">Wali Kelas 5</p>
-                    <p class="staff-nip">NIP. 19870522 201101 1 006</p>
-                </div>
-                <div class="staff-card">
-                    <div class="staff-img-wrapper">
-                        <img src="https://images.unsplash.com/photo-1598550874175-4d0ef436c909?auto=format&fit=crop&w=500&q=80" alt="Guru" class="staff-img">
-                    </div>
-                    <h3 class="staff-name">Siti Nurhaliza, S.Pd.</h3>
-                    <p class="staff-role">Wali Kelas 6</p>
-                    <p class="staff-nip">NIP. 19890930 201212 2 002</p>
-                </div>
+            <div class="staff-grid animate-up delay-1" id="guruKelasContainer">
+                <!-- Data loaded from Supabase -->
             </div>
         </div>
     </section>
@@ -124,31 +72,8 @@
     <section class="section">
         <div class="container">
             <h2 class="section-title">Guru Mata Pelajaran</h2>
-            <div class="staff-grid animate-up">
-                <div class="staff-card">
-                    <div class="staff-img-wrapper">
-                        <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=500&q=80" alt="Guru" class="staff-img">
-                    </div>
-                    <h3 class="staff-name">Ahmad Fauzi, S.Ag.</h3>
-                    <p class="staff-role">Guru Pend. Agama Islam</p>
-                    <p class="staff-nip">NIP. 19820418 200801 1 003</p>
-                </div>
-                <div class="staff-card">
-                    <div class="staff-img-wrapper">
-                        <img src="https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=500&q=80" alt="Guru" class="staff-img">
-                    </div>
-                    <h3 class="staff-name">Doni Pratama, S.Pd.</h3>
-                    <p class="staff-role">Guru PJOK (Olahraga)</p>
-                    <p class="staff-nip">NIP. 19931005 201803 1 001</p>
-                </div>
-                <div class="staff-card">
-                    <div class="staff-img-wrapper">
-                        <img src="josua.jpg" alt="Guru" class="staff-img" style="object-position: center 20%;">
-                    </div>
-                    <h3 class="staff-name">Josua Prasetyo</h3>
-                    <p class="staff-role">Guru Olahraga</p>
-                    <p class="staff-nip">-</p>
-                </div>
+            <div class="staff-grid animate-up" id="guruMapelContainer">
+                <!-- Data loaded from Supabase -->
             </div>
         </div>
     </section>
@@ -157,31 +82,8 @@
     <section class="section bg-light">
         <div class="container">
             <h2 class="section-title">Tenaga Kependidikan</h2>
-            <div class="staff-grid animate-up">
-                <div class="staff-card">
-                    <div class="staff-img-wrapper">
-                        <img src="https://images.unsplash.com/photo-1573497491208-6b1acb260507?auto=format&fit=crop&w=500&q=80" alt="Staf" class="staff-img">
-                    </div>
-                    <h3 class="staff-name">Fitri Yani, S.Kom.</h3>
-                    <p class="staff-role">Kepala Tata Usaha</p>
-                    <p class="staff-nip">NIP. 19860211 201004 2 005</p>
-                </div>
-                <div class="staff-card">
-                    <div class="staff-img-wrapper">
-                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=500&q=80" alt="Staf" class="staff-img">
-                    </div>
-                    <h3 class="staff-name">Dwi Wahyudi</h3>
-                    <p class="staff-role">Staf Administrasi</p>
-                    <p class="staff-nip">Tenaga Honorer</p>
-                </div>
-                <div class="staff-card">
-                    <div class="staff-img-wrapper">
-                        <img src="https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=500&q=80" alt="Staf" class="staff-img">
-                    </div>
-                    <h3 class="staff-name">Supriyadi</h3>
-                    <p class="staff-role">Penjaga Sekolah</p>
-                    <p class="staff-nip">Tenaga Honorer</p>
-                </div>
+            <div class="staff-grid animate-up" id="tendikContainer">
+                <!-- Data loaded from Supabase -->
             </div>
         </div>
     </section>
@@ -200,6 +102,10 @@
         </div>
     </footer>
 
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="staff-fetch.js"></script>
     <script src="main.js"></script>
 </body>
 </html>
