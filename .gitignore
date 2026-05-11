@@ -6,3 +6,6 @@ desktop.ini
 # IDE
 .vscode/
 .idea/
+
+.vercel
+.env*.local

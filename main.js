@@ -18,7 +18,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Close mobile menu when clicking a link
     navItems.forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (e) => {
+            const parentLi = item.parentElement;
+            if (window.innerWidth <= 992 && parentLi.classList.contains('has-dropdown')) {
+                e.preventDefault();
+                parentLi.classList.toggle('active');
+                return;
+            }
+            
             navLinks.classList.remove('active');
             const icon = mobileMenuBtn.querySelector('i');
             icon.classList.remove('fa-times');
