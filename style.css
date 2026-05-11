@@ -1429,20 +1429,30 @@ img {
 
 /* ==========================================================================
    Guru & Staf Section Background
+   ========================================================================== */* ==========================================================================
+   Guru & Staf Section Background
    ========================================================================== */
 .staff-bg-section {
     position: relative;
     background-image: url('https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/guru-staff-bg.jpeg');
     background-size: cover;
-    background-position: center 60%;
+    background-position: center bottom;
     background-attachment: fixed;
     padding: 12rem 0;
-    /* Further increased padding */
     min-height: 80vh;
-    /* Ensure section is tall enough */
     display: flex;
     align-items: center;
     overflow: hidden;
+}
+
+/* Mobile Overrides for Staff Section */
+@media (max-width: 768px) {
+    .staff-bg-section {
+        padding: 5rem 0; /* Reduced padding for mobile */
+        min-height: auto; /* Allow content to define height */
+        display: block; /* Remove flex to avoid slider alignment issues */
+        background-attachment: scroll; /* Fixed bg can be buggy on mobile */
+    }
 }
 
 .staff-bg-section::before {
@@ -1478,4 +1488,6 @@ img {
 .staff-bg-section .staff-card {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
+}
+
 }
