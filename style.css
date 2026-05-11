@@ -1477,9 +1477,23 @@ img {
 }
 
 .staff-bg-section .section-title::after,
-.ekskul-section .section-title::after {
-    bottom: -50% !important;
+.ekskul-section .section-title::after,
+.galeri-section .section-title::after {
+    bottom: -30px !important; /* Fixed pixel value to avoid overlapping subtitle */
     background: var(--primary-color) !important;
+}
+
+/* Mobile adjustments to prevent overlapping */
+@media (max-width: 768px) {
+    .staff-bg-section .section-title::after,
+    .ekskul-section .section-title::after,
+    .galeri-section .section-title::after {
+        bottom: -20px !important; /* Slightly higher on mobile but still clear */
+    }
+    
+    .section-title {
+        margin-bottom: 3.5rem !important; /* Ensure enough space for the underline */
+    }
 }
 
 .staff-bg-section .section-subtitle {
