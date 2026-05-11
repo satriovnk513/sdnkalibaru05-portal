@@ -1233,3 +1233,53 @@ img {
     
     .footer-bottom { flex-direction: column; gap: 1.5rem; text-align: center; }
 }
+/* ==========================================================================
+   Guru & Staf Section Background
+   ========================================================================== */
+.staff-bg-section {
+    position: relative;
+    background-image: url('https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/guru-staff-bg.jpg');
+    background-size: cover;
+    background-position: center 60%;
+    background-attachment: fixed;
+    padding: 12rem 0; /* Further increased padding */
+    min-height: 80vh; /* Ensure section is tall enough */
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+}
+
+.staff-bg-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, rgba(15, 23, 42, 0.8) 0%, rgba(15, 23, 42, 0.4) 50%, rgba(15, 23, 42, 0.8) 100%);
+    z-index: 1;
+}
+
+.staff-bg-section .container {
+    position: relative;
+    z-index: 2;
+}
+
+.staff-bg-section .section-title,
+.staff-bg-section .section-subtitle {
+    color: var(--white);
+}
+
+.staff-bg-section .section-title::after {
+    background: var(--white);
+}
+
+.staff-bg-section .section-subtitle {
+    opacity: 0.9;
+}
+
+/* Ensure staff cards still look good on the new background */
+.staff-bg-section .staff-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+}
