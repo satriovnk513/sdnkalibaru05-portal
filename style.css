@@ -451,6 +451,7 @@ img {
 .page-hero {
     height: 60vh;
     min-height: 400px;
+    background-position: center bottom;
 }
 
 .hero {
@@ -1240,7 +1241,7 @@ img {
     position: relative;
     background-image: url('https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/guru-staff-bg.jpeg');
     background-size: cover;
-    background-position: center 60%;
+    background-position: center bottom;
     background-attachment: fixed;
     padding: 12rem 0; /* Further increased padding */
     min-height: 80vh; /* Ensure section is tall enough */
