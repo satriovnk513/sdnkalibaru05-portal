@@ -1476,7 +1476,9 @@ img {
     color: var(--secondary-color) !important;
 }
 
-.staff-bg-section .section-title::after {
+.staff-bg-section .section-title::after,
+.ekskul-section .section-title::after {
+    bottom: -50% !important;
     background: var(--primary-color) !important;
 }
 
