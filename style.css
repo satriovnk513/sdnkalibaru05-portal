@@ -1473,11 +1473,11 @@ img {
 
 .staff-bg-section .section-title,
 .staff-bg-section .section-subtitle {
-    color: #ffffff !important;
+    color: var(--secondary-color) !important;
 }
 
 .staff-bg-section .section-title::after {
-    background: #ffffff !important;
+    background: var(--primary-color) !important;
 }
 
 .staff-bg-section .section-subtitle {
