@@ -218,13 +218,25 @@
             <h2 class="section-title">Galeri Kegiatan</h2>
             <p class="section-subtitle">Intip berbagai momen keseruan dan aktivitas peserta didik SDN Kalibaru 05 Pagi melalui galeri foto kami.</p>
             
-            <div class="animate-up" style="margin-top: 3rem;">
-                <!-- Elfsight Instagram Feed | Untitled Instagram Feed -->
-                <script src="https://elfsightcdn.com/platform.js" async></script>
-                <div class="elfsight-app-0ac4d707-eece-492e-9bdc-46345c91bc1e" data-elfsight-app-lazy></div>
+            <div class="galeri-grid-container animate-up" style="margin-top: 3rem;">
+                <div id="galleryContainer" class="gallery-grid">
+                    <!-- Data loaded from Supabase gallery table -->
+                </div>
+                <div style="text-align: center; margin-top: 3rem;">
+                    <a href="https://www.instagram.com/sdnkalibaru05/" target="_blank" class="btn-instagram">
+                        <i class="fab fa-instagram"></i> Lihat Selengkapnya di Instagram
+                    </a>
+                </div>
             </div>
         </div>
     </section>
+
+    <!-- Modal for Lightbox (Optional but good for premium feel) -->
+    <div id="galleryModal" class="gallery-modal">
+        <span class="close-modal">&times;</span>
+        <img class="modal-content" id="modalImg">
+        <div id="modalCaption"></div>
+    </div>
 
     <!-- Footer -->
     <footer class="footer">
@@ -301,7 +313,67 @@
                     });
                 }
             } catch (err) { console.error('Fetch news error:', err); }
+
+            // Fetch Gallery Data
+            try {
+                const { data: galleryData, error: galleryError } = await supabaseClient
+                    .from('gallery')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(8);
+                
+                if (galleryError) throw galleryError;
+
+                const galleryContainer = document.getElementById('galleryContainer');
+                if (galleryContainer && galleryData) {
+                    galleryData.forEach(item => {
+                        const galleryItem = document.createElement('div');
+                        galleryItem.className = 'gallery-item';
+                        galleryItem.innerHTML = `
+                            <img src="${item.image_url}" alt="${item.caption || 'Galeri Foto'}" loading="lazy">
+                            <div class="gallery-overlay">
+                                <i class="fas fa-search-plus"></i>
+                                <span>${item.caption || ''}</span>
+                            </div>
+                        `;
+                        galleryItem.addEventListener('click', () => openLightbox(item.image_url, item.caption));
+                        galleryContainer.appendChild(galleryItem);
+                    });
+                }
+            } catch (err) {
+                console.error('Fetch gallery error:', err);
+                const galleryContainer = document.getElementById('galleryContainer');
+                if (galleryContainer) {
+                    galleryContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-light);">Gagal memuat galeri. Silakan cek koneksi internet Anda.</p>';
+                }
+            }
         });
+
+        // Lightbox Functionality
+        function openLightbox(src, caption) {
+            const modal = document.getElementById('galleryModal');
+            const modalImg = document.getElementById('modalImg');
+            const modalCaption = document.getElementById('modalCaption');
+            
+            modal.style.display = "block";
+            modalImg.src = src;
+            modalCaption.innerHTML = caption || '';
+            document.body.style.overflow = 'hidden'; // Disable scroll
+        }
+
+        document.querySelector('.close-modal')?.addEventListener('click', () => {
+            document.getElementById('galleryModal').style.display = "none";
+            document.body.style.overflow = 'auto'; // Enable scroll
+        });
+
+        window.addEventListener('click', (event) => {
+            const modal = document.getElementById('galleryModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+                document.body.style.overflow = 'auto';
+            }
+        });
+
     </script>
     <script src="main.js"></script>
 </body>

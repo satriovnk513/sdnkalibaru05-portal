@@ -1652,3 +1652,179 @@ img {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
 }
+
+/* ==========================================================================
+   Galeri Native Grid
+   ========================================================================== */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.gallery-item {
+    position: relative;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    aspect-ratio: 1 / 1;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-spring);
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.gallery-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.gallery-overlay i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+}
+
+.gallery-overlay span {
+    font-size: 0.9rem;
+    font-weight: 500;
+    transform: translateY(20px);
+    transition: transform 0.3s ease 0.1s;
+}
+
+.gallery-item:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.gallery-item:hover img {
+    transform: scale(1.1);
+}
+
+.gallery-item:hover .gallery-overlay {
+    opacity: 1;
+}
+
+.gallery-item:hover .gallery-overlay i,
+.gallery-item:hover .gallery-overlay span {
+    transform: translateY(0);
+}
+
+/* Instagram Button */
+.btn-instagram {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 1rem 2rem;
+    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    color: var(--white);
+    border-radius: var(--radius-full);
+    font-weight: 600;
+    text-decoration: none;
+    transition: var(--transition-smooth);
+    box-shadow: 0 4px 15px rgba(220, 39, 67, 0.3);
+}
+
+.btn-instagram:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(220, 39, 67, 0.5);
+    color: var(--white);
+}
+
+/* Gallery Lightbox Modal */
+.gallery-modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(10px);
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+    margin: auto;
+    display: block;
+    max-width: 90%;
+    max-height: 80vh;
+    border-radius: var(--radius-md);
+    box-shadow: 0 0 50px rgba(0,0,0,0.5);
+    transform-origin: center;
+    animation: zoomIn 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+#modalCaption {
+    margin: 20px auto;
+    display: block;
+    width: 80%;
+    text-align: center;
+    color: var(--white);
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.close-modal {
+    position: absolute;
+    top: 30px;
+    right: 40px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    transition: 0.3s;
+    cursor: pointer;
+    z-index: 10001;
+}
+
+.close-modal:hover {
+    color: var(--primary-color);
+    transform: rotate(90deg);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes zoomIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@media (max-width: 768px) {
+    .gallery-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    
+    .modal-content {
+        max-width: 95%;
+    }
+    
+    .close-modal {
+        top: 15px;
+        right: 25px;
+    }
+}
