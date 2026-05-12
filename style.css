@@ -219,8 +219,8 @@ img {
 
 @media (min-width: 992px) {
     #navbar {
-        width: fit-content;
-        min-width: 300px;
+        width: max-content !important;
+        min-width: 800px;
         max-width: 95%;
     }
 }
@@ -241,9 +241,9 @@ img {
 
 @media (min-width: 992px) {
     .nav-container {
-        padding: 0.6rem 1.5rem 0.6rem 2.5rem;
+        padding: 0.6rem 2.5rem 0.6rem 2.5rem; /* Balanced padding */
         justify-content: center;
-        gap: 2.5rem;
+        gap: 4rem; /* Large gap to prevent overlap with logo */
     }
 }
 
@@ -338,6 +338,7 @@ img {
 @media (min-width: 992px) {
     .nav-logos {
         border-left: 1px solid rgba(15, 23, 42, 0.1);
+        padding-right: 1rem; /* Ensure last logo doesn't touch the edge */
     }
 }
 
