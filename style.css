@@ -642,8 +642,29 @@ img {
 
 .hero-buttons {
     display: flex;
-    gap: 1.5rem;
+    flex-direction: column;
+    gap: 1.25rem;
+    align-items: center;
     justify-content: center;
+}
+
+.hero-btn-row-bottom {
+    display: flex;
+    gap: 1.25rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .hero-btn-row-bottom {
+        flex-direction: column;
+        width: 100%;
+        align-items: center;
+    }
+    .hero-btn-row-bottom a, .hero-btn-row-top a {
+        width: 100%;
+        max-width: 300px;
+    }
 }
 
 /* ==========================================================================
