@@ -138,7 +138,8 @@ img {
    ========================================================================== */
 .btn-primary {
     display: inline-block;
-    padding: 1rem 2.5rem;
+    padding: 0.85rem 2.2rem;
+    font-size: 0.95rem;
     background-color: var(--primary-color);
     color: var(--white);
     border: none;
@@ -179,7 +180,8 @@ img {
 
 .btn-secondary {
     display: inline-block;
-    padding: 1rem 2.5rem;
+    padding: 0.85rem 2.2rem;
+    font-size: 0.95rem;
     background-color: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
     color: var(--white);
@@ -607,7 +609,7 @@ img {
 
 .hero-subtitle {
     font-size: 1.35rem;
-    margin-bottom: 3rem;
+    margin-bottom: 2rem;
     font-weight: 400;
     color: rgba(255, 255, 255, 0.85);
     max-width: 800px;
@@ -646,7 +648,7 @@ img {
     gap: 1rem;
     align-items: center;
     justify-content: center;
-    margin-top: 2rem;
+    margin-top: 1rem;
 }
 
 .hero-btn-row-top {
@@ -656,7 +658,7 @@ img {
 }
 
 .hero-btn-row-top .btn-primary {
-    min-width: 260px;
+    min-width: 240px;
 }
 
 .hero-btn-row-bottom {
@@ -667,7 +669,7 @@ img {
 }
 
 .hero-btn-row-bottom .btn-secondary {
-    min-width: 220px;
+    min-width: 200px;
 }
 
 @media (max-width: 768px) {
