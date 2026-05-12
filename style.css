@@ -1001,6 +1001,19 @@ img {
     margin: 0 auto;
     padding: 2rem 2rem 2.5rem;
     background: linear-gradient(145deg, #ffffff, #f8fafc);
+    border: 1px solid rgba(225, 29, 72, 0.15);
+}
+
+/* Force layout for leadership section: Principal on top, VPs below */
+#kepsekContainer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2.5rem;
+}
+
+#kepsekContainer > .staff-card:first-child {
+    flex: 0 0 100%;
 }
 
 .staff-img-wrapper {
