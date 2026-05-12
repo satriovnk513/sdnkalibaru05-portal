@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
         threshold: 0.1
     };
 
-    const observer = new IntersectionObserver((entries, obs) => {
+    window.observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 // Add .show class to trigger animation
@@ -110,12 +110,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Observe all elements with animate-up class
     document.querySelectorAll('.animate-up').forEach(el => {
-        observer.observe(el);
+        window.observer.observe(el);
     });
 
     // Observe sections for counter animations
     document.querySelectorAll('.section').forEach(section => {
-        observer.observe(section);
+        window.observer.observe(section);
     });
 });
 

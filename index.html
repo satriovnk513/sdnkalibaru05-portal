@@ -218,11 +218,12 @@
             <h2 class="section-title">Galeri Kegiatan</h2>
             <p class="section-subtitle">Intip berbagai momen keseruan dan aktivitas peserta didik SDN Kalibaru 05 Pagi melalui galeri foto kami.</p>
             
-            <div class="galeri-grid-container animate-up" style="margin-top: 3rem;">
+            <div class="galeri-grid-container" style="margin-top: 3rem;">
                 <div id="galleryContainer" class="gallery-grid">
-                    <!-- Data loaded from Supabase gallery table -->
+                    <!-- Loading state or empty state -->
+                    <div class="gallery-loading">Memuat galeri...</div>
                 </div>
-                <div style="text-align: center; margin-top: 3rem;">
+                <div style="text-align: center; margin-top: 3rem;" class="animate-up">
                     <a href="https://www.instagram.com/sdnkalibaru05/" target="_blank" class="btn-instagram">
                         <i class="fab fa-instagram"></i> Lihat Selengkapnya di Instagram
                     </a>
@@ -324,27 +325,37 @@
                 
                 if (galleryError) throw galleryError;
 
-                const galleryContainer = document.getElementById('galleryContainer');
-                if (galleryContainer && galleryData) {
-                    galleryData.forEach(item => {
-                        const galleryItem = document.createElement('div');
-                        galleryItem.className = 'gallery-item';
-                        galleryItem.innerHTML = `
-                            <img src="${item.image_url}" alt="${item.caption || 'Galeri Foto'}" loading="lazy">
-                            <div class="gallery-overlay">
-                                <i class="fas fa-search-plus"></i>
-                                <span>${item.caption || ''}</span>
-                            </div>
-                        `;
-                        galleryItem.addEventListener('click', () => openLightbox(item.image_url, item.caption));
-                        galleryContainer.appendChild(galleryItem);
-                    });
+                if (galleryContainer) {
+                    if (!galleryData || galleryData.length === 0) {
+                        galleryContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-light); padding: 2rem;">Belum ada foto di galeri. <br><small>(Gunakan dashboard Supabase untuk menambah foto ke tabel "gallery")</small></p>';
+                    } else {
+                        galleryContainer.innerHTML = ''; // Clear loading state
+                        galleryData.forEach((item, index) => {
+                            const galleryItem = document.createElement('div');
+                            galleryItem.className = 'gallery-item animate-up';
+                            galleryItem.style.transitionDelay = `${index * 0.1}s`;
+                            galleryItem.innerHTML = `
+                                <img src="${item.image_url}" alt="${item.caption || 'Galeri Foto'}" 
+                                     onerror="this.src='https://via.placeholder.com/400x400.png?text=Gambar+Tidak+Tersedia'; this.classList.add('error');"
+                                     loading="lazy">
+                                <div class="gallery-overlay">
+                                    <i class="fas fa-search-plus"></i>
+                                    <span>${item.caption || ''}</span>
+                                </div>
+                            `;
+                            galleryItem.addEventListener('click', () => openLightbox(item.image_url, item.caption));
+                            galleryContainer.appendChild(galleryItem);
+                            
+                            // Re-observe the new element
+                            if (window.observer) window.observer.observe(galleryItem);
+                        });
+                    }
                 }
             } catch (err) {
                 console.error('Fetch gallery error:', err);
                 const galleryContainer = document.getElementById('galleryContainer');
                 if (galleryContainer) {
-                    galleryContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-light);">Gagal memuat galeri. Silakan cek koneksi internet Anda.</p>';
+                    galleryContainer.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-light);">Gagal memuat galeri. Error: ${err.message}</p>`;
                 }
             }
         });
