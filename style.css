@@ -206,9 +206,10 @@ img {
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    width: 98%;
-    max-width: 1400px;
-    background-color: rgba(255, 255, 255, 0.7);
+    width: fit-content;
+    min-width: 300px;
+    max-width: 95%;
+    background-color: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: var(--glass-border);
@@ -226,16 +227,18 @@ img {
 }
 
 .nav-container {
-    padding: 0.6rem 2rem;
+    padding: 0.6rem 1.5rem 0.6rem 2.5rem;
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
+    gap: 2.5rem;
 }
 
 .logo-container {
     display: flex;
     align-items: center;
     gap: 1rem;
+    flex-shrink: 0;
 }
 
 .logo-img {
@@ -257,7 +260,7 @@ img {
     display: flex;
     align-items: center;
     gap: 1.25rem;
-    margin-left: 2rem;
+    flex-shrink: 0;
 }
 
 .nav-right-start {
@@ -310,10 +313,9 @@ img {
 .nav-logos {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding-left: 1rem;
+    gap: 1.25rem;
+    padding-left: 1.25rem;
     border-left: 1px solid rgba(15, 23, 42, 0.1);
-    margin-left: 0.5rem;
 }
 
 .nav-logo-img {
