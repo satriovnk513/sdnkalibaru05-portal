@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const displayRole = parts[1] || parts[0];
             
             const html = `
-                <div class="staff-card ${category === 'Kepala Sekolah' ? 'principal-card' : ''}">
+                <div class="staff-card ${(category === 'Kepala Sekolah' || category === 'Wakil Kepala Sekolah') ? 'principal-card' : ''}">
                     <div class="staff-img-wrapper">
                         <img src="${staff.image_url}" alt="${staff.name}" class="staff-img" style="object-position: center top;">
                     </div>
@@ -40,8 +40,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             `;
 
-            if (category === 'Kepala Sekolah' && ksContainer) ksContainer.innerHTML += html;
-            else if (category === 'Guru Kelas' && gkContainer) gkContainer.innerHTML += html;
+            if ((category === 'Kepala Sekolah' || category === 'Wakil Kepala Sekolah') && ksContainer) ksContainer.innerHTML += html;
+            else if ((category === 'Guru Kelas' || category === 'Bendahara Sekolah') && gkContainer) gkContainer.innerHTML += html;
             else if (category === 'Guru Mata Pelajaran' && mpContainer) mpContainer.innerHTML += html;
             else if (category === 'Tenaga Kependidikan' && tkContainer) tkContainer.innerHTML += html;
         });
