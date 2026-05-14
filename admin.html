@@ -20,7 +20,11 @@
         body { background-color: #f8fafc; padding: 2rem; margin: 0; min-height: 100vh; font-family: 'Inter', sans-serif; }
         .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; }
         .admin-header h1 { color: #da251c; font-family: 'Poppins', sans-serif; margin: 0; font-size: 1.75rem; }
-        .logout-btn { background: #64748b; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: bold; flex-shrink: 0; }
+        .header-actions { display: flex; gap: 0.5rem; align-items: center; }
+        .btn-home { background: #f1f5f9; color: #334155; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: bold; flex-shrink: 0; font-size: 0.9rem; border: 1px solid #cbd5e1; display: flex; align-items: center; gap: 0.4rem; transition: 0.2s; }
+        .btn-home:hover { background: #e2e8f0; }
+        .logout-btn { background: #64748b; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: bold; flex-shrink: 0; transition: 0.2s; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; }
+        .logout-btn:hover { background: #475569; }
         
         .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; overflow-x: auto; padding-bottom: 0.5rem; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
@@ -61,9 +65,10 @@
         }
 
         @media (max-width: 480px) {
-            .admin-header { flex-direction: row; align-items: center; gap: 0.5rem; }
-            .admin-header h1 { font-size: 1.25rem; }
-            .logout-btn { width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+            .admin-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+            .admin-header h1 { font-size: 1.5rem; }
+            .header-actions { width: 100%; display: flex; gap: 0.5rem; }
+            .btn-home, .logout-btn { flex: 1; text-align: center; padding: 0.6rem; font-size: 0.85rem; justify-content: center; }
             .tabs { margin-bottom: 1.5rem; }
             .admin-card { padding: 1.25rem; }
         }
@@ -88,7 +93,13 @@
     <div id="mainContent">
         <div class="admin-header">
             <h1>Dashboard Admin</h1>
-            <button class="logout-btn" onclick="logout()">Logout</button>
+            <div class="header-actions">
+                <a href="/" class="btn-home">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    Beranda
+                </a>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
         </div>
 
         <div class="tabs">
