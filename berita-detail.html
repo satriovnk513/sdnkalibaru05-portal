@@ -258,7 +258,13 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const newsId = urlParams.get('id');
-            const newsSlug = urlParams.get('slug');
+            let newsSlug = urlParams.get('slug'); // Add slug support
+            
+            // Fallback: if slug is not in query params, try to get it from pathname (for /berita/slug URLs)
+            if (!newsSlug && window.location.pathname.startsWith('/berita/')) {
+                newsSlug = window.location.pathname.split('/').pop();
+            }
+
             const container = document.getElementById('newsDetail');
 
             if (!newsId && !newsSlug) {
