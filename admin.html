@@ -17,39 +17,53 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
     <style>
-        body { background-color: #f8fafc; padding: 2rem; }
-        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-        .admin-header h1 { color: #da251c; font-family: 'Poppins', sans-serif; margin: 0; }
-        .logout-btn { background: #64748b; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        body { background-color: #f8fafc; padding: 2rem; margin: 0; min-height: 100vh; font-family: 'Inter', sans-serif; }
+        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; }
+        .admin-header h1 { color: #da251c; font-family: 'Poppins', sans-serif; margin: 0; font-size: 1.75rem; }
+        .logout-btn { background: #64748b; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: bold; flex-shrink: 0; }
         
-        .tabs { display: flex; gap: 1rem; margin-bottom: 2rem; }
-        .tab-btn { padding: 0.75rem 1.5rem; background: white; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; font-weight: 600; color: #475569; }
-        .tab-btn.active { background: #da251c; color: white; border-color: #da251c; }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; overflow-x: auto; padding-bottom: 0.5rem; -webkit-overflow-scrolling: touch; }
+        .tab-btn { padding: 0.75rem 1.25rem; background: white; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; font-weight: 600; color: #475569; white-space: nowrap; flex-shrink: 0; font-size: 0.9rem; }
+        .tab-btn.active { background: #da251c; color: white; border-color: #da251c; box-shadow: 0 4px 6px -1px rgba(218, 37, 28, 0.2); }
         
         .tab-content { display: none; }
         
         .admin-container { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
-        .admin-card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .admin-card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); height: fit-content; }
         .form-group { margin-bottom: 1.5rem; }
-        .form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #1e293b; }
-        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #1e293b; font-size: 0.95rem; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 1rem; box-sizing: border-box; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
-        th { background: #f1f5f9; font-weight: 600; }
+        .table-responsive { width: 100%; overflow-x: auto; margin-top: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; }
+        th { background: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
 
-        .btn-submit { width: 100%; background: #da251c; color: white; border: none; padding: 1rem; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        .btn-submit:hover { background: #b91c13; }
+        .btn-submit { width: 100%; background: #da251c; color: white; border: none; padding: 1rem; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 1rem; }
+        .btn-submit:hover { background: #b91c13; transform: translateY(-1px); }
         .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; }
 
         /* Login Overlay Styles */
-        .login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        .login-box { background: white; padding: 3rem 2rem; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); width: 100%; max-width: 400px; text-align: center; }
-        .login-box input { width: 100%; padding: 0.75rem; margin: 1.5rem 0 1rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; text-align: center; }
-        .login-box button { width: 100%; background: #da251c; color: white; border: none; padding: 0.75rem; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        .login-box button:hover { background: #b91c13; }
+        .login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 1rem; box-sizing: border-box; }
+        .login-box { background: white; padding: 2.5rem 2rem; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); width: 100%; max-width: 400px; text-align: center; }
+        .login-box input { width: 100%; padding: 0.75rem; margin: 0.5rem 0; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; text-align: center; box-sizing: border-box; font-size: 1rem; }
+        .login-box button { width: 100%; background: #da251c; color: white; border: none; padding: 0.75rem; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 1rem; margin-top: 1rem; }
         .login-box .back-btn { display: block; width: 100%; background: #f1f5f9; color: #334155; text-decoration: none; padding: 0.75rem; border-radius: 8px; font-weight: bold; margin-top: 0.75rem; box-sizing: border-box; }
         #mainContent { display: none; }
+
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            body { padding: 1rem; }
+            .admin-container { grid-template-columns: 1fr; }
+            .admin-card { padding: 1.5rem; }
+            .admin-header h1 { font-size: 1.5rem; }
+        }
+
+        @media (max-width: 480px) {
+            .admin-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            .logout-btn { width: 100%; text-align: center; }
+            .tabs { margin-bottom: 1.5rem; }
+        }
     </style>
 </head>
 
@@ -122,22 +136,24 @@
                     </form>
                 </div>
 
-                <div class="admin-card" style="overflow-x: auto;">
+                <div class="admin-card">
                     <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Daftar Guru & Staf</h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Foto</th>
-                                <th>Nama</th>
-                                <th>Jabatan</th>
-                                <th>Urutan</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="staffTableBody">
-                            <tr><td colspan="5">Memuat data...</td></tr>
-                        </tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Foto</th>
+                                    <th>Nama</th>
+                                    <th>Jabatan</th>
+                                    <th>Urutan</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffTableBody">
+                                <tr><td colspan="5">Memuat data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -183,21 +199,23 @@
                     </form>
                 </div>
                 
-                <div class="admin-card" style="overflow-x: auto;">
+                <div class="admin-card">
                     <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Daftar Berita</h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Gambar</th>
-                                <th>Judul</th>
-                                <th>Tanggal</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="newsTableBody">
-                            <tr><td colspan="4">Memuat data...</td></tr>
-                        </tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Gambar</th>
+                                    <th>Judul</th>
+                                    <th>Tanggal</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="newsTableBody">
+                                <tr><td colspan="4">Memuat data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

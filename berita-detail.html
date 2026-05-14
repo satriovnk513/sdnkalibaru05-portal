@@ -277,7 +277,7 @@
                 let query = supabaseClient.from('news').select('*');
                 
                 if (newsSlug) {
-                    query = query.eq('slug', newsSlug);
+                    query = query.ilike('slug', newsSlug); // Case-insensitive matching
                 } else {
                     query = query.eq('id', newsId);
                 }
@@ -285,7 +285,7 @@
                 const { data: news, error } = await query.maybeSingle();
 
                 if (error) throw error;
-                if (!news) throw new Error('Berita tidak ditemukan di database kami.');
+                if (!news) throw new Error(`Berita dengan tautan "${newsSlug}" tidak ditemukan di database kami.`);
 
                 // Update Page Title
                 document.title = `${news.title} - SDN Kalibaru 05 Pagi`;
