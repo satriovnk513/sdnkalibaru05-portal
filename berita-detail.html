@@ -261,8 +261,9 @@
             let newsSlug = urlParams.get('slug'); // Add slug support
             
             // Fallback: if slug is not in query params, try to get it from pathname (for /berita/slug URLs)
-            if (!newsSlug && window.location.pathname.startsWith('/berita/')) {
-                newsSlug = window.location.pathname.split('/').pop();
+            if (!newsSlug && window.location.pathname.includes('/berita/')) {
+                const parts = window.location.pathname.split('/').filter(p => p !== '');
+                newsSlug = parts[parts.length - 1];
             }
 
             const container = document.getElementById('newsDetail');
@@ -281,9 +282,10 @@
                     query = query.eq('id', newsId);
                 }
 
-                const { data: news, error } = await query.single();
+                const { data: news, error } = await query.maybeSingle();
 
-                if (error || !news) throw error || new Error('Berita tidak ditemukan');
+                if (error) throw error;
+                if (!news) throw new Error('Berita tidak ditemukan di database kami.');
 
                 // Update Page Title
                 document.title = `${news.title} - SDN Kalibaru 05 Pagi`;
