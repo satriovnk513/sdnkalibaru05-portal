@@ -130,7 +130,7 @@
     </div>
 
     <script>
-        function openStaffLightbox(src, name) {
+        function openStaffLightbox(src, name, role, nip) {
             const modal = document.getElementById('staffModal');
             const modalImg = document.getElementById('staffModalImg');
             const modalCaption = document.getElementById('modalCaption');
@@ -141,7 +141,11 @@
             modal.style.flexDirection = "column";
             
             modalImg.src = src;
-            modalCaption.innerHTML = name;
+            modalCaption.innerHTML = `
+                <div style="font-weight: 700; font-size: 1.4rem; margin-bottom: 5px; font-family: var(--font-heading);">${name}</div>
+                <div style="color: #f43f5e; font-weight: 600; font-size: 1.1rem; margin-bottom: 5px;">${role}</div>
+                <div style="color: rgba(255,255,255,0.8); font-size: 0.95rem;">${nip}</div>
+            `;
             document.body.style.overflow = 'hidden'; // Disable scroll
         }
 
