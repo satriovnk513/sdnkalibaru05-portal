@@ -1,0 +1,28 @@
+{
+  "name": "sdnkalibaru05-portal",
+  "version": "1.0.0",
+  "description": "Portal Resmi SDN Kalibaru 05 Pagi - Sekolah Penggerak",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/satriovnk513/sdnkalibaru05-portal.git"
+  },
+  "keywords": [
+    "education",
+    "school",
+    "vercel",
+    "analytics"
+  ],
+  "author": "SDN Kalibaru 05 Pagi",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/satriovnk513/sdnkalibaru05-portal/issues"
+  },
+  "homepage": "https://github.com/satriovnk513/sdnkalibaru05-portal#readme",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}
