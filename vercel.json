@@ -7,7 +7,7 @@
     },
     {
       "source": "/berita/:slug",
-      "destination": "/berita-detail.html?slug=:slug"
+      "destination": "/berita-detail?slug=:slug"
     }
   ],
   "headers": [

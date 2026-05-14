@@ -260,11 +260,13 @@ async function loadNews() {
 let editNewsId = null;
 let currentNewsImageUrl = null;
 let currentNewsPdfUrl = null;
+let currentNewsPdfFilename = null;
 
 function editNews(id, title, date, desc, link, imageUrl, content, pdfUrl) {
     editNewsId = id;
     currentNewsImageUrl = imageUrl;
     currentNewsPdfUrl = pdfUrl;
+    currentNewsPdfFilename = null; // Will be re-set if user uploads new PDF
     
     document.getElementById('newsTitle').value = title;
     document.getElementById('newsDate').value = date;
@@ -294,6 +296,7 @@ function cancelEditNews() {
     editNewsId = null;
     currentNewsImageUrl = null;
     currentNewsPdfUrl = null;
+    currentNewsPdfFilename = null;
     document.getElementById('newsForm').reset();
     
     const btn = document.getElementById('saveNewsBtn');
@@ -319,14 +322,18 @@ async function saveNews(e) {
         
         // Generate Slug from Title
         const slug = title.toLowerCase()
-            .replace(/[^a-z0-9\s]/g, '')
-            .replace(/\s+/g, '-');
+            .replace(/\//g, '-')          // Replace / with - (e.g. 2026/2027 → 2026-2027)
+            .replace(/[^a-z0-9\s-]/g, '') // Remove all non-alphanumeric except space and hyphen
+            .replace(/\s+/g, '-')          // Replace spaces with hyphens
+            .replace(/-+/g, '-')           // Collapse multiple hyphens
+            .replace(/^-|-$/g, '');         // Trim leading/trailing hyphens
         
         const photoInput = document.getElementById('newsPhoto');
         const pdfInput = document.getElementById('newsPdf');
         
         let imageUrl = currentNewsImageUrl || "https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=600&q=80";
         let pdfUrl = currentNewsPdfUrl || null;
+        let pdfFilename = currentNewsPdfFilename || null;
 
         // Upload Photo if any
         if (photoInput.files.length > 0) {
@@ -342,6 +349,7 @@ async function saveNews(e) {
         // Upload PDF if any
         if (pdfInput.files.length > 0) {
             const file = pdfInput.files[0];
+            pdfFilename = file.name; // Save original filename
             const fileExt = file.name.split('.').pop();
             const fileName = `news_doc_${Date.now()}.${fileExt}`;
             const { error: uploadError } = await supabaseClient.storage.from('photos').upload(fileName, file);
@@ -351,7 +359,7 @@ async function saveNews(e) {
         }
 
         const newsData = {
-            title, date, description, content, link, image_url: imageUrl, pdf_url: pdfUrl, slug: slug
+            title, date, description, content, link, image_url: imageUrl, pdf_url: pdfUrl, pdf_filename: pdfFilename, slug: slug
         };
 
         if (editNewsId) {

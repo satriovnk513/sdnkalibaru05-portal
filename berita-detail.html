@@ -19,110 +19,184 @@
     <style>
         .news-detail-container {
             max-width: 800px;
-            margin: 4rem auto;
-            padding: 0 1.5rem;
+            margin: 0 auto;
+            padding: 8rem 1.5rem 4rem;
         }
-        .news-detail-header {
+
+        .news-breadcrumb {
+            font-size: 0.9rem;
+            color: var(--text-light);
             margin-bottom: 2rem;
-            text-align: center;
+        }
+        .news-breadcrumb a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .news-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .news-detail-header {
+            margin-bottom: 2.5rem;
         }
         .news-detail-date {
             color: var(--primary-color);
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.1em;
-            font-size: 0.9rem;
-            display: block;
+            font-size: 0.85rem;
+            display: inline-block;
             margin-bottom: 1rem;
+            background: rgba(218, 37, 28, 0.08);
+            padding: 0.35rem 1rem;
+            border-radius: var(--radius-full);
         }
         .news-detail-title {
-            font-size: 2.5rem;
-            line-height: 1.2;
+            font-family: var(--font-heading);
+            font-size: 2.4rem;
+            line-height: 1.25;
             color: var(--text-main);
-            margin-bottom: 1.5rem;
+            margin-bottom: 0;
+            letter-spacing: -0.02em;
         }
+
+        .news-detail-separator {
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(135deg, var(--primary-color), #f43f5e);
+            border-radius: 2px;
+            margin: 2rem 0;
+        }
+
         .news-detail-img {
             width: 100%;
             height: auto;
-            max-height: 500px;
+            max-height: 480px;
             object-fit: cover;
             border-radius: var(--radius-md);
             margin-bottom: 2.5rem;
             box-shadow: var(--shadow-lg);
         }
+
         .news-detail-content {
-            font-size: 1.1rem;
-            line-height: 1.8;
-            color: var(--text-main);
-            white-space: pre-wrap; /* Preserve line breaks from admin textarea */
-            margin-bottom: 3rem;
+            font-size: 1.05rem;
+            line-height: 2;
+            color: #334155;
+            margin-bottom: 2.5rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
+
         .pdf-attachment-card {
-            background: #f1f5f9;
-            border: 1px solid var(--border-color);
+            background: linear-gradient(135deg, #fef2f2, #fff1f2);
+            border: 1px solid rgba(218, 37, 28, 0.15);
             border-radius: var(--radius-md);
-            padding: 2rem;
+            padding: 1.75rem 2rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 1.5rem;
-            margin-top: 2rem;
+            margin-bottom: 2rem;
         }
         .pdf-info {
             display: flex;
             align-items: center;
             gap: 1rem;
+            min-width: 0;
         }
-        .pdf-info i {
-            font-size: 2.5rem;
-            color: #da251c;
+        .pdf-icon-wrapper {
+            width: 52px;
+            height: 52px;
+            background: #da251c;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .pdf-icon-wrapper i {
+            font-size: 1.5rem;
+            color: white;
+        }
+        .pdf-text {
+            min-width: 0;
         }
         .pdf-text h4 {
-            margin-bottom: 0.25rem;
-            font-size: 1.1rem;
+            margin-bottom: 0.2rem;
+            font-size: 1rem;
+            color: var(--text-main);
         }
         .pdf-text p {
             color: var(--text-light);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
         }
         .btn-download-pdf {
             background: var(--primary-color);
             color: white;
-            padding: 0.75rem 1.5rem;
+            padding: 0.7rem 1.5rem;
             border-radius: var(--radius-sm);
             text-decoration: none;
             font-weight: 700;
+            font-size: 0.9rem;
             transition: var(--transition-smooth);
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
+            flex-shrink: 0;
         }
         .btn-download-pdf:hover {
             background: var(--secondary-color);
             transform: translateY(-2px);
             box-shadow: var(--shadow-md);
+            color: white;
         }
-        
+
+        .back-link-section {
+            text-align: center;
+            margin-top: 3rem;
+            padding-top: 2.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+
         .loading-skeleton {
             text-align: center;
-            padding: 5rem 0;
+            padding: 8rem 0;
         }
         .error-message {
             text-align: center;
-            padding: 5rem 0;
-            color: #ef4444;
+            padding: 8rem 0;
+        }
+        .error-message h2 {
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+        .error-message p {
+            color: var(--text-light);
+            margin-bottom: 1.5rem;
         }
 
         @media (max-width: 768px) {
+            .news-detail-container {
+                padding: 6rem 1rem 3rem;
+            }
             .news-detail-title {
-                font-size: 1.8rem;
+                font-size: 1.6rem;
             }
             .pdf-attachment-card {
                 flex-direction: column;
                 text-align: center;
+                padding: 1.5rem;
             }
             .pdf-info {
                 flex-direction: column;
+            }
+            .pdf-text p {
+                max-width: 100%;
             }
         }
     </style>
@@ -184,11 +258,11 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const newsId = urlParams.get('id');
-            const newsSlug = urlParams.get('slug'); // Add slug support
+            const newsSlug = urlParams.get('slug');
             const container = document.getElementById('newsDetail');
 
             if (!newsId && !newsSlug) {
-                container.innerHTML = '<div class="error-message"><h2>Berita tidak ditemukan</h2><p>Parameter berita tidak valid.</p><a href="berita" class="btn-primary" style="margin-top: 1rem; display: inline-block;">Kembali ke Berita</a></div>';
+                container.innerHTML = '<div class="error-message"><h2>Berita tidak ditemukan</h2><p>Parameter berita tidak valid.</p><a href="/berita" class="btn-primary" style="display: inline-block;">Kembali ke Berita</a></div>';
                 return;
             }
 
@@ -208,40 +282,54 @@
                 // Update Page Title
                 document.title = `${news.title} - SDN Kalibaru 05 Pagi`;
 
+                // PDF Attachment
                 let pdfHtml = '';
                 if (news.pdf_url) {
+                    const displayFilename = news.pdf_filename || `${news.title}.pdf`;
                     pdfHtml = `
-                        <div class="pdf-attachment-card">
+                        <div class="pdf-attachment-card animate-up">
                             <div class="pdf-info">
-                                <i class="fas fa-file-pdf"></i>
+                                <div class="pdf-icon-wrapper">
+                                    <i class="fas fa-file-pdf"></i>
+                                </div>
                                 <div class="pdf-text">
                                     <h4>Lampiran Dokumen</h4>
-                                    <p>File: ${news.title}.pdf</p>
+                                    <p title="${displayFilename}">${displayFilename}</p>
                                 </div>
                             </div>
                             <a href="${news.pdf_url}" target="_blank" class="btn-download-pdf">
-                                <i class="fas fa-external-link-alt"></i> Buka / Download PDF
+                                <i class="fas fa-external-link-alt"></i> Buka PDF
                             </a>
                         </div>
                     `;
                 }
 
                 container.innerHTML = `
+                    <div class="news-breadcrumb animate-up">
+                        <a href="/">Beranda</a> / <a href="/berita">Berita & Pengumuman</a> / ${news.title}
+                    </div>
+
                     <div class="news-detail-header animate-up">
-                        <span class="news-detail-date">${news.date}</span>
+                        <span class="news-detail-date"><i class="far fa-calendar-alt" style="margin-right: 5px;"></i> ${news.date}</span>
                         <h1 class="news-detail-title">${news.title}</h1>
                     </div>
-                    <img src="${news.image_url}" alt="${news.title}" class="news-detail-img animate-up delay-1" onerror="this.src='https://via.placeholder.com/800x400.png?text=Gambar+Berita';">
-                    <div class="news-detail-content animate-up delay-2">
-                        ${news.content || news.description || 'Tidak ada konten tambahan.'}
+
+                    <div class="news-detail-separator animate-up"></div>
+
+                    <img src="${news.image_url}" alt="${news.title}" class="news-detail-img animate-up" onerror="this.style.display='none';">
+
+                    <div class="news-detail-content animate-up">
+${news.content || news.description || 'Tidak ada konten tambahan.'}
                     </div>
+
                     ${pdfHtml}
-                    <div style="text-align: center; margin-top: 4rem;" class="animate-up">
-                        <a href="berita" class="btn-primary-outline"><i class="fas fa-arrow-left"></i> Kembali ke Semua Berita</a>
+
+                    <div class="back-link-section animate-up">
+                        <a href="/berita" class="btn-primary-outline"><i class="fas fa-arrow-left"></i> Kembali ke Semua Berita</a>
                     </div>
                 `;
 
-                // Fix: Manually trigger animations for dynamically loaded content
+                // Trigger animations for dynamically loaded content
                 setTimeout(() => {
                     container.querySelectorAll('.animate-up').forEach(el => {
                         el.classList.add('show');
@@ -250,7 +338,7 @@
 
             } catch (err) {
                 console.error('Error fetching news detail:', err);
-                container.innerHTML = `<div class="error-message"><h2>Gagal memuat berita</h2><p>${err.message || 'Data tidak ditemukan di database.'}</p><a href="berita" class="btn-primary" style="margin-top: 1rem; display: inline-block;">Kembali ke Berita</a></div>`;
+                container.innerHTML = `<div class="error-message"><h2>Berita tidak ditemukan</h2><p>${err.message || 'Data tidak ditemukan di database.'}</p><a href="/berita" class="btn-primary" style="display: inline-block;">Kembali ke Berita</a></div>`;
             }
         });
     </script>
