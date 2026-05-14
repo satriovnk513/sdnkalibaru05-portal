@@ -184,19 +184,24 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const newsId = urlParams.get('id');
+            const newsSlug = urlParams.get('slug'); // Add slug support
             const container = document.getElementById('newsDetail');
 
-            if (!newsId) {
-                container.innerHTML = '<div class="error-message"><h2>Berita tidak ditemukan</h2><p>ID berita tidak valid.</p><a href="berita" class="btn-primary" style="margin-top: 1rem; display: inline-block;">Kembali ke Berita</a></div>';
+            if (!newsId && !newsSlug) {
+                container.innerHTML = '<div class="error-message"><h2>Berita tidak ditemukan</h2><p>Parameter berita tidak valid.</p><a href="berita" class="btn-primary" style="margin-top: 1rem; display: inline-block;">Kembali ke Berita</a></div>';
                 return;
             }
 
             try {
-                const { data: news, error } = await supabaseClient
-                    .from('news')
-                    .select('*')
-                    .eq('id', newsId)
-                    .single();
+                let query = supabaseClient.from('news').select('*');
+                
+                if (newsSlug) {
+                    query = query.eq('slug', newsSlug);
+                } else {
+                    query = query.eq('id', newsId);
+                }
+
+                const { data: news, error } = await query.single();
 
                 if (error || !news) throw error || new Error('Berita tidak ditemukan');
 
@@ -226,7 +231,7 @@
                         <span class="news-detail-date">${news.date}</span>
                         <h1 class="news-detail-title">${news.title}</h1>
                     </div>
-                    <img src="${news.image_url}" alt="${news.title}" class="news-detail-img animate-up delay-1">
+                    <img src="${news.image_url}" alt="${news.title}" class="news-detail-img animate-up delay-1" onerror="this.src='https://via.placeholder.com/800x400.png?text=Gambar+Berita';">
                     <div class="news-detail-content animate-up delay-2">
                         ${news.content || news.description || 'Tidak ada konten tambahan.'}
                     </div>
@@ -236,9 +241,16 @@
                     </div>
                 `;
 
+                // Fix: Manually trigger animations for dynamically loaded content
+                setTimeout(() => {
+                    container.querySelectorAll('.animate-up').forEach(el => {
+                        el.classList.add('show');
+                    });
+                }, 100);
+
             } catch (err) {
                 console.error('Error fetching news detail:', err);
-                container.innerHTML = `<div class="error-message"><h2>Gagal memuat berita</h2><p>${err.message}</p></div>`;
+                container.innerHTML = `<div class="error-message"><h2>Gagal memuat berita</h2><p>${err.message || 'Data tidak ditemukan di database.'}</p><a href="berita" class="btn-primary" style="margin-top: 1rem; display: inline-block;">Kembali ke Berita</a></div>`;
             }
         });
     </script>

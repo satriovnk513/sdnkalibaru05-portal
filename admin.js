@@ -317,6 +317,11 @@ async function saveNews(e) {
         const content = document.getElementById('newsContent').value;
         const link = document.getElementById('newsLink').value || 'berita-detail';
         
+        // Generate Slug from Title
+        const slug = title.toLowerCase()
+            .replace(/[^a-z0-9\s]/g, '')
+            .replace(/\s+/g, '-');
+        
         const photoInput = document.getElementById('newsPhoto');
         const pdfInput = document.getElementById('newsPdf');
         
@@ -346,7 +351,7 @@ async function saveNews(e) {
         }
 
         const newsData = {
-            title, date, description, content, link, image_url: imageUrl, pdf_url: pdfUrl
+            title, date, description, content, link, image_url: imageUrl, pdf_url: pdfUrl, slug: slug
         };
 
         if (editNewsId) {

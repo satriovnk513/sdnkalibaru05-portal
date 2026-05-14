@@ -907,6 +907,17 @@ img {
 .news-title {
     font-size: 1.4rem;
     margin-bottom: 1rem;
+    transition: var(--transition-smooth);
+}
+
+.news-title-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.news-title-link:hover .news-title {
+    color: var(--primary-color);
 }
 
 .read-more {
