@@ -305,21 +305,24 @@
 
                 const newsContainer = document.getElementById('indexNewsContainer');
                 if (newsContainer && newsData) {
+                    newsContainer.innerHTML = '';
                     newsData.forEach((news, index) => {
                         const delayClass = index === 0 ? '' : `delay-${index}`;
-                        newsContainer.innerHTML += `
-                            <article class="news-card animate-up ${delayClass}">
-                                <div class="news-img" style="background-image: url('${news.image_url}')"></div>
-                                <div class="news-content">
-                                    <span class="news-date">${news.date}</span>
-                                    <a href="${news.slug ? `/berita/${news.slug}` : `berita-detail?id=${news.id}`}" class="news-title-link">
-                                        <h3 class="news-title">${news.title}</h3>
-                                    </a>
-                                    <p>${news.description}</p>
-                                    <a href="${news.slug ? `/berita/${news.slug}` : `berita-detail?id=${news.id}`}" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
-                                </div>
-                            </article>
+                        const article = document.createElement('article');
+                        article.className = `news-card ${delayClass}`;
+                        article.innerHTML = `
+                            <div class="news-img" style="background-image: url('${news.image_url}')"></div>
+                            <div class="news-content">
+                                <span class="news-date">${news.date}</span>
+                                <a href="${news.slug ? `/berita/${news.slug}` : `berita-detail?id=${news.id}`}" class="news-title-link">
+                                    <h3 class="news-title">${news.title}</h3>
+                                </a>
+                                <p>${news.description}</p>
+                                <a href="${news.slug ? `/berita/${news.slug}` : `berita-detail?id=${news.id}`}" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
+                            </div>
                         `;
+                        newsContainer.appendChild(article);
+                        if (window.observer) window.observer.observe(article);
                     });
                 }
             } catch (err) { console.error('Fetch news error:', err); }

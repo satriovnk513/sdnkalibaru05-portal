@@ -719,6 +719,12 @@ img {
     scroll-padding: 20px;
 }
 
+@media (min-width: 992px) {
+    #indexNewsContainer {
+        justify-content: center !important;
+    }
+}
+
 .slider-container::-webkit-scrollbar {
     display: none;
 }
