@@ -22,13 +22,14 @@
         .admin-header h1 { color: #da251c; font-family: 'Poppins', sans-serif; margin: 0; font-size: 1.75rem; }
         .logout-btn { background: #64748b; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: bold; flex-shrink: 0; }
         
-        .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; overflow-x: auto; padding-bottom: 0.5rem; -webkit-overflow-scrolling: touch; }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; overflow-x: auto; padding-bottom: 0.5rem; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .tabs::-webkit-scrollbar { display: none; }
         .tab-btn { padding: 0.75rem 1.25rem; background: white; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; font-weight: 600; color: #475569; white-space: nowrap; flex-shrink: 0; font-size: 0.9rem; }
         .tab-btn.active { background: #da251c; color: white; border-color: #da251c; box-shadow: 0 4px 6px -1px rgba(218, 37, 28, 0.2); }
         
         .tab-content { display: none; }
         
-        .admin-container { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        .admin-container { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; }
         .admin-card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); height: fit-content; }
         .form-group { margin-bottom: 1.5rem; }
         .form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #1e293b; font-size: 0.95rem; }
@@ -54,15 +55,17 @@
         /* Mobile Responsive */
         @media (max-width: 1024px) {
             body { padding: 1rem; }
-            .admin-container { grid-template-columns: 1fr; }
+            .admin-container { grid-template-columns: minmax(0, 1fr); }
             .admin-card { padding: 1.5rem; }
             .admin-header h1 { font-size: 1.5rem; }
         }
 
         @media (max-width: 480px) {
-            .admin-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
-            .logout-btn { width: 100%; text-align: center; }
+            .admin-header { flex-direction: row; align-items: center; gap: 0.5rem; }
+            .admin-header h1 { font-size: 1.25rem; }
+            .logout-btn { width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; }
             .tabs { margin-bottom: 1.5rem; }
+            .admin-card { padding: 1.25rem; }
         }
     </style>
 </head>
