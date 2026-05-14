@@ -162,12 +162,22 @@
                         </div>
                         <div class="form-group">
                             <label>Link Target (Opsional)</label>
-                            <input type="text" id="newsLink" placeholder="Contoh: berita-detail" value="#">
+                            <input type="text" id="newsLink" placeholder="Contoh: berita-detail" value="berita-detail">
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Biarkan 'berita-detail' agar mengarah ke halaman baca berita.</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Isi Berita Lengkap</label>
+                            <textarea id="newsContent" rows="10" placeholder="Tuliskan isi berita lengkap di sini (mendukung enter/paragraf)..."></textarea>
                         </div>
                         <div class="form-group">
                             <label>Upload Gambar Berita</label>
                             <input type="file" id="newsPhoto" accept="image/*">
                             <small style="color: #64748b; margin-top: 0.25rem; display: block;">Kosongkan jika tidak ada foto (akan pakai foto default).</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Upload PDF Lampiran (Opsional)</label>
+                            <input type="file" id="newsPdf" accept=".pdf">
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">File PDF akan muncul sebagai tombol download di halaman detail.</small>
                         </div>
                         <button type="submit" class="btn-submit" id="saveNewsBtn">Simpan Berita</button>
                     </form>

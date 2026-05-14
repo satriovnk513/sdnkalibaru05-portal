@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Detail Berita dan Pengumuman Resmi SDN Kalibaru 05 Pagi.">
+    <title>Detail Berita - SDN Kalibaru 05 Pagi</title>
+    <link rel="icon" type="image/x-icon" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo.ico">
+    <link rel="icon" type="image/png" sizes="48x48" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png">
+    <link rel="shortcut icon" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .news-detail-container {
+            max-width: 800px;
+            margin: 4rem auto;
+            padding: 0 1.5rem;
+        }
+        .news-detail-header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .news-detail-date {
+            color: var(--primary-color);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.9rem;
+            display: block;
+            margin-bottom: 1rem;
+        }
+        .news-detail-title {
+            font-size: 2.5rem;
+            line-height: 1.2;
+            color: var(--text-main);
+            margin-bottom: 1.5rem;
+        }
+        .news-detail-img {
+            width: 100%;
+            height: auto;
+            max-height: 500px;
+            object-fit: cover;
+            border-radius: var(--radius-md);
+            margin-bottom: 2.5rem;
+            box-shadow: var(--shadow-lg);
+        }
+        .news-detail-content {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: var(--text-main);
+            white-space: pre-wrap; /* Preserve line breaks from admin textarea */
+            margin-bottom: 3rem;
+        }
+        .pdf-attachment-card {
+            background: #f1f5f9;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .pdf-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .pdf-info i {
+            font-size: 2.5rem;
+            color: #da251c;
+        }
+        .pdf-text h4 {
+            margin-bottom: 0.25rem;
+            font-size: 1.1rem;
+        }
+        .pdf-text p {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+        .btn-download-pdf {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-sm);
+            text-decoration: none;
+            font-weight: 700;
+            transition: var(--transition-smooth);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn-download-pdf:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .loading-skeleton {
+            text-align: center;
+            padding: 5rem 0;
+        }
+        .error-message {
+            text-align: center;
+            padding: 5rem 0;
+            color: #ef4444;
+        }
+
+        @media (max-width: 768px) {
+            .news-detail-title {
+                font-size: 1.8rem;
+            }
+            .pdf-attachment-card {
+                flex-direction: column;
+                text-align: center;
+            }
+            .pdf-info {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav id="navbar">
+        <div class="nav-container">
+            <a href="/" class="logo-container">
+                <img src="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png" alt="Logo SDN Kalibaru 05 Pagi" class="logo-img">
+                <span class="logo-text">SDN Kalibaru 05</span>
+            </a>
+            <div class="menu-toggle" id="mobile-menu">
+                <i class="fas fa-bars"></i>
+            </div>
+            <ul class="nav-links">
+                <li><a href="/">Beranda</a></li>
+                <li><a href="profil">Profil</a></li>
+                <li><a href="guru-staff">Guru & Staf</a></li>
+                <li><a href="ekstrakurikuler">Ekstrakurikuler</a></li>
+                <li><a href="berita" class="active">Berita & Pengumuman</a></li>
+                <li class="has-dropdown">
+                    <a href="#">Internal <i class="fas fa-chevron-down"></i></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="https://dapodik.sdnkalibaru05.sch.id" target="_blank">Dapodik</a></li>
+                        <li><a href="https://erapor.sdnkalibaru05.sch.id" target="_blank">E-Rapor</a></li>
+                    </ul>
+                </li>
+                <li><a href="admin"><i class="fas fa-edit"></i> Admin</a></li>
+                <li class="nav-right-start"><a href="https://www.instagram.com/sdnkalibaru05/" target="_blank"><i class="fab fa-instagram" style="margin-right: 5px;"></i>Foto Galeri</a></li>
+                <li><a href="kontak" class="btn-primary-outline">Kontak Kami</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="news-detail-container" id="newsDetail">
+        <div class="loading-skeleton">
+            <i class="fas fa-circle-notch fa-spin fa-3x" style="color: var(--primary-color);"></i>
+            <p style="margin-top: 1rem;">Memuat isi berita...</p>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2026 SDN Kalibaru 05 Pagi. All rights reserved.</p>
+                <div class="social-links">
+                    <a href="https://www.facebook.com/profile.php?id=100083701537155" target="_blank"><i class="fab fa-facebook-f"></i></a>
+                    <a href="https://www.instagram.com/sdnkalibaru05/" target="_blank"><i class="fab fa-instagram"></i></a>
+                    <a href="https://www.youtube.com/@sdnkalibaru05jakarta57" target="_blank"><i class="fab fa-youtube"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const newsId = urlParams.get('id');
+            const container = document.getElementById('newsDetail');
+
+            if (!newsId) {
+                container.innerHTML = '<div class="error-message"><h2>Berita tidak ditemukan</h2><p>ID berita tidak valid.</p><a href="berita" class="btn-primary" style="margin-top: 1rem; display: inline-block;">Kembali ke Berita</a></div>';
+                return;
+            }
+
+            try {
+                const { data: news, error } = await supabaseClient
+                    .from('news')
+                    .select('*')
+                    .eq('id', newsId)
+                    .single();
+
+                if (error || !news) throw error || new Error('Berita tidak ditemukan');
+
+                // Update Page Title
+                document.title = `${news.title} - SDN Kalibaru 05 Pagi`;
+
+                let pdfHtml = '';
+                if (news.pdf_url) {
+                    pdfHtml = `
+                        <div class="pdf-attachment-card">
+                            <div class="pdf-info">
+                                <i class="fas fa-file-pdf"></i>
+                                <div class="pdf-text">
+                                    <h4>Lampiran Dokumen</h4>
+                                    <p>File: ${news.title}.pdf</p>
+                                </div>
+                            </div>
+                            <a href="${news.pdf_url}" target="_blank" class="btn-download-pdf">
+                                <i class="fas fa-external-link-alt"></i> Buka / Download PDF
+                            </a>
+                        </div>
+                    `;
+                }
+
+                container.innerHTML = `
+                    <div class="news-detail-header animate-up">
+                        <span class="news-detail-date">${news.date}</span>
+                        <h1 class="news-detail-title">${news.title}</h1>
+                    </div>
+                    <img src="${news.image_url}" alt="${news.title}" class="news-detail-img animate-up delay-1">
+                    <div class="news-detail-content animate-up delay-2">
+                        ${news.content || news.description || 'Tidak ada konten tambahan.'}
+                    </div>
+                    ${pdfHtml}
+                    <div style="text-align: center; margin-top: 4rem;" class="animate-up">
+                        <a href="berita" class="btn-primary-outline"><i class="fas fa-arrow-left"></i> Kembali ke Semua Berita</a>
+                    </div>
+                `;
+
+            } catch (err) {
+                console.error('Error fetching news detail:', err);
+                container.innerHTML = `<div class="error-message"><h2>Gagal memuat berita</h2><p>${err.message}</p></div>`;
+            }
+        });
+    </script>
+    <script src="main.js"></script>
+</body>
+</html>

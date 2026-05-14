@@ -241,12 +241,15 @@ async function loadNews() {
     
     data.forEach(item => {
         const tr = document.createElement('tr');
+        // Simple escape for single quotes to prevent breaking onclick
+        const esc = (str) => (str || '').replace(/'/g, "\\'");
+        
         tr.innerHTML = `
             <td><img src="${item.image_url}" alt="Foto" style="width: 80px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
             <td>${item.title}</td>
             <td>${item.date}</td>
             <td>
-                <button onclick="editNews('${item.id}', '${item.title.replace(/'/g, "\\'")}', '${item.date.replace(/'/g, "\\'")}', '${item.description.replace(/'/g, "\\'")}', '${(item.link || '#').replace(/'/g, "\\'")}', '${item.image_url}')" style="background: #eab308; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Edit</button>
+                <button onclick="editNews('${item.id}', '${esc(item.title)}', '${esc(item.date)}', '${esc(item.description)}', '${esc(item.link || '#')}', '${item.image_url}', '${esc(item.content || '')}', '${item.pdf_url || ''}')" style="background: #eab308; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Edit</button>
                 <button onclick="deleteNews('${item.id}')" style="background: #dc2626; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Hapus</button>
             </td>
         `;
@@ -256,15 +259,18 @@ async function loadNews() {
 
 let editNewsId = null;
 let currentNewsImageUrl = null;
+let currentNewsPdfUrl = null;
 
-function editNews(id, title, date, desc, link, imageUrl) {
+function editNews(id, title, date, desc, link, imageUrl, content, pdfUrl) {
     editNewsId = id;
     currentNewsImageUrl = imageUrl;
+    currentNewsPdfUrl = pdfUrl;
     
     document.getElementById('newsTitle').value = title;
     document.getElementById('newsDate').value = date;
     document.getElementById('newsDesc').value = desc;
     document.getElementById('newsLink').value = link;
+    document.getElementById('newsContent').value = content || '';
     
     const btn = document.getElementById('saveNewsBtn');
     btn.innerText = "Update Berita";
@@ -287,6 +293,7 @@ function editNews(id, title, date, desc, link, imageUrl) {
 function cancelEditNews() {
     editNewsId = null;
     currentNewsImageUrl = null;
+    currentNewsPdfUrl = null;
     document.getElementById('newsForm').reset();
     
     const btn = document.getElementById('saveNewsBtn');
@@ -307,31 +314,48 @@ async function saveNews(e) {
         const title = document.getElementById('newsTitle').value;
         const date = document.getElementById('newsDate').value;
         const description = document.getElementById('newsDesc').value;
-        const link = document.getElementById('newsLink').value || '#';
-        const fileInput = document.getElementById('newsPhoto');
+        const content = document.getElementById('newsContent').value;
+        const link = document.getElementById('newsLink').value || 'berita-detail';
+        
+        const photoInput = document.getElementById('newsPhoto');
+        const pdfInput = document.getElementById('newsPdf');
+        
         let imageUrl = currentNewsImageUrl || "https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=600&q=80";
+        let pdfUrl = currentNewsPdfUrl || null;
 
-        if (fileInput.files.length > 0) {
-            const file = fileInput.files[0];
+        // Upload Photo if any
+        if (photoInput.files.length > 0) {
+            const file = photoInput.files[0];
             const fileExt = file.name.split('.').pop();
-            const fileName = `news_${Date.now()}.${fileExt}`;
+            const fileName = `news_img_${Date.now()}.${fileExt}`;
             const { error: uploadError } = await supabaseClient.storage.from('photos').upload(fileName, file);
             if (uploadError) throw uploadError;
             const { data: publicUrlData } = supabaseClient.storage.from('photos').getPublicUrl(fileName);
             imageUrl = publicUrlData.publicUrl;
         }
 
+        // Upload PDF if any
+        if (pdfInput.files.length > 0) {
+            const file = pdfInput.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `news_doc_${Date.now()}.${fileExt}`;
+            const { error: uploadError } = await supabaseClient.storage.from('photos').upload(fileName, file);
+            if (uploadError) throw uploadError;
+            const { data: publicUrlData } = supabaseClient.storage.from('photos').getPublicUrl(fileName);
+            pdfUrl = publicUrlData.publicUrl;
+        }
+
+        const newsData = {
+            title, date, description, content, link, image_url: imageUrl, pdf_url: pdfUrl
+        };
+
         if (editNewsId) {
-            const { error } = await supabaseClient.from('news').update({
-                title, date, description, link, image_url: imageUrl
-            }).eq('id', editNewsId);
+            const { error } = await supabaseClient.from('news').update(newsData).eq('id', editNewsId);
             if (error) throw error;
             alert('Berita berhasil diupdate!');
             cancelEditNews();
         } else {
-            const { error } = await supabaseClient.from('news').insert([{
-                title, date, description, link, image_url: imageUrl
-            }]);
+            const { error } = await supabaseClient.from('news').insert([newsData]);
             if (error) throw error;
             document.getElementById('newsForm').reset();
             alert('Berita berhasil ditambahkan!');

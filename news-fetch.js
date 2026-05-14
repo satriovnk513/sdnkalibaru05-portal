@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <span class="news-date">${news.date}</span>
                         <h3 class="news-title">${news.title}</h3>
                         <p>${news.description}</p>
-                        <a href="${news.link || '#'}" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
+                        <a href="${(news.link === 'berita-detail' || !news.link || news.link === '#') ? `berita-detail?id=${news.id}` : news.link}" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
                     </div>
                 </article>
             `;
