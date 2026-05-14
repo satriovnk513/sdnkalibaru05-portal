@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const html = `
                 <div class="staff-card ${(category === 'Kepala Sekolah' || category === 'Wakil Kepala Sekolah') ? 'principal-card' : ''}">
-                    <div class="staff-img-wrapper">
+                    <div class="staff-img-wrapper" onclick="openStaffLightbox('${staff.image_url}', '${staff.name}')" style="cursor: pointer;">
                         <img src="${staff.image_url}" alt="${staff.name}" class="staff-img" style="object-position: center top;">
                     </div>
                     <h3 class="staff-name">${staff.name}</h3>

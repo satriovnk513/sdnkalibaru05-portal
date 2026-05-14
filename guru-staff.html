@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Portal Resmi Sekolah Dasar Negeri Kalibaru 05 Pagi. Mewujudkan generasi cerdas, berkarakter, dan berprestasi. Sekolah Penggerak 'Bergerak Serentak, Serentak Bergerak'.">
     <title>Guru & Staf - SDN Kalibaru 05 Pagi, Cilincing, Jakarta Utara</title>
-    <link rel="icon" type="image/png" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png">
-    <link rel="shortcut icon" type="image/png" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png">
-    <link rel="apple-touch-icon" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png">
+    <link rel="icon" type="image/x-icon" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo.ico">
+    <link rel="icon" type="image/png" sizes="48x48" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png">
+    <link rel="shortcut icon" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -118,6 +121,50 @@
             </div>
         </div>
     </footer>
+
+    <!-- Lightbox Modal for Staff Photos -->
+    <div id="staffModal" class="gallery-modal">
+        <span class="close-modal" onclick="closeStaffLightbox()">&times;</span>
+        <img class="modal-content" id="staffModalImg">
+        <div id="modalCaption"></div>
+    </div>
+
+    <script>
+        function openStaffLightbox(src, name) {
+            const modal = document.getElementById('staffModal');
+            const modalImg = document.getElementById('staffModalImg');
+            const modalCaption = document.getElementById('modalCaption');
+            
+            modal.style.display = "flex";
+            modal.style.alignItems = "center";
+            modal.style.justifyContent = "center";
+            modal.style.flexDirection = "column";
+            
+            modalImg.src = src;
+            modalCaption.innerHTML = name;
+            document.body.style.overflow = 'hidden'; // Disable scroll
+        }
+
+        function closeStaffLightbox() {
+            document.getElementById('staffModal').style.display = "none";
+            document.body.style.overflow = 'auto'; // Enable scroll
+        }
+
+        // Close modal when clicking outside the image
+        window.onclick = function(event) {
+            const modal = document.getElementById('staffModal');
+            if (event.target == modal) {
+                closeStaffLightbox();
+            }
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === "Escape") {
+                closeStaffLightbox();
+            }
+        });
+    </script>
 
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
