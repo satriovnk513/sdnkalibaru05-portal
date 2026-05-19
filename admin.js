@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    initFileInputs(); // wire multi-file inputs
     // Check login
     if (localStorage.getItem('adminLoggedIn') === 'true') {
         document.getElementById('loginOverlay').style.display = 'none';
@@ -224,6 +225,127 @@ async function deleteStaff(id) {
 // NEWS LOGIC
 // =======================
 
+// ---------- state ----------
+let editNewsId = null;
+let existingImgUrls = [];   // array of URLs already saved (edit mode)
+let existingPdfAttachments = []; // array of {url, filename} already saved (edit mode)
+// selectedImgFiles / selectedPdfFiles are tracked via DataTransfer-backed arrays
+let selectedImgFiles = [];
+let selectedPdfFiles = [];
+
+// ---------- helpers ----------
+
+/** Render preview chips for newly selected images */
+function renderImgPreviews() {
+    const area = document.getElementById('imgPreviewArea');
+    area.innerHTML = '';
+    selectedImgFiles.forEach((file, i) => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            const wrap = document.createElement('div');
+            wrap.className = 'preview-img-item';
+            wrap.innerHTML = `<img src="${ev.target.result}" alt="preview">
+                <button type="button" class="remove-btn" title="Hapus">&#10005;</button>`;
+            wrap.querySelector('.remove-btn').onclick = () => {
+                selectedImgFiles.splice(i, 1);
+                renderImgPreviews();
+            };
+            area.appendChild(wrap);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+/** Render preview chips for newly selected PDFs */
+function renderPdfPreviews() {
+    const area = document.getElementById('pdfPreviewArea');
+    area.innerHTML = '';
+    selectedPdfFiles.forEach((file, i) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'preview-pdf-item';
+        wrap.innerHTML = `📄 <span title="${file.name}">${file.name}</span>
+            <button type="button" class="remove-btn" title="Hapus">&#10005;</button>`;
+        wrap.querySelector('.remove-btn').onclick = () => {
+            selectedPdfFiles.splice(i, 1);
+            renderPdfPreviews();
+        };
+        area.appendChild(wrap);
+    });
+}
+
+/** Render existing image chips (edit mode) */
+function renderExistingImgs() {
+    const list = document.getElementById('existingImgList');
+    if (!existingImgUrls.length) { list.style.display = 'none'; return; }
+    list.style.display = 'flex';
+    list.innerHTML = '';
+    existingImgUrls.forEach((url, i) => {
+        const chip = document.createElement('div');
+        chip.className = 'existing-img-chip';
+        chip.innerHTML = `<img src="${url}" alt="img">
+            <button type="button" class="remove-existing" title="Hapus">&#10005;</button>`;
+        chip.querySelector('.remove-existing').onclick = () => {
+            existingImgUrls.splice(i, 1);
+            renderExistingImgs();
+        };
+        list.appendChild(chip);
+    });
+}
+
+/** Render existing PDF chips (edit mode) */
+function renderExistingPdfs() {
+    const list = document.getElementById('existingPdfList');
+    if (!existingPdfAttachments.length) { list.style.display = 'none'; return; }
+    list.style.display = 'flex';
+    list.innerHTML = '';
+    existingPdfAttachments.forEach((att, i) => {
+        const chip = document.createElement('div');
+        chip.className = 'existing-pdf-chip';
+        chip.innerHTML = `📄 <span title="${att.filename}">${att.filename}</span>
+            <button type="button" class="remove-existing" title="Hapus">&#10005;</button>`;
+        chip.querySelector('.remove-existing').onclick = () => {
+            existingPdfAttachments.splice(i, 1);
+            renderExistingPdfs();
+        };
+        list.appendChild(chip);
+    });
+}
+
+/** Reset the new-file selections and clear preview areas */
+function clearFileSelections() {
+    selectedImgFiles = [];
+    selectedPdfFiles = [];
+    document.getElementById('newsPhoto').value = '';
+    document.getElementById('newsPdf').value = '';
+    document.getElementById('imgPreviewArea').innerHTML = '';
+    document.getElementById('pdfPreviewArea').innerHTML = '';
+}
+
+// Wire up file input change events (called once on DOMContentLoaded)
+function initFileInputs() {
+    document.getElementById('newsPhoto').addEventListener('change', function () {
+        // Append newly picked files (avoid duplicates by name)
+        Array.from(this.files).forEach(f => {
+            if (!selectedImgFiles.find(x => x.name === f.name && x.size === f.size)) {
+                selectedImgFiles.push(f);
+            }
+        });
+        this.value = ''; // reset so same file can be re-added if removed
+        renderImgPreviews();
+    });
+
+    document.getElementById('newsPdf').addEventListener('change', function () {
+        Array.from(this.files).forEach(f => {
+            if (!selectedPdfFiles.find(x => x.name === f.name && x.size === f.size)) {
+                selectedPdfFiles.push(f);
+            }
+        });
+        this.value = '';
+        renderPdfPreviews();
+    });
+}
+
+// ---------- load news table ----------
 async function loadNews() {
     const { data, error } = await supabaseClient.from('news').select('*').order('created_at', { ascending: false });
     if (error) {
@@ -234,22 +356,24 @@ async function loadNews() {
     const tbody = document.getElementById('newsTableBody');
     tbody.innerHTML = '';
     
-    if(!data || data.length === 0) {
+    if (!data || data.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4">Belum ada berita.</td></tr>';
         return;
     }
     
     data.forEach(item => {
         const tr = document.createElement('tr');
-        // Simple escape for single quotes to prevent breaking onclick
-        const esc = (str) => (str || '').replace(/'/g, "\\'");
-        
+        // Thumbnail: prefer first of image_urls, fallback to image_url
+        const thumbUrl = (item.image_urls && item.image_urls.length > 0)
+            ? item.image_urls[0]
+            : (item.image_url || '');
+        const dataAttr = encodeURIComponent(JSON.stringify(item));
         tr.innerHTML = `
-            <td><img src="${item.image_url}" alt="Foto" style="width: 80px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
+            <td><img src="${thumbUrl}" alt="Foto" style="width: 80px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
             <td>${item.title}</td>
             <td>${item.date}</td>
             <td>
-                <button onclick="editNews('${item.id}', '${esc(item.title)}', '${esc(item.date)}', '${esc(item.description)}', '${esc(item.link || '#')}', '${item.image_url}', '${esc(item.content || '')}', '${item.pdf_url || ''}')" style="background: #eab308; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Edit</button>
+                <button onclick="editNews('${item.id}', '${dataAttr}')" style="background: #eab308; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Edit</button>
                 <button onclick="deleteNews('${item.id}')" style="background: #dc2626; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Hapus</button>
             </td>
         `;
@@ -257,27 +381,39 @@ async function loadNews() {
     });
 }
 
-let editNewsId = null;
-let currentNewsImageUrl = null;
-let currentNewsPdfUrl = null;
-let currentNewsPdfFilename = null;
-
-function editNews(id, title, date, desc, link, imageUrl, content, pdfUrl) {
+// ---------- edit ----------
+function editNews(id, encodedData) {
+    const item = JSON.parse(decodeURIComponent(encodedData));
     editNewsId = id;
-    currentNewsImageUrl = imageUrl;
-    currentNewsPdfUrl = pdfUrl;
-    currentNewsPdfFilename = null; // Will be re-set if user uploads new PDF
-    
-    document.getElementById('newsTitle').value = title;
-    document.getElementById('newsDate').value = date;
-    document.getElementById('newsDesc').value = desc;
-    document.getElementById('newsLink').value = link;
-    document.getElementById('newsContent').value = content || '';
-    
+
+    // Populate existing images
+    existingImgUrls = Array.isArray(item.image_urls) && item.image_urls.length > 0
+        ? [...item.image_urls]
+        : (item.image_url ? [item.image_url] : []);
+
+    // Populate existing PDFs
+    existingPdfAttachments = Array.isArray(item.pdf_attachments) && item.pdf_attachments.length > 0
+        ? item.pdf_attachments.map(a => ({ url: a.url, filename: a.filename }))
+        : (item.pdf_url ? [{ url: item.pdf_url, filename: item.pdf_filename || item.title + '.pdf' }] : []);
+
+    // Clear new file selections
+    clearFileSelections();
+
+    // Fill form fields
+    document.getElementById('newsTitle').value = item.title || '';
+    document.getElementById('newsDate').value = item.date || '';
+    document.getElementById('newsDesc').value = item.description || '';
+    document.getElementById('newsLink').value = item.link || 'berita-detail';
+    document.getElementById('newsContent').value = item.content || '';
+
+    // Render existing media chips
+    renderExistingImgs();
+    renderExistingPdfs();
+
     const btn = document.getElementById('saveNewsBtn');
-    btn.innerText = "Update Berita";
-    btn.style.background = "#eab308";
-    
+    btn.innerText = 'Update Berita';
+    btn.style.background = '#eab308';
+
     if (!document.getElementById('cancelEditNewsBtn')) {
         const cancelBtn = document.createElement('button');
         cancelBtn.id = 'cancelEditNewsBtn';
@@ -287,79 +423,98 @@ function editNews(id, title, date, desc, link, imageUrl, content, pdfUrl) {
         cancelBtn.onclick = cancelEditNews;
         btn.parentNode.appendChild(cancelBtn);
     }
-    
+
     showTab('tabNews');
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function cancelEditNews() {
     editNewsId = null;
-    currentNewsImageUrl = null;
-    currentNewsPdfUrl = null;
-    currentNewsPdfFilename = null;
+    existingImgUrls = [];
+    existingPdfAttachments = [];
+    clearFileSelections();
     document.getElementById('newsForm').reset();
-    
+    document.getElementById('existingImgList').style.display = 'none';
+    document.getElementById('existingImgList').innerHTML = '';
+    document.getElementById('existingPdfList').style.display = 'none';
+    document.getElementById('existingPdfList').innerHTML = '';
+
     const btn = document.getElementById('saveNewsBtn');
-    btn.innerText = "Simpan Berita";
-    btn.style.background = "#da251c";
-    
+    btn.innerText = 'Simpan Berita';
+    btn.style.background = '#da251c';
+
     const cancelBtn = document.getElementById('cancelEditNewsBtn');
     if (cancelBtn) cancelBtn.remove();
 }
 
+// ---------- save ----------
 async function saveNews(e) {
     e.preventDefault();
     const btn = document.getElementById('saveNewsBtn');
-    btn.innerText = "Menyimpan...";
+    const originalText = btn.innerText;
     btn.disabled = true;
 
     try {
-        const title = document.getElementById('newsTitle').value;
-        const date = document.getElementById('newsDate').value;
-        const description = document.getElementById('newsDesc').value;
-        const content = document.getElementById('newsContent').value;
-        const link = document.getElementById('newsLink').value || 'berita-detail';
-        
-        // Generate Slug from Title
+        const title       = document.getElementById('newsTitle').value.trim();
+        const date        = document.getElementById('newsDate').value.trim();
+        const description = document.getElementById('newsDesc').value.trim();
+        const content     = document.getElementById('newsContent').value.trim();
+        const link        = document.getElementById('newsLink').value.trim() || 'berita-detail';
+
+        // Generate slug
         const slug = title.toLowerCase()
-            .replace(/\//g, '-')          // Replace / with - (e.g. 2026/2027 → 2026-2027)
-            .replace(/[^a-z0-9\s-]/g, '') // Remove all non-alphanumeric except space and hyphen
-            .replace(/\s+/g, '-')          // Replace spaces with hyphens
-            .replace(/-+/g, '-')           // Collapse multiple hyphens
-            .replace(/^-|-$/g, '');         // Trim leading/trailing hyphens
-        
-        const photoInput = document.getElementById('newsPhoto');
-        const pdfInput = document.getElementById('newsPdf');
-        
-        let imageUrl = currentNewsImageUrl || "https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=600&q=80";
-        let pdfUrl = currentNewsPdfUrl || null;
-        let pdfFilename = currentNewsPdfFilename || null;
+            .replace(/\//g, '-')
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
 
-        // Upload Photo if any
-        if (photoInput.files.length > 0) {
-            const file = photoInput.files[0];
-            const fileExt = file.name.split('.').pop();
-            const fileName = `news_img_${Date.now()}.${fileExt}`;
-            const { error: uploadError } = await supabaseClient.storage.from('photos').upload(fileName, file);
-            if (uploadError) throw uploadError;
-            const { data: publicUrlData } = supabaseClient.storage.from('photos').getPublicUrl(fileName);
-            imageUrl = publicUrlData.publicUrl;
+        // ── Upload all new images ──
+        const newImageUrls = [];
+        for (let i = 0; i < selectedImgFiles.length; i++) {
+            btn.innerText = `Upload gambar ${i + 1}/${selectedImgFiles.length}...`;
+            const file = selectedImgFiles[i];
+            const ext  = file.name.split('.').pop();
+            const path = `news_img_${Date.now()}_${i}.${ext}`;
+            const { error: upErr } = await supabaseClient.storage.from('photos').upload(path, file);
+            if (upErr) throw upErr;
+            const { data: pub } = supabaseClient.storage.from('photos').getPublicUrl(path);
+            newImageUrls.push(pub.publicUrl);
         }
 
-        // Upload PDF if any
-        if (pdfInput.files.length > 0) {
-            const file = pdfInput.files[0];
-            pdfFilename = file.name; // Save original filename
-            const fileExt = file.name.split('.').pop();
-            const fileName = `news_doc_${Date.now()}.${fileExt}`;
-            const { error: uploadError } = await supabaseClient.storage.from('photos').upload(fileName, file);
-            if (uploadError) throw uploadError;
-            const { data: publicUrlData } = supabaseClient.storage.from('photos').getPublicUrl(fileName);
-            pdfUrl = publicUrlData.publicUrl;
+        // ── Upload all new PDFs ──
+        const newPdfAttachments = [];
+        for (let i = 0; i < selectedPdfFiles.length; i++) {
+            btn.innerText = `Upload PDF ${i + 1}/${selectedPdfFiles.length}...`;
+            const file = selectedPdfFiles[i];
+            const ext  = file.name.split('.').pop();
+            const path = `news_doc_${Date.now()}_${i}.${ext}`;
+            const { error: upErr } = await supabaseClient.storage.from('photos').upload(path, file);
+            if (upErr) throw upErr;
+            const { data: pub } = supabaseClient.storage.from('photos').getPublicUrl(path);
+            newPdfAttachments.push({ url: pub.publicUrl, filename: file.name });
         }
+
+        // ── Merge existing + new ──
+        const finalImageUrls       = [...existingImgUrls, ...newImageUrls];
+        const finalPdfAttachments  = [...existingPdfAttachments, ...newPdfAttachments];
+
+        // Keep legacy single-value fields for backward compatibility
+        const DEFAULT_IMG = 'https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&w=600&q=80';
+        const legacyImageUrl    = finalImageUrls[0] || DEFAULT_IMG;
+        const legacyPdfUrl      = finalPdfAttachments.length > 0 ? finalPdfAttachments[0].url : null;
+        const legacyPdfFilename = finalPdfAttachments.length > 0 ? finalPdfAttachments[0].filename : null;
+
+        btn.innerText = 'Menyimpan...';
 
         const newsData = {
-            title, date, description, content, link, image_url: imageUrl, pdf_url: pdfUrl, pdf_filename: pdfFilename, slug: slug
+            title, date, description, content, link, slug,
+            image_urls:      finalImageUrls,
+            pdf_attachments: finalPdfAttachments,
+            // legacy columns kept in sync
+            image_url:    legacyImageUrl,
+            pdf_url:      legacyPdfUrl,
+            pdf_filename: legacyPdfFilename,
         };
 
         if (editNewsId) {
@@ -371,27 +526,27 @@ async function saveNews(e) {
             const { error } = await supabaseClient.from('news').insert([newsData]);
             if (error) throw error;
             document.getElementById('newsForm').reset();
+            clearFileSelections();
             alert('Berita berhasil ditambahkan!');
         }
-        
+
         loadNews();
 
     } catch (err) {
         console.error(err);
         alert('Terjadi kesalahan: ' + (err.message || err.error_description || JSON.stringify(err)));
     } finally {
-        const btn = document.getElementById('saveNewsBtn');
-        btn.innerText = editNewsId ? "Update Berita" : "Simpan Berita";
+        btn.innerText = editNewsId ? 'Update Berita' : 'Simpan Berita';
         btn.disabled = false;
     }
 }
 
+// ---------- delete ----------
 async function deleteNews(id) {
-    if(!confirm("Yakin ingin menghapus berita ini?")) return;
-    
+    if (!confirm('Yakin ingin menghapus berita ini?')) return;
     const { error } = await supabaseClient.from('news').delete().eq('id', id);
-    if(error) {
-        alert("Gagal menghapus berita.");
+    if (error) {
+        alert('Gagal menghapus berita.');
         console.error(error);
     } else {
         loadNews();

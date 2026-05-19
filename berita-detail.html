@@ -73,6 +73,73 @@
             box-shadow: var(--shadow-lg);
         }
 
+        /* Multi-image gallery */
+        .news-img-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 2.5rem;
+        }
+        .news-img-gallery.single {
+            grid-template-columns: 1fr;
+        }
+        .news-img-gallery img {
+            width: 100%;
+            height: 260px;
+            object-fit: cover;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            cursor: pointer;
+            transition: transform 0.25s, box-shadow 0.25s;
+        }
+        .news-img-gallery.single img {
+            max-height: 480px;
+            height: auto;
+        }
+        .news-img-gallery img:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* Lightbox */
+        .lightbox-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.88);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .lightbox-overlay.open { display: flex; }
+        .lightbox-overlay img {
+            max-width: 92vw;
+            max-height: 88vh;
+            border-radius: 10px;
+            object-fit: contain;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+        }
+        .lightbox-close {
+            position: fixed;
+            top: 1rem;
+            right: 1.25rem;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            line-height: 1;
+            background: none;
+            border: none;
+        }
+
+        /* Multi-PDF list */
+        .pdf-attachments-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+
         .news-detail-content {
             font-size: 1.05rem;
             line-height: 2;
@@ -287,31 +354,51 @@
                 // Update Page Title
                 document.title = `${news.title} - SDN Kalibaru 05 Pagi`;
 
-                // PDF Attachment
+                // Build image gallery (multiple or single)
+                const allImages = (Array.isArray(news.image_urls) && news.image_urls.length > 0)
+                    ? news.image_urls
+                    : (news.image_url ? [news.image_url] : []);
+
+                let galleryHtml = '';
+                if (allImages.length > 0) {
+                    const isSingle = allImages.length === 1;
+                    galleryHtml = `<div class="news-img-gallery animate-up ${isSingle ? 'single' : ''}">`;
+                    allImages.forEach((url, idx) => {
+                        galleryHtml += `<img src="${url}" alt="Gambar ${idx + 1} - ${news.title}" onclick="openLightbox('${url}')" onerror="this.closest('.news-img-gallery') && (this.style.display='none')">` ;
+                    });
+                    galleryHtml += `</div>`;
+                }
+
+                // Build PDF attachments list (multiple or single)
+                const allPdfs = (Array.isArray(news.pdf_attachments) && news.pdf_attachments.length > 0)
+                    ? news.pdf_attachments
+                    : (news.pdf_url ? [{ url: news.pdf_url, filename: news.pdf_filename || news.title + '.pdf' }] : []);
+
                 let pdfHtml = '';
-                if (news.pdf_url) {
-                    const displayFilename = news.pdf_filename || `${news.title}.pdf`;
-                    pdfHtml = `
-                        <div class="pdf-attachment-card animate-up">
+                if (allPdfs.length > 0) {
+                    pdfHtml = `<div class="pdf-attachments-wrapper animate-up">`;
+                    allPdfs.forEach(att => {
+                        const displayFilename = att.filename || `${news.title}.pdf`;
+                        pdfHtml += `
+                        <div class="pdf-attachment-card">
                             <div class="pdf-info">
-                                <div class="pdf-icon-wrapper">
-                                    <i class="fas fa-file-pdf"></i>
-                                </div>
+                                <div class="pdf-icon-wrapper"><i class="fas fa-file-pdf"></i></div>
                                 <div class="pdf-text">
                                     <h4>Lampiran Dokumen</h4>
                                     <p title="${displayFilename}">${displayFilename}</p>
                                 </div>
                             </div>
-                            <a href="${news.pdf_url}" target="_blank" class="btn-download-pdf">
+                            <a href="${att.url}" target="_blank" class="btn-download-pdf">
                                 <i class="fas fa-external-link-alt"></i> Buka PDF
                             </a>
-                        </div>
-                    `;
+                        </div>`;
+                    });
+                    pdfHtml += `</div>`;
                 }
 
                 container.innerHTML = `
                     <div class="news-breadcrumb animate-up">
-                        <a href="/">Beranda</a> / <a href="/berita">Berita & Pengumuman</a> / ${news.title}
+                        <a href="/">Beranda</a> / <a href="/berita">Berita &amp; Pengumuman</a> / ${news.title}
                     </div>
 
                     <div class="news-detail-header animate-up">
@@ -321,7 +408,7 @@
 
                     <div class="news-detail-separator animate-up"></div>
 
-                    <img src="${news.image_url}" alt="${news.title}" class="news-detail-img animate-up" onerror="this.style.display='none';">
+                    ${galleryHtml}
 
                     <div class="news-detail-content animate-up">
 ${news.content || news.description || 'Tidak ada konten tambahan.'}
@@ -347,7 +434,25 @@ ${news.content || news.description || 'Tidak ada konten tambahan.'}
             }
         });
     </script>
+    <!-- Lightbox overlay (for multi-image gallery) -->
+    <div class="lightbox-overlay" id="lightboxOverlay" onclick="closeLightbox()">
+        <button class="lightbox-close" onclick="closeLightbox()" title="Tutup">&times;</button>
+        <img id="lightboxImg" src="" alt="Gambar besar">
+    </div>
+
     <script src="/main.js"></script>
+    <script>
+        function openLightbox(url) {
+            document.getElementById('lightboxImg').src = url;
+            document.getElementById('lightboxOverlay').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeLightbox() {
+            document.getElementById('lightboxOverlay').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+    </script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>

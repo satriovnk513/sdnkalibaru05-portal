@@ -32,7 +32,132 @@
         .form-group { margin-bottom: 1.5rem; }
         .form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #1e293b; font-size: 0.95rem; }
         .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 1rem; box-sizing: border-box; }
-        
+
+        /* ── Multi-file preview ── */
+        .file-preview-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .preview-img-item {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #e2e8f0;
+            flex-shrink: 0;
+        }
+        .preview-img-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .preview-img-item .remove-btn,
+        .preview-pdf-item .remove-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(220, 38, 38, 0.85);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        .preview-pdf-item {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: #fef2f2;
+            border: 1px solid rgba(218,37,28,0.2);
+            border-radius: 8px;
+            padding: 0.45rem 0.7rem;
+            font-size: 0.82rem;
+            color: #334155;
+            max-width: 200px;
+        }
+        .preview-pdf-item span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            min-width: 0;
+        }
+        .existing-img-list, .existing-pdf-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .existing-img-chip {
+            position: relative;
+            width: 72px;
+            height: 72px;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 2px solid #94a3b8;
+        }
+        .existing-img-chip img { width: 100%; height: 100%; object-fit: cover; }
+        .existing-img-chip .remove-existing,
+        .existing-pdf-chip .remove-existing {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(100,116,139,0.85);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        .existing-pdf-chip {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 0.4rem 0.65rem;
+            font-size: 0.8rem;
+            color: #475569;
+            max-width: 190px;
+        }
+        .existing-pdf-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+        .upload-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: #f1f5f9;
+            border: 1.5px dashed #94a3b8;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #475569;
+            font-weight: 600;
+            transition: 0.2s;
+            margin-top: 0.35rem;
+        }
+        .upload-label:hover { border-color: #da251c; color: #da251c; background: #fff1f2; }
+        .upload-label input[type=file] { display: none; }
+
         .table-responsive { width: 100%; overflow-x: auto; margin-top: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; }
         table { width: 100%; border-collapse: collapse; min-width: 600px; }
         th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; }
@@ -197,14 +322,30 @@
                             <textarea id="newsContent" rows="10" placeholder="Tuliskan isi berita lengkap di sini (mendukung enter/paragraf)..."></textarea>
                         </div>
                         <div class="form-group">
-                            <label>Upload Gambar Berita</label>
-                            <input type="file" id="newsPhoto" accept="image/*">
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Kosongkan jika tidak ada foto (akan pakai foto default).</small>
+                            <label>Upload Gambar Berita <span style="font-weight:400; color:#64748b;">(bisa lebih dari 1)</span></label>
+                            <!-- Existing images when editing -->
+                            <div id="existingImgList" class="existing-img-list" style="display:none;"></div>
+                            <!-- New file picker -->
+                            <label class="upload-label" for="newsPhoto">
+                                &#128247; Pilih Gambar
+                                <input type="file" id="newsPhoto" accept="image/*" multiple>
+                            </label>
+                            <!-- Preview of newly selected files -->
+                            <div id="imgPreviewArea" class="file-preview-area"></div>
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Pilih beberapa gambar sekaligus. Gambar pertama jadi thumbnail utama.</small>
                         </div>
                         <div class="form-group">
-                            <label>Upload PDF Lampiran (Opsional)</label>
-                            <input type="file" id="newsPdf" accept=".pdf">
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">File PDF akan muncul sebagai tombol download di halaman detail.</small>
+                            <label>Upload PDF Lampiran <span style="font-weight:400; color:#64748b;">(bisa lebih dari 1, opsional)</span></label>
+                            <!-- Existing PDFs when editing -->
+                            <div id="existingPdfList" class="existing-pdf-list" style="display:none;"></div>
+                            <!-- New file picker -->
+                            <label class="upload-label" for="newsPdf">
+                                &#128196; Pilih PDF
+                                <input type="file" id="newsPdf" accept=".pdf" multiple>
+                            </label>
+                            <!-- Preview of newly selected PDF files -->
+                            <div id="pdfPreviewArea" class="file-preview-area"></div>
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">File PDF akan muncul sebagai daftar download di halaman detail.</small>
                         </div>
                         <button type="submit" class="btn-submit" id="saveNewsBtn">Simpan Berita</button>
                     </form>
