@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     initFileInputs(); // wire multi-file inputs
+    initGalleryInputs(); // wire gallery file input & drag-drop
     // Check login
     if (localStorage.getItem('adminLoggedIn') === 'true') {
         document.getElementById('loginOverlay').style.display = 'none';
@@ -7,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSubRoles();
         loadStaff();
         loadNews();
+        loadGallery();
     }
 });
 
@@ -19,6 +21,7 @@ function checkLogin() {
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('mainContent').style.display = 'block';
         loadStaff();
+        loadGallery();
     } else {
         document.getElementById('loginError').style.display = 'block';
     }
@@ -550,5 +553,188 @@ async function deleteNews(id) {
         console.error(error);
     } else {
         loadNews();
+    }
+}
+
+// =======================
+// GALLERY LOGIC
+// =======================
+
+let selectedGalleryFiles = [];
+
+/** Wire up gallery file input and drag-and-drop */
+function initGalleryInputs() {
+    const input = document.getElementById('galleryFileInput');
+    const dropArea = document.getElementById('galleryDropArea');
+    if (!input || !dropArea) return;
+
+    input.addEventListener('change', function () {
+        Array.from(this.files).forEach(f => {
+            if (!selectedGalleryFiles.find(x => x.name === f.name && x.size === f.size)) {
+                selectedGalleryFiles.push(f);
+            }
+        });
+        this.value = '';
+        renderGalleryPreviews();
+    });
+
+    // Drag-and-drop
+    dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.classList.add('dragover'); });
+    dropArea.addEventListener('dragleave', () => dropArea.classList.remove('dragover'));
+    dropArea.addEventListener('drop', e => {
+        e.preventDefault();
+        dropArea.classList.remove('dragover');
+        Array.from(e.dataTransfer.files).forEach(f => {
+            if (f.type.startsWith('image/') && !selectedGalleryFiles.find(x => x.name === f.name && x.size === f.size)) {
+                selectedGalleryFiles.push(f);
+            }
+        });
+        renderGalleryPreviews();
+    });
+}
+
+/** Render preview thumbnails for newly selected gallery files */
+function renderGalleryPreviews() {
+    const area = document.getElementById('galleryNewPreviews');
+    area.innerHTML = '';
+    selectedGalleryFiles.forEach((file, i) => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            const wrap = document.createElement('div');
+            wrap.className = 'gallery-new-preview-item';
+            wrap.innerHTML = `<img src="${ev.target.result}" alt="preview">
+                <button type="button" class="remove-btn" title="Hapus">&#10005;</button>`;
+            wrap.querySelector('.remove-btn').onclick = () => {
+                selectedGalleryFiles.splice(i, 1);
+                renderGalleryPreviews();
+            };
+            area.appendChild(wrap);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+/** Load gallery photos from Supabase and render admin grid */
+async function loadGallery() {
+    const grid = document.getElementById('galleryAdminGrid');
+    const countEl = document.getElementById('galleryCount');
+    if (!grid) return;
+
+    grid.innerHTML = '<p style="color:#94a3b8;font-size:0.9rem;">Memuat foto...</p>';
+
+    const { data, error } = await supabaseClient
+        .from('gallery')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        grid.innerHTML = `<p style="color:#dc2626;font-size:0.9rem;">Gagal memuat galeri: ${error.message}</p>`;
+        return;
+    }
+
+    if (countEl) countEl.textContent = `${data.length} foto`;
+
+    if (!data || data.length === 0) {
+        grid.innerHTML = '<p style="color:#94a3b8;font-size:0.9rem;grid-column:1/-1;text-align:center;padding:2rem 0;">Belum ada foto di galeri. Upload foto pertama kamu!</p>';
+        return;
+    }
+
+    grid.innerHTML = '';
+    data.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'gallery-admin-item';
+        el.innerHTML = `
+            <img src="${item.image_url}" alt="${item.caption || 'Galeri'}" loading="lazy"
+                 onerror="this.src='https://via.placeholder.com/200x200.png?text=Error';">
+            <div class="gallery-item-overlay">
+                <span class="gallery-caption">${item.caption || '(tanpa keterangan)'}</span>
+                <button class="btn-delete-gallery" onclick="deleteGallery('${item.id}', this)">&#128465; Hapus</button>
+            </div>
+        `;
+        grid.appendChild(el);
+    });
+}
+
+/** Upload selected gallery files to Supabase storage and insert into gallery table */
+async function saveGallery() {
+    if (selectedGalleryFiles.length === 0) {
+        alert('Pilih setidaknya satu foto terlebih dahulu.');
+        return;
+    }
+
+    const btn = document.getElementById('saveGalleryBtn');
+    const progress = document.getElementById('galleryUploadProgress');
+    const progressBar = document.getElementById('galleryProgressBar');
+    const progressText = document.getElementById('galleryProgressText');
+    const caption = document.getElementById('galleryCaption').value.trim();
+
+    btn.disabled = true;
+    btn.innerText = 'Mengupload...';
+    progress.style.display = 'block';
+
+    try {
+        const total = selectedGalleryFiles.length;
+        for (let i = 0; i < total; i++) {
+            const file = selectedGalleryFiles[i];
+            const ext = file.name.split('.').pop();
+            const path = `gallery_${Date.now()}_${i}.${ext}`;
+
+            progressText.textContent = `Mengupload foto ${i + 1} dari ${total}...`;
+            progressBar.style.width = `${Math.round((i / total) * 100)}%`;
+
+            // Upload to Supabase storage bucket 'photos'
+            const { error: upErr } = await supabaseClient.storage
+                .from('photos')
+                .upload(path, file, { cacheControl: '3600', upsert: false });
+            if (upErr) throw upErr;
+
+            const { data: pub } = supabaseClient.storage.from('photos').getPublicUrl(path);
+
+            // Insert row into gallery table
+            const { error: insErr } = await supabaseClient.from('gallery').insert([{
+                image_url: pub.publicUrl,
+                caption: caption || null,
+            }]);
+            if (insErr) throw insErr;
+
+            progressBar.style.width = `${Math.round(((i + 1) / total) * 100)}%`;
+        }
+
+        progressText.textContent = 'Semua foto berhasil diupload!';
+        progressBar.style.width = '100%';
+
+        // Reset form
+        selectedGalleryFiles = [];
+        document.getElementById('galleryNewPreviews').innerHTML = '';
+        document.getElementById('galleryCaption').value = '';
+
+        setTimeout(() => {
+            progress.style.display = 'none';
+            progressBar.style.width = '0%';
+        }, 1800);
+
+        await loadGallery();
+        alert(`${total} foto berhasil diupload ke Galeri Kegiatan!`);
+
+    } catch (err) {
+        console.error(err);
+        alert('Terjadi kesalahan saat upload: ' + (err.message || JSON.stringify(err)));
+    } finally {
+        btn.disabled = false;
+        btn.innerText = 'Upload ke Galeri';
+    }
+}
+
+/** Delete a gallery photo from the database */
+async function deleteGallery(id, btnEl) {
+    if (!confirm('Yakin ingin menghapus foto ini dari galeri?')) return;
+    if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Menghapus...'; }
+
+    const { error } = await supabaseClient.from('gallery').delete().eq('id', id);
+    if (error) {
+        alert('Gagal menghapus foto: ' + error.message);
+        if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '&#128465; Hapus'; }
+    } else {
+        await loadGallery();
     }
 }

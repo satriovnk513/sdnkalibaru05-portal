@@ -24,6 +24,136 @@
         .tabs::-webkit-scrollbar { display: none; }
         .tab-btn { padding: 0.75rem 1.25rem; background: white; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; font-weight: 600; color: #475569; white-space: nowrap; flex-shrink: 0; font-size: 0.9rem; }
         .tab-btn.active { background: #da251c; color: white; border-color: #da251c; box-shadow: 0 4px 6px -1px rgba(218, 37, 28, 0.2); }
+
+        /* ── Gallery Grid ── */
+        .gallery-admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .gallery-admin-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            aspect-ratio: 1 / 1;
+            border: 2px solid #e2e8f0;
+            background: #f1f5f9;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .gallery-admin-item:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
+        .gallery-admin-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .gallery-admin-item .gallery-item-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.75), transparent);
+            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .gallery-admin-item:hover .gallery-item-overlay { opacity: 1; }
+        .gallery-admin-item .gallery-caption {
+            font-size: 0.72rem;
+            color: white;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .gallery-admin-item .btn-delete-gallery {
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 0.3rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        .gallery-admin-item .btn-delete-gallery:hover { background: #b91c1c; }
+        .gallery-upload-drop {
+            border: 2px dashed #94a3b8;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            color: #64748b;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 0.75rem;
+            background: #f8fafc;
+        }
+        .gallery-upload-drop:hover, .gallery-upload-drop.dragover {
+            border-color: #da251c;
+            background: #fff1f2;
+            color: #da251c;
+        }
+        .gallery-upload-drop .drop-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .gallery-upload-drop p { margin: 0; font-size: 0.9rem; font-weight: 600; }
+        .gallery-upload-drop small { color: #94a3b8; font-size: 0.8rem; }
+        #galleryFileInput { display: none; }
+        .gallery-new-previews {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .gallery-new-preview-item {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #e2e8f0;
+            flex-shrink: 0;
+        }
+        .gallery-new-preview-item img { width: 100%; height: 100%; object-fit: cover; }
+        .gallery-new-preview-item .remove-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(220, 38, 38, 0.85);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        .gallery-upload-progress {
+            margin-top: 0.75rem;
+            font-size: 0.85rem;
+            color: #475569;
+            display: none;
+        }
+        .gallery-upload-progress .progress-bar-wrap {
+            background: #e2e8f0;
+            border-radius: 99px;
+            height: 8px;
+            margin-top: 0.3rem;
+            overflow: hidden;
+        }
+        .gallery-upload-progress .progress-bar {
+            background: #da251c;
+            height: 100%;
+            border-radius: 99px;
+            transition: width 0.3s;
+        }
         
         .tab-content { display: none; }
         
@@ -227,6 +357,7 @@
         <div class="tabs">
             <button class="tab-btn active" onclick="showTab('tabStaff')">Manajemen Guru & Staf (Otomatis)</button>
             <button class="tab-btn" onclick="showTab('tabNews')">Generator Berita (Manual)</button>
+            <button class="tab-btn" onclick="showTab('tabGallery')">&#128247; Galeri Kegiatan</button>
         </div>
 
         <!-- TAB STAFF -->
@@ -367,6 +498,53 @@
                                 <tr><td colspan="4">Memuat data...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- TAB GALLERY -->
+        <div id="tabGallery" class="tab-content">
+            <div class="admin-container">
+                <!-- Upload Form -->
+                <div class="admin-card">
+                    <h2 style="margin-bottom: 0.5rem; font-family: 'Poppins', sans-serif;">Upload Foto Galeri</h2>
+                    <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Foto yang diupload akan langsung tampil di Galeri Kegiatan pada homepage.</p>
+
+                    <div class="form-group">
+                        <label>Keterangan Foto <span style="font-weight:400;color:#94a3b8;">(opsional)</span></label>
+                        <input type="text" id="galleryCaption" placeholder="Contoh: Upacara HUT RI ke-80">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Pilih Foto <span style="font-weight:400;color:#64748b;">(bisa lebih dari 1)</span></label>
+                        <div class="gallery-upload-drop" id="galleryDropArea" onclick="document.getElementById('galleryFileInput').click()">
+                            <div class="drop-icon">&#128247;</div>
+                            <p>Klik atau seret foto ke sini</p>
+                            <small>Format: JPG, PNG, WEBP &bull; Maks. 5 MB per foto</small>
+                        </div>
+                        <input type="file" id="galleryFileInput" accept="image/*" multiple>
+                        <div id="galleryNewPreviews" class="gallery-new-previews"></div>
+                        <div class="gallery-upload-progress" id="galleryUploadProgress">
+                            <span id="galleryProgressText">Mengupload...</span>
+                            <div class="progress-bar-wrap">
+                                <div class="progress-bar" id="galleryProgressBar" style="width:0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn-submit" id="saveGalleryBtn" onclick="saveGallery()">Upload ke Galeri</button>
+                </div>
+
+                <!-- Gallery Grid -->
+                <div class="admin-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                        <h2 style="margin:0; font-family: 'Poppins', sans-serif;">Foto Tersimpan</h2>
+                        <span id="galleryCount" style="background:#f1f5f9; color:#475569; font-size:0.8rem; font-weight:700; padding:0.3rem 0.75rem; border-radius:99px;">0 foto</span>
+                    </div>
+                    <div id="galleryAdminGrid" class="gallery-admin-grid">
+                        <p style="color:#94a3b8; font-size:0.9rem;">Memuat foto...</p>
                     </div>
                 </div>
             </div>
