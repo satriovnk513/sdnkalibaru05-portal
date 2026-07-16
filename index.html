@@ -227,7 +227,9 @@
                     <!-- Loading state or empty state -->
                     <div class="gallery-loading">Memuat galeri...</div>
                 </div>
-                <div style="text-align: center; margin-top: 3rem;" class="animate-up">
+                <!-- Gallery Pagination -->
+                <nav id="galleryPagination" class="gallery-pagination" aria-label="Halaman Galeri"></nav>
+                <div style="text-align: center; margin-top: 2rem;" class="animate-up">
                     <a href="https://www.instagram.com/sdnkalibaru05/" target="_blank" class="btn-instagram">
                         <i class="fab fa-instagram"></i> Lihat Selengkapnya di Instagram
                     </a>
@@ -325,64 +327,142 @@
                 }
             } catch (err) { console.error('Fetch news error:', err); }
 
-            // Fetch Gallery Data
+            // Fetch Gallery Data (all, with client-side pagination)
+            const GALLERY_PER_PAGE = 12;
+            let galleryAllData = [];
+            let galleryCurrentPage = 1;
+
+            function renderGalleryPage(page) {
+                galleryCurrentPage = page;
+                const container = document.getElementById('galleryContainer');
+                const pagination = document.getElementById('galleryPagination');
+                if (!container) return;
+
+                const totalPages = Math.ceil(galleryAllData.length / GALLERY_PER_PAGE);
+                const start = (page - 1) * GALLERY_PER_PAGE;
+                const pageItems = galleryAllData.slice(start, start + GALLERY_PER_PAGE);
+
+                container.innerHTML = '';
+                pageItems.forEach((item, index) => {
+                    const isVideo = item.media_type === 'video';
+                    const galleryItem = document.createElement('div');
+                    galleryItem.className = 'gallery-item animate-up';
+                    galleryItem.style.transitionDelay = `${index * 0.05}s`;
+
+                    if (isVideo) {
+                        galleryItem.innerHTML = `
+                            <video src="${item.image_url}" muted playsinline preload="metadata"
+                                   style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;"
+                                   onerror="this.parentElement.style.background='#1e293b';"></video>
+                            <div class="gallery-overlay">
+                                <i class="fas fa-play-circle" style="font-size:2.5rem;"></i>
+                                <span>${item.caption || ''}</span>
+                            </div>
+                        `;
+                        galleryItem.addEventListener('click', () => openVideoLightbox(item.image_url, item.caption));
+                    } else {
+                        galleryItem.innerHTML = `
+                            <img src="${item.image_url}" alt="${item.caption || 'Galeri Foto'}"
+                                 onerror="this.src='https://via.placeholder.com/400x400.png?text=Gambar+Tidak+Tersedia'; this.classList.add('error');"
+                                 loading="lazy">
+                            <div class="gallery-overlay">
+                                <i class="fas fa-search-plus"></i>
+                                <span>${item.caption || ''}</span>
+                            </div>
+                        `;
+                        galleryItem.addEventListener('click', () => openLightbox(item.image_url, item.caption));
+                    }
+
+                    container.appendChild(galleryItem);
+                    if (window.observer) window.observer.observe(galleryItem);
+                });
+
+                // Render pagination numbers
+                if (pagination) {
+                    pagination.innerHTML = '';
+                    if (totalPages <= 1) return;
+
+                    // Prev button
+                    const prevBtn = document.createElement('button');
+                    prevBtn.className = 'gp-btn' + (page === 1 ? ' gp-disabled' : '');
+                    prevBtn.innerHTML = '&lsaquo;';
+                    prevBtn.setAttribute('aria-label', 'Halaman sebelumnya');
+                    prevBtn.disabled = page === 1;
+                    prevBtn.onclick = () => { if (page > 1) goGalleryPage(page - 1); };
+                    pagination.appendChild(prevBtn);
+
+                    // Page number buttons (show max 5 around current)
+                    let startP = Math.max(1, page - 2);
+                    let endP   = Math.min(totalPages, startP + 4);
+                    startP = Math.max(1, endP - 4);
+
+                    if (startP > 1) {
+                        pagination.appendChild(makePageBtn(1, page));
+                        if (startP > 2) pagination.appendChild(makeEllipsis());
+                    }
+
+                    for (let p = startP; p <= endP; p++) {
+                        pagination.appendChild(makePageBtn(p, page));
+                    }
+
+                    if (endP < totalPages) {
+                        if (endP < totalPages - 1) pagination.appendChild(makeEllipsis());
+                        pagination.appendChild(makePageBtn(totalPages, page));
+                    }
+
+                    // Next button
+                    const nextBtn = document.createElement('button');
+                    nextBtn.className = 'gp-btn' + (page === totalPages ? ' gp-disabled' : '');
+                    nextBtn.innerHTML = '&rsaquo;';
+                    nextBtn.setAttribute('aria-label', 'Halaman berikutnya');
+                    nextBtn.disabled = page === totalPages;
+                    nextBtn.onclick = () => { if (page < totalPages) goGalleryPage(page + 1); };
+                    pagination.appendChild(nextBtn);
+                }
+            }
+
+            function makePageBtn(p, currentPage) {
+                const btn = document.createElement('button');
+                btn.className = 'gp-btn' + (p === currentPage ? ' gp-active' : '');
+                btn.textContent = p;
+                btn.setAttribute('aria-label', `Halaman ${p}`);
+                btn.setAttribute('aria-current', p === currentPage ? 'page' : 'false');
+                btn.onclick = () => goGalleryPage(p);
+                return btn;
+            }
+
+            function makeEllipsis() {
+                const span = document.createElement('span');
+                span.className = 'gp-ellipsis';
+                span.textContent = '...';
+                return span;
+            }
+
+            function goGalleryPage(p) {
+                renderGalleryPage(p);
+                // Smooth scroll to gallery section top
+                document.getElementById('galleryContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
             try {
                 const { data: galleryData, error: galleryError } = await supabaseClient
                     .from('gallery')
                     .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(8);
-                
+                    .order('created_at', { ascending: false });
+
                 if (galleryError) throw galleryError;
 
-                if (galleryContainer) {
-                    if (!galleryData || galleryData.length === 0) {
-                        galleryContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-light); padding: 2rem;">Belum ada foto di galeri. <br><small>(Gunakan dashboard Admin untuk menambah foto/video ke Galeri Kegiatan)</small></p>';
-                    } else {
-                        galleryContainer.innerHTML = ''; // Clear loading state
-                        galleryData.forEach((item, index) => {
-                            const isVideo = item.media_type === 'video';
-                            const galleryItem = document.createElement('div');
-                            galleryItem.className = 'gallery-item animate-up';
-                            galleryItem.style.transitionDelay = `${index * 0.1}s`;
-
-                            if (isVideo) {
-                                galleryItem.innerHTML = `
-                                    <video src="${item.image_url}" muted playsinline preload="metadata"
-                                           style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;"
-                                           onerror="this.parentElement.style.background='#1e293b';"></video>
-                                    <div class="gallery-overlay">
-                                        <i class="fas fa-play-circle" style="font-size:2.5rem;"></i>
-                                        <span>${item.caption || ''}</span>
-                                    </div>
-                                `;
-                                galleryItem.addEventListener('click', () => openVideoLightbox(item.image_url, item.caption));
-                            } else {
-                                galleryItem.innerHTML = `
-                                    <img src="${item.image_url}" alt="${item.caption || 'Galeri Foto'}" 
-                                         onerror="this.src='https://via.placeholder.com/400x400.png?text=Gambar+Tidak+Tersedia'; this.classList.add('error');"
-                                         loading="lazy">
-                                    <div class="gallery-overlay">
-                                        <i class="fas fa-search-plus"></i>
-                                        <span>${item.caption || ''}</span>
-                                    </div>
-                                `;
-                                galleryItem.addEventListener('click', () => openLightbox(item.image_url, item.caption));
-                            }
-
-                            galleryContainer.appendChild(galleryItem);
-                            
-                            // Re-observe the new element
-                            if (window.observer) window.observer.observe(galleryItem);
-                        });
-                    }
+                const container = document.getElementById('galleryContainer');
+                if (!galleryData || galleryData.length === 0) {
+                    if (container) container.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--text-light);padding:2rem;">Belum ada foto/video di galeri.<br><small>Gunakan halaman Admin untuk menambah konten.</small></p>';
+                } else {
+                    galleryAllData = galleryData;
+                    renderGalleryPage(1);
                 }
             } catch (err) {
                 console.error('Fetch gallery error:', err);
-                const galleryContainer = document.getElementById('galleryContainer');
-                if (galleryContainer) {
-                    galleryContainer.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-light);">Gagal memuat galeri. Error: ${err.message}</p>`;
-                }
+                const container = document.getElementById('galleryContainer');
+                if (container) container.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:var(--text-light);">Gagal memuat galeri. Error: ${err.message}</p>`;
             }
         });
 
