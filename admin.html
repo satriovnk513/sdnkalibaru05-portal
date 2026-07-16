@@ -82,6 +82,34 @@
             transition: background 0.2s;
         }
         .gallery-admin-item .btn-delete-gallery:hover { background: #b91c1c; }
+        /* Video badge */
+        .gallery-admin-item .media-type-badge {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            background: rgba(0,0,0,0.65);
+            color: white;
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 0.2rem 0.45rem;
+            border-radius: 4px;
+            letter-spacing: 0.03em;
+            pointer-events: none;
+        }
+        .gallery-admin-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            pointer-events: none;
+        }
+        /* Video preview in new-previews area */
+        .gallery-new-preview-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+        }
         .gallery-upload-drop {
             border: 2px dashed #94a3b8;
             border-radius: 12px;
@@ -509,22 +537,22 @@
             <div class="admin-container">
                 <!-- Upload Form -->
                 <div class="admin-card">
-                    <h2 style="margin-bottom: 0.5rem; font-family: 'Poppins', sans-serif;">Upload Foto Galeri</h2>
-                    <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Foto yang diupload akan langsung tampil di Galeri Kegiatan pada homepage.</p>
+                    <h2 style="margin-bottom: 0.5rem; font-family: 'Poppins', sans-serif;">Upload Foto &amp; Video Galeri</h2>
+                    <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Foto dan video yang diupload akan langsung tampil di Galeri Kegiatan pada homepage.</p>
 
                     <div class="form-group">
-                        <label>Keterangan Foto <span style="font-weight:400;color:#94a3b8;">(opsional)</span></label>
+                        <label>Keterangan <span style="font-weight:400;color:#94a3b8;">(opsional, berlaku untuk semua file yang dipilih)</span></label>
                         <input type="text" id="galleryCaption" placeholder="Contoh: Upacara HUT RI ke-80">
                     </div>
 
                     <div class="form-group">
-                        <label>Pilih Foto <span style="font-weight:400;color:#64748b;">(bisa lebih dari 1)</span></label>
+                        <label>Pilih Foto / Video <span style="font-weight:400;color:#64748b;">(bisa lebih dari 1)</span></label>
                         <div class="gallery-upload-drop" id="galleryDropArea" onclick="document.getElementById('galleryFileInput').click()">
-                            <div class="drop-icon">&#128247;</div>
-                            <p>Klik atau seret foto ke sini</p>
-                            <small>Format: JPG, PNG, WEBP &bull; Maks. 5 MB per foto</small>
+                            <div class="drop-icon">&#128247;&#127916;</div>
+                            <p>Klik atau seret foto / video ke sini</p>
+                            <small>Foto: JPG, PNG, WEBP &bull; Video: MP4, MOV, WEBM &bull; Maks. 50 MB per file</small>
                         </div>
-                        <input type="file" id="galleryFileInput" accept="image/*" multiple>
+                        <input type="file" id="galleryFileInput" accept="image/*,video/*" multiple>
                         <div id="galleryNewPreviews" class="gallery-new-previews"></div>
                         <div class="gallery-upload-progress" id="galleryUploadProgress">
                             <span id="galleryProgressText">Mengupload...</span>
@@ -540,11 +568,11 @@
                 <!-- Gallery Grid -->
                 <div class="admin-card">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
-                        <h2 style="margin:0; font-family: 'Poppins', sans-serif;">Foto Tersimpan</h2>
-                        <span id="galleryCount" style="background:#f1f5f9; color:#475569; font-size:0.8rem; font-weight:700; padding:0.3rem 0.75rem; border-radius:99px;">0 foto</span>
+                        <h2 style="margin:0; font-family: 'Poppins', sans-serif;">Media Tersimpan</h2>
+                        <span id="galleryCount" style="background:#f1f5f9; color:#475569; font-size:0.8rem; font-weight:700; padding:0.3rem 0.75rem; border-radius:99px;">0 item</span>
                     </div>
                     <div id="galleryAdminGrid" class="gallery-admin-grid">
-                        <p style="color:#94a3b8; font-size:0.9rem;">Memuat foto...</p>
+                        <p style="color:#94a3b8; font-size:0.9rem;">Memuat media...</p>
                     </div>
                 </div>
             </div>

@@ -562,7 +562,12 @@ async function deleteNews(id) {
 
 let selectedGalleryFiles = [];
 
-/** Wire up gallery file input and drag-and-drop */
+/** Returns 'image' or 'video' based on MIME type */
+function getMediaType(file) {
+    return file.type.startsWith('video/') ? 'video' : 'image';
+}
+
+/** Wire up gallery file input and drag-and-drop (accepts images + videos) */
 function initGalleryInputs() {
     const input = document.getElementById('galleryFileInput');
     const dropArea = document.getElementById('galleryDropArea');
@@ -578,14 +583,15 @@ function initGalleryInputs() {
         renderGalleryPreviews();
     });
 
-    // Drag-and-drop
+    // Drag-and-drop (accept images and videos)
     dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.classList.add('dragover'); });
     dropArea.addEventListener('dragleave', () => dropArea.classList.remove('dragover'));
     dropArea.addEventListener('drop', e => {
         e.preventDefault();
         dropArea.classList.remove('dragover');
         Array.from(e.dataTransfer.files).forEach(f => {
-            if (f.type.startsWith('image/') && !selectedGalleryFiles.find(x => x.name === f.name && x.size === f.size)) {
+            const ok = f.type.startsWith('image/') || f.type.startsWith('video/');
+            if (ok && !selectedGalleryFiles.find(x => x.name === f.name && x.size === f.size)) {
                 selectedGalleryFiles.push(f);
             }
         });
@@ -593,34 +599,57 @@ function initGalleryInputs() {
     });
 }
 
-/** Render preview thumbnails for newly selected gallery files */
+/** Render preview thumbnails / video clips for newly selected gallery files */
 function renderGalleryPreviews() {
     const area = document.getElementById('galleryNewPreviews');
     area.innerHTML = '';
     selectedGalleryFiles.forEach((file, i) => {
-        const reader = new FileReader();
-        reader.onload = ev => {
-            const wrap = document.createElement('div');
-            wrap.className = 'gallery-new-preview-item';
-            wrap.innerHTML = `<img src="${ev.target.result}" alt="preview">
-                <button type="button" class="remove-btn" title="Hapus">&#10005;</button>`;
-            wrap.querySelector('.remove-btn').onclick = () => {
+        const wrap = document.createElement('div');
+        wrap.className = 'gallery-new-preview-item';
+
+        const removeBtn = `<button type="button" class="remove-btn" title="Hapus">&#10005;</button>`;
+
+        if (getMediaType(file) === 'video') {
+            const url = URL.createObjectURL(file);
+            wrap.innerHTML = `<video src="${url}" muted playsinline></video>
+                <span style="position:absolute;bottom:3px;left:3px;background:rgba(0,0,0,0.6);color:white;font-size:0.65rem;padding:1px 4px;border-radius:3px;">VIDEO</span>
+                ${removeBtn}`;
+        } else {
+            const reader = new FileReader();
+            reader.onload = ev => {
+                wrap.innerHTML = `<img src="${ev.target.result}" alt="preview">${removeBtn}`;
+                wrap.querySelector('.remove-btn').onclick = () => {
+                    selectedGalleryFiles.splice(i, 1);
+                    renderGalleryPreviews();
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Attach remove for video (img path attaches inside reader.onload)
+        if (getMediaType(file) === 'video') {
+            wrap.querySelector('.remove-btn')?.addEventListener('click', () => {
                 selectedGalleryFiles.splice(i, 1);
                 renderGalleryPreviews();
-            };
-            area.appendChild(wrap);
-        };
-        reader.readAsDataURL(file);
+            });
+            // wait for DOM to be ready then attach
+            setTimeout(() => {
+                const btn = wrap.querySelector('.remove-btn');
+                if (btn) btn.onclick = () => { selectedGalleryFiles.splice(i, 1); renderGalleryPreviews(); };
+            }, 0);
+        }
+
+        area.appendChild(wrap);
     });
 }
 
-/** Load gallery photos from Supabase and render admin grid */
+/** Load gallery media from Supabase and render admin grid */
 async function loadGallery() {
     const grid = document.getElementById('galleryAdminGrid');
     const countEl = document.getElementById('galleryCount');
     if (!grid) return;
 
-    grid.innerHTML = '<p style="color:#94a3b8;font-size:0.9rem;">Memuat foto...</p>';
+    grid.innerHTML = '<p style="color:#94a3b8;font-size:0.9rem;">Memuat media...</p>';
 
     const { data, error } = await supabaseClient
         .from('gallery')
@@ -632,20 +661,28 @@ async function loadGallery() {
         return;
     }
 
-    if (countEl) countEl.textContent = `${data.length} foto`;
+    if (countEl) countEl.textContent = `${data.length} item`;
 
     if (!data || data.length === 0) {
-        grid.innerHTML = '<p style="color:#94a3b8;font-size:0.9rem;grid-column:1/-1;text-align:center;padding:2rem 0;">Belum ada foto di galeri. Upload foto pertama kamu!</p>';
+        grid.innerHTML = '<p style="color:#94a3b8;font-size:0.9rem;grid-column:1/-1;text-align:center;padding:2rem 0;">Belum ada media di galeri. Upload foto atau video pertama kamu!</p>';
         return;
     }
 
     grid.innerHTML = '';
     data.forEach(item => {
+        const isVideo = item.media_type === 'video';
         const el = document.createElement('div');
         el.className = 'gallery-admin-item';
+
+        const mediaEl = isVideo
+            ? `<video src="${item.image_url}" muted playsinline preload="metadata"
+                    onerror="this.parentElement.style.background='#fee2e2';"></video>
+               <span class="media-type-badge">&#127916; VIDEO</span>`
+            : `<img src="${item.image_url}" alt="${item.caption || 'Galeri'}" loading="lazy"
+                    onerror="this.src='https://via.placeholder.com/200x200.png?text=Error';">`;
+
         el.innerHTML = `
-            <img src="${item.image_url}" alt="${item.caption || 'Galeri'}" loading="lazy"
-                 onerror="this.src='https://via.placeholder.com/200x200.png?text=Error';">
+            ${mediaEl}
             <div class="gallery-item-overlay">
                 <span class="gallery-caption">${item.caption || '(tanpa keterangan)'}</span>
                 <button class="btn-delete-gallery" onclick="deleteGallery('${item.id}', this)">&#128465; Hapus</button>
@@ -658,7 +695,7 @@ async function loadGallery() {
 /** Upload selected gallery files to Supabase storage and insert into gallery table */
 async function saveGallery() {
     if (selectedGalleryFiles.length === 0) {
-        alert('Pilih setidaknya satu foto terlebih dahulu.');
+        alert('Pilih setidaknya satu foto atau video terlebih dahulu.');
         return;
     }
 
@@ -677,9 +714,11 @@ async function saveGallery() {
         for (let i = 0; i < total; i++) {
             const file = selectedGalleryFiles[i];
             const ext = file.name.split('.').pop();
-            const path = `gallery_${Date.now()}_${i}.${ext}`;
+            const mediaType = getMediaType(file);
+            const prefix = mediaType === 'video' ? 'gallery_vid' : 'gallery_img';
+            const path = `${prefix}_${Date.now()}_${i}.${ext}`;
 
-            progressText.textContent = `Mengupload foto ${i + 1} dari ${total}...`;
+            progressText.textContent = `Mengupload ${mediaType === 'video' ? 'video' : 'foto'} ${i + 1} dari ${total}...`;
             progressBar.style.width = `${Math.round((i / total) * 100)}%`;
 
             // Upload to Supabase storage bucket 'photos'
@@ -690,17 +729,18 @@ async function saveGallery() {
 
             const { data: pub } = supabaseClient.storage.from('photos').getPublicUrl(path);
 
-            // Insert row into gallery table
+            // Insert row into gallery table with media_type
             const { error: insErr } = await supabaseClient.from('gallery').insert([{
                 image_url: pub.publicUrl,
                 caption: caption || null,
+                media_type: mediaType,
             }]);
             if (insErr) throw insErr;
 
             progressBar.style.width = `${Math.round(((i + 1) / total) * 100)}%`;
         }
 
-        progressText.textContent = 'Semua foto berhasil diupload!';
+        progressText.textContent = 'Semua media berhasil diupload!';
         progressBar.style.width = '100%';
 
         // Reset form
@@ -714,7 +754,7 @@ async function saveGallery() {
         }, 1800);
 
         await loadGallery();
-        alert(`${total} foto berhasil diupload ke Galeri Kegiatan!`);
+        alert(`${total} file berhasil diupload ke Galeri Kegiatan!`);
 
     } catch (err) {
         console.error(err);
@@ -725,16 +765,17 @@ async function saveGallery() {
     }
 }
 
-/** Delete a gallery photo from the database */
+/** Delete a gallery item from the database */
 async function deleteGallery(id, btnEl) {
-    if (!confirm('Yakin ingin menghapus foto ini dari galeri?')) return;
+    if (!confirm('Yakin ingin menghapus media ini dari galeri?')) return;
     if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Menghapus...'; }
 
     const { error } = await supabaseClient.from('gallery').delete().eq('id', id);
     if (error) {
-        alert('Gagal menghapus foto: ' + error.message);
+        alert('Gagal menghapus media: ' + error.message);
         if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '&#128465; Hapus'; }
     } else {
         await loadGallery();
     }
 }
+

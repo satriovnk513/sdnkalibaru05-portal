@@ -236,10 +236,11 @@
         </div>
     </section>
 
-    <!-- Modal for Lightbox (Optional but good for premium feel) -->
+    <!-- Modal for Lightbox (photo + video) -->
     <div id="galleryModal" class="gallery-modal">
         <span class="close-modal">&times;</span>
         <img class="modal-content" id="modalImg">
+        <video class="modal-content" id="modalVideo" controls playsinline style="display:none;max-height:80vh;max-width:90vw;outline:none;"></video>
         <div id="modalCaption"></div>
     </div>
 
@@ -336,23 +337,39 @@
 
                 if (galleryContainer) {
                     if (!galleryData || galleryData.length === 0) {
-                        galleryContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-light); padding: 2rem;">Belum ada foto di galeri. <br><small>(Gunakan dashboard Supabase untuk menambah foto ke tabel "gallery")</small></p>';
+                        galleryContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-light); padding: 2rem;">Belum ada foto di galeri. <br><small>(Gunakan dashboard Admin untuk menambah foto/video ke Galeri Kegiatan)</small></p>';
                     } else {
                         galleryContainer.innerHTML = ''; // Clear loading state
                         galleryData.forEach((item, index) => {
+                            const isVideo = item.media_type === 'video';
                             const galleryItem = document.createElement('div');
                             galleryItem.className = 'gallery-item animate-up';
                             galleryItem.style.transitionDelay = `${index * 0.1}s`;
-                            galleryItem.innerHTML = `
-                                <img src="${item.image_url}" alt="${item.caption || 'Galeri Foto'}" 
-                                     onerror="this.src='https://via.placeholder.com/400x400.png?text=Gambar+Tidak+Tersedia'; this.classList.add('error');"
-                                     loading="lazy">
-                                <div class="gallery-overlay">
-                                    <i class="fas fa-search-plus"></i>
-                                    <span>${item.caption || ''}</span>
-                                </div>
-                            `;
-                            galleryItem.addEventListener('click', () => openLightbox(item.image_url, item.caption));
+
+                            if (isVideo) {
+                                galleryItem.innerHTML = `
+                                    <video src="${item.image_url}" muted playsinline preload="metadata"
+                                           style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;"
+                                           onerror="this.parentElement.style.background='#1e293b';"></video>
+                                    <div class="gallery-overlay">
+                                        <i class="fas fa-play-circle" style="font-size:2.5rem;"></i>
+                                        <span>${item.caption || ''}</span>
+                                    </div>
+                                `;
+                                galleryItem.addEventListener('click', () => openVideoLightbox(item.image_url, item.caption));
+                            } else {
+                                galleryItem.innerHTML = `
+                                    <img src="${item.image_url}" alt="${item.caption || 'Galeri Foto'}" 
+                                         onerror="this.src='https://via.placeholder.com/400x400.png?text=Gambar+Tidak+Tersedia'; this.classList.add('error');"
+                                         loading="lazy">
+                                    <div class="gallery-overlay">
+                                        <i class="fas fa-search-plus"></i>
+                                        <span>${item.caption || ''}</span>
+                                    </div>
+                                `;
+                                galleryItem.addEventListener('click', () => openLightbox(item.image_url, item.caption));
+                            }
+
                             galleryContainer.appendChild(galleryItem);
                             
                             // Re-observe the new element
@@ -370,28 +387,59 @@
         });
 
         // Lightbox Functionality
+        function closeLightbox() {
+            const modal = document.getElementById('galleryModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            // Pause & clear video to stop playback
+            const vid = document.getElementById('modalVideo');
+            vid.pause();
+            vid.src = '';
+            vid.style.display = 'none';
+            document.getElementById('modalImg').style.display = '';
+        }
+
         function openLightbox(src, caption) {
             const modal = document.getElementById('galleryModal');
             const modalImg = document.getElementById('modalImg');
+            const modalVideo = document.getElementById('modalVideo');
             const modalCaption = document.getElementById('modalCaption');
-            
-            modal.style.display = "block";
+
+            modalVideo.style.display = 'none';
+            modalVideo.pause(); modalVideo.src = '';
+            modalImg.style.display = '';
             modalImg.src = src;
             modalCaption.innerHTML = caption || '';
-            document.body.style.overflow = 'hidden'; // Disable scroll
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
         }
 
-        document.querySelector('.close-modal')?.addEventListener('click', () => {
-            document.getElementById('galleryModal').style.display = "none";
-            document.body.style.overflow = 'auto'; // Enable scroll
-        });
+        function openVideoLightbox(src, caption) {
+            const modal = document.getElementById('galleryModal');
+            const modalImg = document.getElementById('modalImg');
+            const modalVideo = document.getElementById('modalVideo');
+            const modalCaption = document.getElementById('modalCaption');
+
+            modalImg.style.display = 'none';
+            modalImg.src = '';
+            modalVideo.style.display = '';
+            modalVideo.src = src;
+            modalVideo.play().catch(() => {}); // autoplay
+            modalCaption.innerHTML = caption || '';
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        document.querySelector('.close-modal')?.addEventListener('click', closeLightbox);
 
         window.addEventListener('click', (event) => {
             const modal = document.getElementById('galleryModal');
-            if (event.target == modal) {
-                modal.style.display = "none";
-                document.body.style.overflow = 'auto';
-            }
+            if (event.target == modal) closeLightbox();
+        });
+
+        // Close with Escape key
+        window.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeLightbox();
         });
 
     </script>
