@@ -405,7 +405,7 @@
 
             // Fetch Gallery Data (all, with client-side pagination)
             const GALLERY_PER_PAGE = 12;
-            let galleryAllData = [];
+            window.galleryAllData = [];
             let galleryCurrentPage = 1;
 
             function renderGalleryPage(page) {
@@ -414,9 +414,9 @@
                 const pagination = document.getElementById('galleryPagination');
                 if (!container) return;
 
-                const totalPages = Math.ceil(galleryAllData.length / GALLERY_PER_PAGE);
+                const totalPages = Math.ceil(window.galleryAllData.length / GALLERY_PER_PAGE);
                 const start = (page - 1) * GALLERY_PER_PAGE;
-                const pageItems = galleryAllData.slice(start, start + GALLERY_PER_PAGE);
+                const pageItems = window.galleryAllData.slice(start, start + GALLERY_PER_PAGE);
 
                 container.innerHTML = '';
                 pageItems.forEach((item, index) => {
@@ -533,7 +533,7 @@
                 if (!galleryData || galleryData.length === 0) {
                     if (container) container.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--text-light);padding:2rem;">Belum ada foto/video di galeri.<br><small>Gunakan halaman Admin untuk menambah konten.</small></p>';
                 } else {
-                    galleryAllData = galleryData;
+                    window.galleryAllData = galleryData;
                     renderGalleryPage(1);
                 }
             } catch (err) {
@@ -547,9 +547,9 @@
         let currentLightboxIndex = -1;
 
         function showLightboxItem(index) {
-            if (index < 0 || index >= galleryAllData.length) return;
+            if (index < 0 || index >= window.galleryAllData.length) return;
             currentLightboxIndex = index;
-            const item = galleryAllData[index];
+            const item = window.galleryAllData[index];
             const isVideo = item.media_type === 'video';
             const modal = document.getElementById('galleryModal');
             const modalImg = document.getElementById('modalImg');
@@ -571,11 +571,11 @@
             }
 
             modalCaption.innerHTML = item.caption || '';
-            counter.textContent = `${index + 1} / ${galleryAllData.length}`;
+            counter.textContent = `${index + 1} / ${window.galleryAllData.length}`;
 
             // Show/hide nav buttons
             document.getElementById('modalPrev').style.display = index > 0 ? '' : 'none';
-            document.getElementById('modalNext').style.display = index < galleryAllData.length - 1 ? '' : 'none';
+            document.getElementById('modalNext').style.display = index < window.galleryAllData.length - 1 ? '' : 'none';
         }
 
         function openGalleryLightbox(index) {
@@ -601,7 +601,7 @@
         }
 
         function lightboxNext() {
-            if (currentLightboxIndex < galleryAllData.length - 1) showLightboxItem(currentLightboxIndex + 1);
+            if (currentLightboxIndex < window.galleryAllData.length - 1) showLightboxItem(currentLightboxIndex + 1);
         }
 
         // Button listeners
