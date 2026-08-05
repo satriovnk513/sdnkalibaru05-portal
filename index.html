@@ -246,6 +246,52 @@
         <div id="modalCaption"></div>
     </div>
 
+    <!-- Lokasi Sekolah -->
+    <section class="section location-section" id="lokasi">
+        <div class="container">
+            <h2 class="section-title">Lokasi Kami</h2>
+            <p class="section-subtitle">Temukan kami di peta dan kunjungi SDN Kalibaru 05 Pagi.</p>
+            <div class="location-wrapper animate-up">
+                <div class="location-map">
+                    <iframe
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.8!2d106.9193!3d-6.1062!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e6a1f4e28e1e9c7%3A0x0!2sJl.+Kalibaru+Barat+IV+No.60%2C+Kalibaru%2C+Cilincing%2C+Jakarta+Utara!5e0!3m2!1sid!2sid!4v1700000000000!5m2!1sid!2sid"
+                        width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        title="Lokasi SDN Kalibaru 05 Pagi di Google Maps"></iframe>
+                </div>
+                <div class="location-info">
+                    <div class="location-info-inner">
+                        <div class="location-icon-badge">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <h3 class="location-heading">Alamat Lengkap</h3>
+                        <div class="location-address">
+                            <p>Jl. Kalibaru Barat IV No.60</p>
+                            <p>RT/RW 012/003</p>
+                            <p>Kel. Kalibaru, Kec. Cilincing</p>
+                            <p>Jakarta Utara, DKI Jakarta</p>
+                            <p class="location-zip">14110</p>
+                        </div>
+                        <div class="location-divider"></div>
+                        <div class="location-meta">
+                            <div class="location-meta-item">
+                                <i class="fas fa-school"></i>
+                                <span>SDN Kalibaru 05 Pagi</span>
+                            </div>
+                            <div class="location-meta-item">
+                                <i class="fas fa-clock"></i>
+                                <span>Senin – Jumat, 06.30 – 13.00 WIB</span>
+                            </div>
+                        </div>
+                        <a href="https://share.google/qZqzxZucQ99KsBGZX" target="_blank" rel="noopener noreferrer" class="btn-maps">
+                            <i class="fas fa-directions"></i> Buka di Google Maps
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
@@ -264,6 +310,21 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
     <script>
+        // Sanitize HTML to prevent XSS injection
+        function sanitizeHTML(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+        function sanitizeURL(url) {
+            if (!url) return '';
+            try {
+                const p = new URL(url);
+                return (p.protocol === 'http:' || p.protocol === 'https:') ? p.href : '';
+            } catch { return ''; }
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const { data: staffData, error: staffError } = await supabaseClient.from('staff').select('*');
@@ -284,14 +345,16 @@
                     console.log('SORTED:', sorted.map(s => ({name: s.name, order_index: s.order_index})));
 
                     sorted.forEach(staff => {
-                        const parts = staff.role.split('|');
+                        const safeName = sanitizeHTML(staff.name);
+                        const safeImgUrl = sanitizeURL(staff.image_url);
+                        const parts = sanitizeHTML(staff.role).split('|');
                         const displayRole = parts[1] || parts[0];
                         staffContainer.innerHTML += `
                             <div class="staff-card">
                                 <div class="staff-img-wrapper">
-                                    <img src="${staff.image_url}" alt="${staff.name}" class="staff-img" style="object-position: center top;">
+                                    <img src="${safeImgUrl}" alt="${safeName}" class="staff-img" style="object-position: center top;">
                                 </div>
-                                <h3 class="staff-name">${staff.name}</h3>
+                                <h3 class="staff-name">${safeName}</h3>
                                 <p class="staff-role">${displayRole}</p>
                             </div>
                         `;
@@ -308,17 +371,23 @@
                     newsContainer.innerHTML = '';
                     newsData.forEach((news, index) => {
                         const delayClass = index === 0 ? '' : `delay-${index}`;
+                        const safeTitle = sanitizeHTML(news.title);
+                        const safeDate = sanitizeHTML(news.date);
+                        const safeDesc = sanitizeHTML(news.description);
+                        const safeNewsImg = sanitizeURL(news.image_url);
+                        const safeSlug = news.slug ? sanitizeHTML(news.slug) : '';
+                        const newsLink = safeSlug ? `/berita/${safeSlug}` : `berita-detail?id=${sanitizeHTML(news.id)}`;
                         const article = document.createElement('article');
                         article.className = `news-card ${delayClass}`;
                         article.innerHTML = `
-                            <div class="news-img" style="background-image: url('${news.image_url}')"></div>
+                            <div class="news-img" style="background-image: url('${safeNewsImg}')"></div>
                             <div class="news-content">
-                                <span class="news-date">${news.date}</span>
-                                <a href="${news.slug ? `/berita/${news.slug}` : `berita-detail?id=${news.id}`}" class="news-title-link">
-                                    <h3 class="news-title">${news.title}</h3>
+                                <span class="news-date">${safeDate}</span>
+                                <a href="${newsLink}" class="news-title-link">
+                                    <h3 class="news-title">${safeTitle}</h3>
                                 </a>
-                                <p>${news.description}</p>
-                                <a href="${news.slug ? `/berita/${news.slug}` : `berita-detail?id=${news.id}`}" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
+                                <p>${safeDesc}</p>
+                                <a href="${newsLink}" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
                             </div>
                         `;
                         newsContainer.appendChild(article);
