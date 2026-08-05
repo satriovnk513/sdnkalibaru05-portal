@@ -240,9 +240,16 @@
 
     <!-- Modal for Lightbox (photo + video) -->
     <div id="galleryModal" class="gallery-modal">
-        <span class="close-modal">&times;</span>
-        <img class="modal-content" id="modalImg">
-        <video class="modal-content" id="modalVideo" controls playsinline style="display:none;max-height:80vh;max-width:90vw;outline:none;"></video>
+        <div class="modal-controls">
+            <span class="modal-counter" id="modalCounter"></span>
+            <span class="close-modal" id="closeModalBtn">&times;</span>
+        </div>
+        <button class="modal-nav modal-prev" id="modalPrev" aria-label="Sebelumnya"><i class="fas fa-chevron-left"></i></button>
+        <div class="modal-body" id="modalBody">
+            <img class="modal-content" id="modalImg">
+            <video class="modal-content" id="modalVideo" controls playsinline style="display:none;max-height:85vh;max-width:90vw;outline:none;"></video>
+        </div>
+        <button class="modal-nav modal-next" id="modalNext" aria-label="Berikutnya"><i class="fas fa-chevron-right"></i></button>
         <div id="modalCaption"></div>
     </div>
 
@@ -413,6 +420,7 @@
 
                 container.innerHTML = '';
                 pageItems.forEach((item, index) => {
+                    const globalIndex = start + index;
                     const isVideo = item.media_type === 'video';
                     const galleryItem = document.createElement('div');
                     galleryItem.className = 'gallery-item animate-up';
@@ -428,7 +436,7 @@
                                 <span>${item.caption || ''}</span>
                             </div>
                         `;
-                        galleryItem.addEventListener('click', () => openVideoLightbox(item.image_url, item.caption));
+                        galleryItem.addEventListener('click', () => openGalleryLightbox(globalIndex));
                     } else {
                         galleryItem.innerHTML = `
                             <img src="${item.image_url}" alt="${item.caption || 'Galeri Foto'}"
@@ -439,7 +447,7 @@
                                 <span>${item.caption || ''}</span>
                             </div>
                         `;
-                        galleryItem.addEventListener('click', () => openLightbox(item.image_url, item.caption));
+                        galleryItem.addEventListener('click', () => openGalleryLightbox(globalIndex));
                     }
 
                     container.appendChild(galleryItem);
@@ -535,61 +543,111 @@
             }
         });
 
-        // Lightbox Functionality
+        // Lightbox Functionality — with prev/next & swipe
+        let currentLightboxIndex = -1;
+
+        function showLightboxItem(index) {
+            if (index < 0 || index >= galleryAllData.length) return;
+            currentLightboxIndex = index;
+            const item = galleryAllData[index];
+            const isVideo = item.media_type === 'video';
+            const modal = document.getElementById('galleryModal');
+            const modalImg = document.getElementById('modalImg');
+            const modalVideo = document.getElementById('modalVideo');
+            const modalCaption = document.getElementById('modalCaption');
+            const counter = document.getElementById('modalCounter');
+
+            if (isVideo) {
+                modalImg.style.display = 'none';
+                modalImg.src = '';
+                modalVideo.style.display = '';
+                modalVideo.src = item.image_url;
+                modalVideo.play().catch(() => {});
+            } else {
+                modalVideo.pause(); modalVideo.src = '';
+                modalVideo.style.display = 'none';
+                modalImg.style.display = '';
+                modalImg.src = item.image_url;
+            }
+
+            modalCaption.innerHTML = item.caption || '';
+            counter.textContent = `${index + 1} / ${galleryAllData.length}`;
+
+            // Show/hide nav buttons
+            document.getElementById('modalPrev').style.display = index > 0 ? '' : 'none';
+            document.getElementById('modalNext').style.display = index < galleryAllData.length - 1 ? '' : 'none';
+        }
+
+        function openGalleryLightbox(index) {
+            const modal = document.getElementById('galleryModal');
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            showLightboxItem(index);
+        }
+
         function closeLightbox() {
             const modal = document.getElementById('galleryModal');
             modal.style.display = 'none';
             document.body.style.overflow = 'auto';
-            // Pause & clear video to stop playback
             const vid = document.getElementById('modalVideo');
-            vid.pause();
-            vid.src = '';
+            vid.pause(); vid.src = '';
             vid.style.display = 'none';
             document.getElementById('modalImg').style.display = '';
+            currentLightboxIndex = -1;
         }
 
-        function openLightbox(src, caption) {
-            const modal = document.getElementById('galleryModal');
-            const modalImg = document.getElementById('modalImg');
-            const modalVideo = document.getElementById('modalVideo');
-            const modalCaption = document.getElementById('modalCaption');
-
-            modalVideo.style.display = 'none';
-            modalVideo.pause(); modalVideo.src = '';
-            modalImg.style.display = '';
-            modalImg.src = src;
-            modalCaption.innerHTML = caption || '';
-            modal.style.display = 'block';
-            document.body.style.overflow = 'hidden';
+        function lightboxPrev() {
+            if (currentLightboxIndex > 0) showLightboxItem(currentLightboxIndex - 1);
         }
 
-        function openVideoLightbox(src, caption) {
-            const modal = document.getElementById('galleryModal');
-            const modalImg = document.getElementById('modalImg');
-            const modalVideo = document.getElementById('modalVideo');
-            const modalCaption = document.getElementById('modalCaption');
-
-            modalImg.style.display = 'none';
-            modalImg.src = '';
-            modalVideo.style.display = '';
-            modalVideo.src = src;
-            modalVideo.play().catch(() => {}); // autoplay
-            modalCaption.innerHTML = caption || '';
-            modal.style.display = 'block';
-            document.body.style.overflow = 'hidden';
+        function lightboxNext() {
+            if (currentLightboxIndex < galleryAllData.length - 1) showLightboxItem(currentLightboxIndex + 1);
         }
 
-        document.querySelector('.close-modal')?.addEventListener('click', closeLightbox);
+        // Button listeners
+        document.getElementById('closeModalBtn')?.addEventListener('click', closeLightbox);
+        document.getElementById('modalPrev')?.addEventListener('click', (e) => { e.stopPropagation(); lightboxPrev(); });
+        document.getElementById('modalNext')?.addEventListener('click', (e) => { e.stopPropagation(); lightboxNext(); });
 
+        // Close on backdrop click
         window.addEventListener('click', (event) => {
             const modal = document.getElementById('galleryModal');
-            if (event.target == modal) closeLightbox();
+            if (event.target === modal) closeLightbox();
         });
 
-        // Close with Escape key
+        // Keyboard: Escape, ArrowLeft, ArrowRight
         window.addEventListener('keydown', e => {
+            if (document.getElementById('galleryModal').style.display === 'none') return;
             if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowLeft') lightboxPrev();
+            if (e.key === 'ArrowRight') lightboxNext();
         });
+
+        // Touch swipe support
+        (function() {
+            const modalBody = document.getElementById('modalBody');
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let touchEndX = 0;
+            let touchEndY = 0;
+
+            modalBody.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, { passive: true });
+
+            modalBody.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                touchEndY = e.changedTouches[0].screenY;
+                const diffX = touchEndX - touchStartX;
+                const diffY = touchEndY - touchStartY;
+                // Only trigger if horizontal swipe is larger than vertical
+                if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+                    if (diffX < 0) lightboxNext();
+                    else lightboxPrev();
+                }
+            }, { passive: true });
+        })();
 
     </script>
     <script>

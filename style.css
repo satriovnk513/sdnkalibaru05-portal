@@ -2055,47 +2055,131 @@ img {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background-color: rgba(15, 23, 42, 0.95);
-    backdrop-filter: blur(10px);
-    animation: fadeIn 0.3s ease;
+    background-color: rgba(10, 15, 30, 0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.25s ease;
 }
 
-.modal-content {
-    margin: auto;
-    display: block;
-    max-width: 90%;
-    max-height: 80vh;
-    border-radius: var(--radius-md);
-    box-shadow: 0 0 50px rgba(0,0,0,0.5);
-    transform-origin: center;
-    animation: zoomIn 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+.modal-controls {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    z-index: 10002;
+    background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 100%);
 }
 
-#modalCaption {
-    margin: 20px auto;
-    display: block;
-    width: 80%;
-    text-align: center;
-    color: var(--white);
-    font-size: 1.1rem;
+.modal-counter {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.95rem;
     font-weight: 500;
+    font-family: var(--font-body);
+    letter-spacing: 1px;
 }
 
 .close-modal {
-    position: absolute;
-    top: 30px;
-    right: 40px;
     color: #f1f1f1;
-    font-size: 40px;
+    font-size: 2.2rem;
     font-weight: bold;
-    transition: 0.3s;
+    transition: var(--transition-smooth);
     cursor: pointer;
     z-index: 10001;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    line-height: 1;
 }
 
 .close-modal:hover {
     color: var(--primary-color);
+    background: rgba(255, 255, 255, 0.15);
     transform: rotate(90deg);
+}
+
+.modal-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 4rem 3.5rem 3rem;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.modal-content {
+    display: block;
+    max-width: 100%;
+    max-height: 85vh;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 10px 60px rgba(0, 0, 0, 0.6);
+    object-fit: contain;
+    animation: zoomIn 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.modal-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10002;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: white;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.15rem;
+    transition: var(--transition-smooth);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.modal-nav:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.modal-nav:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+.modal-prev {
+    left: 1rem;
+}
+
+.modal-next {
+    right: 1rem;
+}
+
+#modalCaption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 1rem;
+    font-weight: 500;
+    padding: 1.25rem 2rem;
+    background: linear-gradient(0deg, rgba(0,0,0,0.5) 0%, transparent 100%);
+    pointer-events: none;
 }
 
 @keyframes fadeIn {
@@ -2104,7 +2188,7 @@ img {
 }
 
 @keyframes zoomIn {
-    from { transform: scale(0.9); opacity: 0; }
+    from { transform: scale(0.92); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
 }
 
@@ -2114,13 +2198,42 @@ img {
         gap: 0.75rem;
     }
     
+    .modal-body {
+        padding: 3.5rem 0.5rem 3rem;
+    }
+
     .modal-content {
-        max-width: 95%;
+        max-width: 98%;
+        border-radius: 8px;
+    }
+
+    .modal-nav {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+
+    .modal-prev {
+        left: 0.5rem;
+    }
+
+    .modal-next {
+        right: 0.5rem;
     }
     
     .close-modal {
-        top: 15px;
-        right: 25px;
+        font-size: 1.8rem;
+        width: 38px;
+        height: 38px;
+    }
+
+    .modal-controls {
+        padding: 0.75rem 1rem;
+    }
+
+    #modalCaption {
+        font-size: 0.9rem;
+        padding: 1rem 1rem;
     }
 }
 
