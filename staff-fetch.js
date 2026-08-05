@@ -1,3 +1,25 @@
+// Sanitize HTML to prevent XSS injection attacks
+function sanitizeHTML(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// Sanitize URL — only allow http/https protocols
+function sanitizeURL(url) {
+    if (!url) return '';
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+            return parsed.href;
+        }
+        return '';
+    } catch {
+        return '';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const { data, error } = await supabaseClient.from('staff').select('*');
@@ -25,18 +47,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         data.forEach(staff => {
-            const parts = staff.role.split('|');
+            const safeName = sanitizeHTML(staff.name);
+            const safeImgUrl = sanitizeURL(staff.image_url);
+            const safeNip = sanitizeHTML(staff.nip || '-');
+
+            const parts = sanitizeHTML(staff.role).split('|');
             const category = parts[0];
             const displayRole = parts[1] || parts[0];
             
             const html = `
                 <div class="staff-card ${(category === 'Kepala Sekolah' || category === 'Wakil Kepala Sekolah') ? 'principal-card' : ''}">
-                    <div class="staff-img-wrapper" onclick="openStaffLightbox('${staff.image_url}', '${staff.name.replace(/'/g, "\\'")}', '${displayRole.replace(/'/g, "\\'")}', '${(staff.nip || '-').replace(/'/g, "\\'")}')" style="cursor: pointer;">
-                        <img src="${staff.image_url}" alt="${staff.name}" class="staff-img" style="object-position: center top;">
+                    <div class="staff-img-wrapper" onclick="openStaffLightbox('${safeImgUrl.replace(/'/g, "\\'")}', '${safeName.replace(/'/g, "\\'")}', '${displayRole.replace(/'/g, "\\'")}', '${safeNip.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+                        <img src="${safeImgUrl}" alt="${safeName}" class="staff-img" style="object-position: center top;">
                     </div>
-                    <h3 class="staff-name">${staff.name}</h3>
+                    <h3 class="staff-name">${safeName}</h3>
                     <p class="staff-role">${displayRole}</p>
-                    <p class="staff-nip">${staff.nip || '-'}</p>
+                    <p class="staff-nip">${safeNip}</p>
                 </div>
             `;
 

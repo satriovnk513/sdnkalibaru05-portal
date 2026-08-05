@@ -1,8 +1,11 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initFileInputs(); // wire multi-file inputs
     initGalleryInputs(); // wire gallery file input & drag-drop
-    // Check login
-    if (localStorage.getItem('adminLoggedIn') === 'true') {
+    
+    // Check login using Supabase Auth
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    
+    if (session) {
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('mainContent').style.display = 'block';
         updateSubRoles();
@@ -10,25 +13,50 @@ document.addEventListener('DOMContentLoaded', () => {
         loadNews();
         loadGallery();
     }
+    
+    // Listen for auth state changes (e.g. token expiration)
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT') {
+            document.getElementById('loginOverlay').style.display = 'flex';
+            document.getElementById('mainContent').style.display = 'none';
+        }
+    });
 });
 
-function checkLogin() {
-    let email = document.getElementById('adminEmail').value.trim();
-    let pass = document.getElementById('adminPassword').value;
+async function checkLogin() {
+    const email = document.getElementById('adminEmail').value.trim();
+    const pass = document.getElementById('adminPassword').value;
+    const errorMsg = document.getElementById('loginError');
+    
+    errorMsg.style.display = 'none';
+    
+    if (!email || !pass) {
+        errorMsg.textContent = 'Email dan password harus diisi!';
+        errorMsg.style.display = 'block';
+        return;
+    }
 
-    if (email === 'admin@sdnkalibaru05.sch.id' && pass === 'admin123') {
-        localStorage.setItem('adminLoggedIn', 'true');
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: pass,
+    });
+
+    if (error) {
+        errorMsg.textContent = 'Login gagal: Email atau password salah!';
+        errorMsg.style.display = 'block';
+        console.error('Login error:', error.message);
+    } else {
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('mainContent').style.display = 'block';
+        updateSubRoles();
         loadStaff();
+        loadNews();
         loadGallery();
-    } else {
-        document.getElementById('loginError').style.display = 'block';
     }
 }
 
-function logout() {
-    localStorage.removeItem('adminLoggedIn');
+async function logout() {
+    await supabaseClient.auth.signOut();
     location.reload();
 }
 
