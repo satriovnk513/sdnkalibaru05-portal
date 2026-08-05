@@ -2109,25 +2109,62 @@ img {
 }
 
 .modal-body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
     width: 100%;
     height: 100%;
-    padding: 4rem 3.5rem 3rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 4rem 3.5rem 2rem;
     box-sizing: border-box;
-    user-select: none;
-    -webkit-user-select: none;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.modal-scroll {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 900px;
+    width: 100%;
 }
 
 .modal-content {
     display: block;
     max-width: 100%;
-    max-height: 85vh;
-    border-radius: var(--radius-sm);
+    max-height: 80vh;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
     box-shadow: 0 10px 60px rgba(0, 0, 0, 0.6);
     object-fit: contain;
     animation: zoomIn 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+    flex-shrink: 0;
+}
+
+/* When no caption, keep full rounded corners */
+.modal-content:last-child {
+    border-radius: var(--radius-sm);
+}
+
+#modalCaption {
+    width: 100%;
+    max-width: 900px;
+    text-align: left;
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 1.05rem;
+    font-weight: 400;
+    line-height: 1.75;
+    padding: 1.25rem 1.5rem 2rem;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-sizing: border-box;
+    font-family: var(--font-body);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+#modalCaption:empty {
+    display: none;
 }
 
 .modal-nav {
@@ -2168,20 +2205,6 @@ img {
     right: 1rem;
 }
 
-#modalCaption {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    text-align: center;
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 1rem;
-    font-weight: 500;
-    padding: 1.25rem 2rem;
-    background: linear-gradient(0deg, rgba(0,0,0,0.5) 0%, transparent 100%);
-    pointer-events: none;
-}
-
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -2199,11 +2222,15 @@ img {
     }
     
     .modal-body {
-        padding: 3.5rem 0.5rem 3rem;
+        padding: 3.5rem 0.5rem 1.5rem;
     }
 
     .modal-content {
-        max-width: 98%;
+        max-width: 100%;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .modal-content:last-child {
         border-radius: 8px;
     }
 
@@ -2232,8 +2259,8 @@ img {
     }
 
     #modalCaption {
-        font-size: 0.9rem;
-        padding: 1rem 1rem;
+        font-size: 0.95rem;
+        padding: 1rem 1rem 1.5rem;
     }
 }
 

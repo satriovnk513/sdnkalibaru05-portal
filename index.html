@@ -246,11 +246,13 @@
         </div>
         <button class="modal-nav modal-prev" id="modalPrev" aria-label="Sebelumnya"><i class="fas fa-chevron-left"></i></button>
         <div class="modal-body" id="modalBody">
-            <img class="modal-content" id="modalImg">
-            <video class="modal-content" id="modalVideo" controls playsinline style="display:none;max-height:85vh;max-width:90vw;outline:none;"></video>
+            <div class="modal-scroll">
+                <img class="modal-content" id="modalImg">
+                <video class="modal-content" id="modalVideo" controls playsinline style="display:none;max-width:90vw;outline:none;"></video>
+                <div id="modalCaption"></div>
+            </div>
         </div>
         <button class="modal-nav modal-next" id="modalNext" aria-label="Berikutnya"><i class="fas fa-chevron-right"></i></button>
-        <div id="modalCaption"></div>
     </div>
 
     <!-- Lokasi Sekolah -->
