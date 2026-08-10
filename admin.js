@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     initFileInputs(); // wire multi-file inputs
     initGalleryInputs(); // wire gallery file input & drag-drop
+    initEkskulFileInputs(); // wire ekskul file inputs
     
     // Check login using Supabase Auth
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -12,6 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadStaff();
         loadNews();
         loadGallery();
+        loadEkskul();
     }
     
     // Listen for auth state changes (e.g. token expiration)
@@ -52,6 +54,7 @@ async function checkLogin() {
         loadStaff();
         loadNews();
         loadGallery();
+        loadEkskul();
     }
 }
 
@@ -804,6 +807,235 @@ async function deleteGallery(id, btnEl) {
         if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '&#128465; Hapus'; }
     } else {
         await loadGallery();
+    }
+}
+
+// =======================
+// EKSKUL LOGIC
+// =======================
+
+let editEkskulId = null;
+let existingEkskulImgUrls = [];
+let selectedEkskulImgFiles = [];
+
+function initEkskulFileInputs() {
+    const photoInput = document.getElementById('ekskulPhoto');
+    if (!photoInput) return;
+    
+    photoInput.addEventListener('change', function () {
+        Array.from(this.files).forEach(f => {
+            if (!selectedEkskulImgFiles.find(x => x.name === f.name && x.size === f.size)) {
+                selectedEkskulImgFiles.push(f);
+            }
+        });
+        this.value = '';
+        renderEkskulImgPreviews();
+    });
+}
+
+function renderEkskulImgPreviews() {
+    const area = document.getElementById('ekskulImgPreviewArea');
+    if (!area) return;
+    area.innerHTML = '';
+    selectedEkskulImgFiles.forEach((file, i) => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            const wrap = document.createElement('div');
+            wrap.className = 'preview-img-item';
+            wrap.innerHTML = `<img src="${ev.target.result}" alt="preview">
+                <button type="button" class="remove-btn" title="Hapus">&#10005;</button>`;
+            wrap.querySelector('.remove-btn').onclick = () => {
+                selectedEkskulImgFiles.splice(i, 1);
+                renderEkskulImgPreviews();
+            };
+            area.appendChild(wrap);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function renderExistingEkskulImgs() {
+    const list = document.getElementById('existingEkskulImgList');
+    if (!list) return;
+    if (!existingEkskulImgUrls.length) { list.style.display = 'none'; return; }
+    list.style.display = 'flex';
+    list.innerHTML = '';
+    existingEkskulImgUrls.forEach((url, i) => {
+        const chip = document.createElement('div');
+        chip.className = 'existing-img-chip';
+        chip.innerHTML = `<img src="${url}" alt="img">
+            <button type="button" class="remove-existing" title="Hapus">&#10005;</button>`;
+        chip.querySelector('.remove-existing').onclick = () => {
+            existingEkskulImgUrls.splice(i, 1);
+            renderExistingEkskulImgs();
+        };
+        list.appendChild(chip);
+    });
+}
+
+function clearEkskulFileSelections() {
+    selectedEkskulImgFiles = [];
+    const input = document.getElementById('ekskulPhoto');
+    if (input) input.value = '';
+    const area = document.getElementById('ekskulImgPreviewArea');
+    if (area) area.innerHTML = '';
+}
+
+async function loadEkskul() {
+    const tbody = document.getElementById('ekskulTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '<tr><td colspan="5">Memuat data...</td></tr>';
+    
+    const { data, error } = await supabaseClient.from('extracurricular').select('*').order('order_index', { ascending: true });
+    
+    if (error) {
+        console.error('Error loading extracurricular:', error);
+        tbody.innerHTML = `<tr><td colspan="5" style="color:#dc2626">Gagal memuat data: ${error.message}</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = '';
+    
+    if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5">Belum ada data ekstrakurikuler.</td></tr>';
+        return;
+    }
+
+    data.forEach(item => {
+        const tr = document.createElement('tr');
+        const numPhotos = (item.image_urls && Array.isArray(item.image_urls)) ? item.image_urls.length : 0;
+        const dataAttr = encodeURIComponent(JSON.stringify(item));
+        
+        tr.innerHTML = `
+            <td><div style="width:36px;height:36px;background:#fef2f2;color:#da251c;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;"><i class="${item.icon}"></i></div></td>
+            <td><strong>${item.name}</strong><br><small style="color:#64748b">${item.description ? item.description.substring(0, 45) + '...' : ''}</small></td>
+            <td><span style="background:#e0f2fe;color:#0369a1;font-weight:700;padding:2px 8px;border-radius:12px;font-size:0.8rem;">📷 ${numPhotos} foto</span></td>
+            <td>${item.order_index || 99}</td>
+            <td>
+                <button onclick="editEkskul('${item.id}', '${dataAttr}')" style="background: #eab308; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Edit</button>
+                <button onclick="deleteEkskul('${item.id}')" style="background: #dc2626; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Hapus</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function editEkskul(id, encodedData) {
+    const item = JSON.parse(decodeURIComponent(encodedData));
+    editEkskulId = id;
+
+    existingEkskulImgUrls = Array.isArray(item.image_urls) ? [...item.image_urls] : [];
+    clearEkskulFileSelections();
+
+    document.getElementById('ekskulName').value = item.name || '';
+    document.getElementById('ekskulIcon').value = item.icon || 'fas fa-star';
+    document.getElementById('ekskulDesc').value = item.description || '';
+    document.getElementById('ekskulOrder').value = item.order_index || 99;
+
+    renderExistingEkskulImgs();
+
+    const btn = document.getElementById('saveEkskulBtn');
+    btn.innerText = 'Update Ekstrakurikuler';
+    btn.style.background = '#eab308';
+
+    if (!document.getElementById('cancelEditEkskulBtn')) {
+        const cancelBtn = document.createElement('button');
+        cancelBtn.id = 'cancelEditEkskulBtn';
+        cancelBtn.type = 'button';
+        cancelBtn.innerText = 'Batal Edit';
+        cancelBtn.style.cssText = 'width: 100%; background: #64748b; color: white; border: none; padding: 1rem; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 0.5rem; transition: 0.3s;';
+        cancelBtn.onclick = cancelEditEkskul;
+        btn.parentNode.appendChild(cancelBtn);
+    }
+
+    showTab('tabEkskul');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelEditEkskul() {
+    editEkskulId = null;
+    existingEkskulImgUrls = [];
+    clearEkskulFileSelections();
+    document.getElementById('ekskulForm').reset();
+    const existingList = document.getElementById('existingEkskulImgList');
+    if (existingList) { existingList.style.display = 'none'; existingList.innerHTML = ''; }
+
+    const btn = document.getElementById('saveEkskulBtn');
+    btn.innerText = 'Simpan Ekstrakurikuler';
+    btn.style.background = '#da251c';
+
+    const cancelBtn = document.getElementById('cancelEditEkskulBtn');
+    if (cancelBtn) cancelBtn.remove();
+}
+
+async function saveEkskul(e) {
+    e.preventDefault();
+    const btn = document.getElementById('saveEkskulBtn');
+    btn.disabled = true;
+
+    try {
+        const name = document.getElementById('ekskulName').value.trim();
+        const icon = document.getElementById('ekskulIcon').value.trim() || 'fas fa-star';
+        const description = document.getElementById('ekskulDesc').value.trim();
+        const order_index = parseInt(document.getElementById('ekskulOrder').value) || 99;
+
+        // Upload new photos to storage 'photos'
+        const newImageUrls = [];
+        for (let i = 0; i < selectedEkskulImgFiles.length; i++) {
+            btn.innerText = `Upload foto ${i + 1}/${selectedEkskulImgFiles.length}...`;
+            const file = selectedEkskulImgFiles[i];
+            const ext = file.name.split('.').pop();
+            const path = `ekskul_img_${Date.now()}_${i}.${ext}`;
+            const { error: upErr } = await supabaseClient.storage.from('photos').upload(path, file);
+            if (upErr) throw upErr;
+            const { data: pub } = supabaseClient.storage.from('photos').getPublicUrl(path);
+            newImageUrls.push(pub.publicUrl);
+        }
+
+        const finalImageUrls = [...existingEkskulImgUrls, ...newImageUrls];
+
+        btn.innerText = 'Menyimpan...';
+
+        const ekskulData = {
+            name,
+            icon,
+            description,
+            order_index,
+            image_urls: finalImageUrls,
+        };
+
+        if (editEkskulId) {
+            const { error } = await supabaseClient.from('extracurricular').update(ekskulData).eq('id', editEkskulId);
+            if (error) throw error;
+            alert('Ekstrakurikuler berhasil diupdate!');
+            cancelEditEkskul();
+        } else {
+            const { error } = await supabaseClient.from('extracurricular').insert([ekskulData]);
+            if (error) throw error;
+            document.getElementById('ekskulForm').reset();
+            clearEkskulFileSelections();
+            alert('Ekstrakurikuler berhasil ditambahkan!');
+        }
+
+        loadEkskul();
+
+    } catch (err) {
+        console.error(err);
+        alert('Terjadi kesalahan: ' + (err.message || JSON.stringify(err)));
+    } finally {
+        btn.innerText = editEkskulId ? 'Update Ekstrakurikuler' : 'Simpan Ekstrakurikuler';
+        btn.disabled = false;
+    }
+}
+
+async function deleteEkskul(id) {
+    if (!confirm('Yakin ingin menghapus ekstrakurikuler ini?')) return;
+    const { error } = await supabaseClient.from('extracurricular').delete().eq('id', id);
+    if (error) {
+        alert('Gagal menghapus ekstrakurikuler: ' + error.message);
+    } else {
+        loadEkskul();
     }
 }
 

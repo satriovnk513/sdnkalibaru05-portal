@@ -141,9 +141,10 @@
     <section class="section ekskul-section">
         <div class="container">
             <h2 class="section-title">Ekstrakurikuler</h2>
+            <p class="section-subtitle" style="text-align:center; color:var(--text-light); margin-bottom: 2rem;">Klik logo ekstrakurikuler di bawah ini untuk melihat galeri foto kegiatan.</p>
             <div class="slider-wrapper animate-up">
                 <button class="slider-btn left" onclick="scrollSlider(this, -1)"><i class="fas fa-chevron-left"></i></button>
-                <div class="ekskul-grid slider-container">
+                <div class="ekskul-grid slider-container" id="indexEkskulContainer">
                     <div class="ekskul-card">
                         <div class="ekskul-icon"><i class="fas fa-drum"></i></div>
                         <h3>Marawis</h3>
@@ -156,38 +157,6 @@
                         <div class="ekskul-icon"><i class="fas fa-flag"></i></div>
                         <h3>Paskibra</h3>
                     </div>
-                    <div class="ekskul-card">
-                        <div class="ekskul-icon"><i class="fas fa-fist-raised"></i></div>
-                        <h3>Pencak Silat</h3>
-                    </div>
-                    <div class="ekskul-card">
-                        <div class="ekskul-icon"><i class="fas fa-briefcase-medical"></i></div>
-                        <h3>PMR</h3>
-                    </div>
-                    <div class="ekskul-card">
-                        <div class="ekskul-icon"><i class="fas fa-campground"></i></div>
-                        <h3>Pramuka Penggalang</h3>
-                    </div>
-                    <div class="ekskul-card">
-                        <div class="ekskul-icon"><i class="fas fa-campground"></i></div>
-                        <h3>Pramuka Siaga</h3>
-                    </div>
-                    <div class="ekskul-card">
-                        <div class="ekskul-icon"><i class="fas fa-quran"></i></div>
-                        <h3>Qiroah</h3>
-                    </div>
-                    <div class="ekskul-card">
-                        <div class="ekskul-icon"><i class="fas fa-palette"></i></div>
-                        <h3>Seni Lukis</h3>
-                    </div>
-                    <div class="ekskul-card">
-                        <div class="ekskul-icon"><i class="fas fa-child"></i></div>
-                        <h3>Seni Tari</h3>
-                    </div>
-                    <div class="ekskul-card">
-                        <div class="ekskul-icon"><i class="fas fa-volleyball-ball"></i></div>
-                        <h3>Sepak Takraw</h3>
-                    </div>
                 </div>
                 <button class="slider-btn right" onclick="scrollSlider(this, 1)"><i class="fas fa-chevron-right"></i></button>
             </div>
@@ -197,6 +166,30 @@
             </div>
         </div>
     </section>
+
+    <!-- Modal for Ekstrakurikuler Photo Slideshow Lightbox -->
+    <div id="ekskulModal" class="ekskul-modal">
+        <div class="ekskul-modal-container">
+            <div class="ekskul-modal-header">
+                <div class="ekskul-modal-title-wrap">
+                    <div class="ekskul-modal-icon" id="ekskulModalIcon"><i class="fas fa-star"></i></div>
+                    <div>
+                        <h3 class="ekskul-modal-title" id="ekskulModalTitle">Ekstrakurikuler</h3>
+                        <span class="ekskul-modal-counter" id="ekskulModalCounter">0 Foto</span>
+                    </div>
+                </div>
+                <button class="ekskul-modal-close" id="closeEkskulModalBtn" aria-label="Tutup">&times;</button>
+            </div>
+            <div class="ekskul-modal-body" id="ekskulModalBody">
+                <button class="ekskul-modal-nav ekskul-modal-prev" id="ekskulModalPrev" aria-label="Sebelumnya"><i class="fas fa-chevron-left"></i></button>
+                <img id="ekskulModalImg" class="ekskul-modal-img" src="" alt="Foto Ekstrakurikuler">
+                <button class="ekskul-modal-nav ekskul-modal-next" id="ekskulModalNext" aria-label="Berikutnya"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div class="ekskul-modal-footer" id="ekskulModalFooter">
+                <p id="ekskulModalDesc" style="margin:0;"></p>
+            </div>
+        </div>
+    </div>
 
     <!-- Berita Preview -->
     <section class="section bg-light">
@@ -404,6 +397,36 @@
                     });
                 }
             } catch (err) { console.error('Fetch news error:', err); }
+
+            // Fetch Ekstrakurikuler Data for Homepage
+            try {
+                const { data: ekskulData, error: ekskulError } = await supabaseClient.from('extracurricular').select('*').order('order_index', { ascending: true });
+                if (ekskulError) console.error('Supabase ekskul error:', ekskulError);
+                
+                const ekskulContainer = document.getElementById('indexEkskulContainer');
+                if (ekskulContainer && ekskulData && ekskulData.length > 0) {
+                    ekskulContainer.innerHTML = '';
+                    ekskulData.forEach(item => {
+                        const safeName = sanitizeHTML(item.name);
+                        const safeIcon = sanitizeHTML(item.icon || 'fas fa-star');
+                        const photos = Array.isArray(item.image_urls) ? item.image_urls : [];
+                        const photoBadge = photos.length > 0 ? `<div class="ekskul-photo-badge"><i class="fas fa-camera"></i> ${photos.length}</div>` : '';
+                        
+                        const card = document.createElement('div');
+                        card.className = 'ekskul-card';
+                        card.innerHTML = `
+                            ${photoBadge}
+                            <div class="ekskul-icon"><i class="${safeIcon}"></i></div>
+                            <h3>${safeName}</h3>
+                            <div class="ekskul-hover-hint"><i class="fas fa-images"></i> Lihat Foto</div>
+                        `;
+                        card.addEventListener('click', () => {
+                            openEkskulModal(item);
+                        });
+                        ekskulContainer.appendChild(card);
+                    });
+                }
+            } catch (err) { console.error('Fetch ekskul error:', err); }
 
             // Fetch Gallery Data (all, with client-side pagination)
             const GALLERY_PER_PAGE = 12;
@@ -625,7 +648,7 @@
             if (e.key === 'ArrowRight') lightboxNext();
         });
 
-        // Touch swipe support
+        // Touch swipe support for gallery
         (function() {
             const modalBody = document.getElementById('modalBody');
             let touchStartX = 0;
@@ -651,6 +674,121 @@
             }, { passive: true });
         })();
 
+        // Ekstrakurikuler Lightbox Modal Functions
+        let currentEkskulData = null;
+        let currentEkskulPhotoIndex = 0;
+
+        function openEkskulModal(item) {
+            currentEkskulData = item;
+            currentEkskulPhotoIndex = 0;
+            const modal = document.getElementById('ekskulModal');
+            document.getElementById('ekskulModalTitle').textContent = item.name;
+            document.getElementById('ekskulModalIcon').innerHTML = `<i class="${item.icon || 'fas fa-star'}"></i>`;
+            document.getElementById('ekskulModalDesc').textContent = item.description || '';
+            
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            renderEkskulModalPhoto();
+        }
+
+        function renderEkskulModalPhoto() {
+            if (!currentEkskulData) return;
+            const photos = Array.isArray(currentEkskulData.image_urls) ? currentEkskulData.image_urls : [];
+            const modalBody = document.getElementById('ekskulModalBody');
+            const modalImg = document.getElementById('ekskulModalImg');
+            const counter = document.getElementById('ekskulModalCounter');
+            const prevBtn = document.getElementById('ekskulModalPrev');
+            const nextBtn = document.getElementById('ekskulModalNext');
+
+            if (photos.length === 0) {
+                modalImg.style.display = 'none';
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+                counter.textContent = 'Belum ada foto';
+
+                let noPhotoEl = document.getElementById('ekskulNoPhotosMsg');
+                if (!noPhotoEl) {
+                    noPhotoEl = document.createElement('div');
+                    noPhotoEl.id = 'ekskulNoPhotosMsg';
+                    noPhotoEl.className = 'ekskul-no-photos';
+                    noPhotoEl.innerHTML = `<i class="fas fa-images"></i><p>Foto untuk kegiatan <strong>${sanitizeHTML(currentEkskulData.name)}</strong> belum diunggah.<br><small>Foto dapat ditambahkan melalui Portal Admin.</small></p>`;
+                    modalBody.appendChild(noPhotoEl);
+                } else {
+                    noPhotoEl.style.display = 'block';
+                    noPhotoEl.innerHTML = `<i class="fas fa-images"></i><p>Foto untuk kegiatan <strong>${sanitizeHTML(currentEkskulData.name)}</strong> belum diunggah.<br><small>Foto dapat ditambahkan melalui Portal Admin.</small></p>`;
+                }
+                return;
+            }
+
+            const noPhotoEl = document.getElementById('ekskulNoPhotosMsg');
+            if (noPhotoEl) noPhotoEl.style.display = 'none';
+
+            modalImg.style.display = 'block';
+            modalImg.src = photos[currentEkskulPhotoIndex];
+            counter.textContent = `Foto ${currentEkskulPhotoIndex + 1} dari ${photos.length}`;
+
+            prevBtn.style.display = currentEkskulPhotoIndex > 0 ? 'flex' : 'none';
+            nextBtn.style.display = currentEkskulPhotoIndex < photos.length - 1 ? 'flex' : 'none';
+        }
+
+        function closeEkskulModal() {
+            const modal = document.getElementById('ekskulModal');
+            if (modal) modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            currentEkskulData = null;
+        }
+
+        function ekskulModalPrev() {
+            if (!currentEkskulData) return;
+            const photos = currentEkskulData.image_urls || [];
+            if (currentEkskulPhotoIndex > 0) {
+                currentEkskulPhotoIndex--;
+                renderEkskulModalPhoto();
+            }
+        }
+
+        function ekskulModalNext() {
+            if (!currentEkskulData) return;
+            const photos = currentEkskulData.image_urls || [];
+            if (currentEkskulPhotoIndex < photos.length - 1) {
+                currentEkskulPhotoIndex++;
+                renderEkskulModalPhoto();
+            }
+        }
+
+        document.getElementById('closeEkskulModalBtn')?.addEventListener('click', closeEkskulModal);
+        document.getElementById('ekskulModalPrev')?.addEventListener('click', (e) => { e.stopPropagation(); ekskulModalPrev(); });
+        document.getElementById('ekskulModalNext')?.addEventListener('click', (e) => { e.stopPropagation(); ekskulModalNext(); });
+
+        window.addEventListener('click', (e) => {
+            const modal = document.getElementById('ekskulModal');
+            if (e.target === modal) closeEkskulModal();
+        });
+
+        window.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('ekskulModal');
+            if (modal && modal.style.display !== 'none' && modal.style.display !== '') {
+                if (e.key === 'Escape') closeEkskulModal();
+                if (e.key === 'ArrowLeft') ekskulModalPrev();
+                if (e.key === 'ArrowRight') ekskulModalNext();
+            }
+        });
+
+        // Touch swipe support for Ekskul Modal
+        (function() {
+            const body = document.getElementById('ekskulModalBody');
+            if (!body) return;
+            let startX = 0;
+            body.addEventListener('touchstart', e => { startX = e.changedTouches[0].screenX; }, { passive: true });
+            body.addEventListener('touchend', e => {
+                const diff = e.changedTouches[0].screenX - startX;
+                if (Math.abs(diff) > 50) {
+                    if (diff < 0) ekskulModalNext();
+                    else ekskulModalPrev();
+                }
+            }, { passive: true });
+        })();
     </script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };

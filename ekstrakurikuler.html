@@ -66,8 +66,8 @@
     <section class="section">
         <div class="container">
             <h2 class="section-title">Program Ekstrakurikuler</h2>
-            <p class="section-subtitle">Mengembangkan bakat dan minat siswa melalui berbagai kegiatan positif di luar jam pelajaran akademik.</p>
-            <div class="ekskul-grid">
+            <p class="section-subtitle">Mengembangkan bakat dan minat siswa melalui berbagai kegiatan positif di luar jam pelajaran akademik. Klik logo ekstrakurikuler untuk melihat galeri foto.</p>
+            <div class="ekskul-grid" id="ekskulGridContainer">
                 <div class="ekskul-card animate-up">
                     <div class="ekskul-icon"><i class="fas fa-drum"></i></div>
                     <h3>Marawis</h3>
@@ -83,49 +83,33 @@
                     <h3>Paskibra</h3>
                     <p>Melatih kedisiplinan, ketangkasan, dan rasa cinta tanah air melalui baris-berbaris.</p>
                 </div>
-                <div class="ekskul-card animate-up">
-                    <div class="ekskul-icon"><i class="fas fa-fist-raised"></i></div>
-                    <h3>Pencak Silat</h3>
-                    <p>Melestarikan budaya bangsa sekaligus membekali diri dengan kemampuan bela diri.</p>
-                </div>
-                <div class="ekskul-card animate-up delay-1">
-                    <div class="ekskul-icon"><i class="fas fa-briefcase-medical"></i></div>
-                    <h3>PMR</h3>
-                    <p>Palang Merah Remaja melatih jiwa kemanusiaan dan pertolongan pertama pada kesehatan.</p>
-                </div>
-                <div class="ekskul-card animate-up delay-2">
-                    <div class="ekskul-icon"><i class="fas fa-campground"></i></div>
-                    <h3>Pramuka Penggalang</h3>
-                    <p>Melatih kemandirian, kedisiplinan, dan kepemimpinan untuk jenjang penggalang.</p>
-                </div>
-                <div class="ekskul-card animate-up">
-                    <div class="ekskul-icon"><i class="fas fa-campground"></i></div>
-                    <h3>Pramuka Siaga</h3>
-                    <p>Pembentukan karakter dan keterampilan dasar kepramukaan untuk jenjang siaga.</p>
-                </div>
-                <div class="ekskul-card animate-up delay-1">
-                    <div class="ekskul-icon"><i class="fas fa-quran"></i></div>
-                    <h3>Qiroah</h3>
-                    <p>Mengembangkan seni membaca Al-Quran dengan tajwid dan lagu yang indah.</p>
-                </div>
-                <div class="ekskul-card animate-up delay-2">
-                    <div class="ekskul-icon"><i class="fas fa-palette"></i></div>
-                    <h3>Seni Lukis</h3>
-                    <p>Wadah kreativitas untuk mengekspresikan imajinasi melalui karya seni visual.</p>
-                </div>
-                <div class="ekskul-card animate-up">
-                    <div class="ekskul-icon"><i class="fas fa-child"></i></div>
-                    <h3>Seni Tari</h3>
-                    <p>Melestarikan budaya melalui gerak tari tradisional dan kreasi yang indah.</p>
-                </div>
-                <div class="ekskul-card animate-up delay-1">
-                    <div class="ekskul-icon"><i class="fas fa-volleyball-ball"></i></div>
-                    <h3>Sepak Takraw</h3>
-                    <p>Mengembangkan ketangkasan dan kerjasama tim melalui olahraga tradisional.</p>
-                </div>
             </div>
         </div>
     </section>
+
+    <!-- Modal for Ekstrakurikuler Photo Slideshow Lightbox -->
+    <div id="ekskulModal" class="ekskul-modal">
+        <div class="ekskul-modal-container">
+            <div class="ekskul-modal-header">
+                <div class="ekskul-modal-title-wrap">
+                    <div class="ekskul-modal-icon" id="ekskulModalIcon"><i class="fas fa-star"></i></div>
+                    <div>
+                        <h3 class="ekskul-modal-title" id="ekskulModalTitle">Ekstrakurikuler</h3>
+                        <span class="ekskul-modal-counter" id="ekskulModalCounter">0 Foto</span>
+                    </div>
+                </div>
+                <button class="ekskul-modal-close" id="closeEkskulModalBtn" aria-label="Tutup">&times;</button>
+            </div>
+            <div class="ekskul-modal-body" id="ekskulModalBody">
+                <button class="ekskul-modal-nav ekskul-modal-prev" id="ekskulModalPrev" aria-label="Sebelumnya"><i class="fas fa-chevron-left"></i></button>
+                <img id="ekskulModalImg" class="ekskul-modal-img" src="" alt="Foto Ekstrakurikuler">
+                <button class="ekskul-modal-nav ekskul-modal-next" id="ekskulModalNext" aria-label="Berikutnya"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div class="ekskul-modal-footer" id="ekskulModalFooter">
+                <p id="ekskulModalDesc" style="margin:0;"></p>
+            </div>
+        </div>
+    </div>
 
     <footer class="footer">
         <div class="container">
@@ -140,7 +124,179 @@
         </div>
     </footer>
 
+    <!-- Supabase JS & Script -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
     <script src="main.js"></script>
+    <script>
+        function sanitizeHTML(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        let currentEkskulData = null;
+        let currentEkskulPhotoIndex = 0;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const container = document.getElementById('ekskulGridContainer');
+            try {
+                const { data, error } = await supabaseClient
+                    .from('extracurricular')
+                    .select('*')
+                    .order('order_index', { ascending: true });
+
+                if (error) throw error;
+
+                if (container && data && data.length > 0) {
+                    container.innerHTML = '';
+                    data.forEach((item, index) => {
+                        const delayIndex = index % 3;
+                        const delayClass = delayIndex === 0 ? '' : `delay-${delayIndex}`;
+                        const safeName = sanitizeHTML(item.name);
+                        const safeIcon = sanitizeHTML(item.icon || 'fas fa-star');
+                        const safeDesc = sanitizeHTML(item.description || '');
+                        const photos = Array.isArray(item.image_urls) ? item.image_urls : [];
+                        const photoBadge = photos.length > 0 
+                            ? `<div class="ekskul-photo-badge"><i class="fas fa-camera"></i> ${photos.length} Foto</div>` 
+                            : '';
+
+                        const card = document.createElement('div');
+                        card.className = `ekskul-card animate-up ${delayClass}`;
+                        card.innerHTML = `
+                            ${photoBadge}
+                            <div class="ekskul-icon"><i class="${safeIcon}"></i></div>
+                            <h3>${safeName}</h3>
+                            <p>${safeDesc}</p>
+                            <div class="ekskul-hover-hint"><i class="fas fa-images"></i> Lihat Galeri Foto</div>
+                        `;
+                        
+                        card.addEventListener('click', () => {
+                            openEkskulModal(item);
+                        });
+
+                        container.appendChild(card);
+                        if (window.observer) window.observer.observe(card);
+                    });
+                }
+            } catch (err) {
+                console.error('Fetch extracurricular error:', err);
+            }
+        });
+
+        function openEkskulModal(item) {
+            currentEkskulData = item;
+            currentEkskulPhotoIndex = 0;
+            const modal = document.getElementById('ekskulModal');
+            document.getElementById('ekskulModalTitle').textContent = item.name;
+            document.getElementById('ekskulModalIcon').innerHTML = `<i class="${item.icon || 'fas fa-star'}"></i>`;
+            document.getElementById('ekskulModalDesc').textContent = item.description || '';
+            
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            renderEkskulModalPhoto();
+        }
+
+        function renderEkskulModalPhoto() {
+            if (!currentEkskulData) return;
+            const photos = Array.isArray(currentEkskulData.image_urls) ? currentEkskulData.image_urls : [];
+            const modalBody = document.getElementById('ekskulModalBody');
+            const modalImg = document.getElementById('ekskulModalImg');
+            const counter = document.getElementById('ekskulModalCounter');
+            const prevBtn = document.getElementById('ekskulModalPrev');
+            const nextBtn = document.getElementById('ekskulModalNext');
+
+            if (photos.length === 0) {
+                modalImg.style.display = 'none';
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+                counter.textContent = 'Belum ada foto';
+
+                let noPhotoEl = document.getElementById('ekskulNoPhotosMsg');
+                if (!noPhotoEl) {
+                    noPhotoEl = document.createElement('div');
+                    noPhotoEl.id = 'ekskulNoPhotosMsg';
+                    noPhotoEl.className = 'ekskul-no-photos';
+                    noPhotoEl.innerHTML = `<i class="fas fa-images"></i><p>Foto untuk kegiatan <strong>${sanitizeHTML(currentEkskulData.name)}</strong> belum diunggah.<br><small>Foto dapat ditambahkan melalui Portal Admin.</small></p>`;
+                    modalBody.appendChild(noPhotoEl);
+                } else {
+                    noPhotoEl.style.display = 'block';
+                    noPhotoEl.innerHTML = `<i class="fas fa-images"></i><p>Foto untuk kegiatan <strong>${sanitizeHTML(currentEkskulData.name)}</strong> belum diunggah.<br><small>Foto dapat ditambahkan melalui Portal Admin.</small></p>`;
+                }
+                return;
+            }
+
+            const noPhotoEl = document.getElementById('ekskulNoPhotosMsg');
+            if (noPhotoEl) noPhotoEl.style.display = 'none';
+
+            modalImg.style.display = 'block';
+            modalImg.src = photos[currentEkskulPhotoIndex];
+            counter.textContent = `Foto ${currentEkskulPhotoIndex + 1} dari ${photos.length}`;
+
+            prevBtn.style.display = currentEkskulPhotoIndex > 0 ? 'flex' : 'none';
+            nextBtn.style.display = currentEkskulPhotoIndex < photos.length - 1 ? 'flex' : 'none';
+        }
+
+        function closeEkskulModal() {
+            const modal = document.getElementById('ekskulModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            currentEkskulData = null;
+        }
+
+        function ekskulModalPrev() {
+            if (!currentEkskulData) return;
+            const photos = currentEkskulData.image_urls || [];
+            if (currentEkskulPhotoIndex > 0) {
+                currentEkskulPhotoIndex--;
+                renderEkskulModalPhoto();
+            }
+        }
+
+        function ekskulModalNext() {
+            if (!currentEkskulData) return;
+            const photos = currentEkskulData.image_urls || [];
+            if (currentEkskulPhotoIndex < photos.length - 1) {
+                currentEkskulPhotoIndex++;
+                renderEkskulModalPhoto();
+            }
+        }
+
+        document.getElementById('closeEkskulModalBtn')?.addEventListener('click', closeEkskulModal);
+        document.getElementById('ekskulModalPrev')?.addEventListener('click', (e) => { e.stopPropagation(); ekskulModalPrev(); });
+        document.getElementById('ekskulModalNext')?.addEventListener('click', (e) => { e.stopPropagation(); ekskulModalNext(); });
+
+        window.addEventListener('click', (e) => {
+            const modal = document.getElementById('ekskulModal');
+            if (e.target === modal) closeEkskulModal();
+        });
+
+        window.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('ekskulModal');
+            if (modal && modal.style.display !== 'none' && modal.style.display !== '') {
+                if (e.key === 'Escape') closeEkskulModal();
+                if (e.key === 'ArrowLeft') ekskulModalPrev();
+                if (e.key === 'ArrowRight') ekskulModalNext();
+            }
+        });
+
+        // Touch swipe support for mobile
+        (function() {
+            const body = document.getElementById('ekskulModalBody');
+            if (!body) return;
+            let startX = 0;
+            body.addEventListener('touchstart', e => { startX = e.changedTouches[0].screenX; }, { passive: true });
+            body.addEventListener('touchend', e => {
+                const diff = e.changedTouches[0].screenX - startX;
+                if (Math.abs(diff) > 50) {
+                    if (diff < 0) ekskulModalNext();
+                    else ekskulModalPrev();
+                }
+            }, { passive: true });
+        })();
+    </script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>

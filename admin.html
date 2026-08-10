@@ -386,6 +386,7 @@
             <button class="tab-btn active" onclick="showTab('tabStaff')">Manajemen Guru & Staf (Otomatis)</button>
             <button class="tab-btn" onclick="showTab('tabNews')">Generator Berita (Manual)</button>
             <button class="tab-btn" onclick="showTab('tabGallery')">&#128247; Galeri Kegiatan</button>
+            <button class="tab-btn" onclick="showTab('tabEkskul')">&#127919; Ekstrakurikuler & Foto</button>
         </div>
 
         <!-- TAB STAFF -->
@@ -573,6 +574,67 @@
                     </div>
                     <div id="galleryAdminGrid" class="gallery-admin-grid">
                         <p style="color:#94a3b8; font-size:0.9rem;">Memuat media...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB EKSKUL -->
+        <div id="tabEkskul" class="tab-content">
+            <div class="admin-container">
+                <!-- Form Tambah / Edit Ekskul -->
+                <div class="admin-card">
+                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Kelola Ekstrakurikuler &amp; Foto</h2>
+                    <form id="ekskulForm" onsubmit="saveEkskul(event)">
+                        <div class="form-group">
+                            <label>Nama Ekstrakurikuler</label>
+                            <input type="text" id="ekskulName" required placeholder="Contoh: Marawis, Paskibra, PMR">
+                        </div>
+                        <div class="form-group">
+                            <label>Icon FontAwesome</label>
+                            <input type="text" id="ekskulIcon" required placeholder="Contoh: fas fa-drum, fas fa-flag">
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Contoh pilihan icon: <code>fas fa-drum</code>, <code>fas fa-calculator</code>, <code>fas fa-flag</code>, <code>fas fa-fist-raised</code>, <code>fas fa-briefcase-medical</code>, <code>fas fa-campground</code>, <code>fas fa-quran</code>, <code>fas fa-palette</code>, <code>fas fa-child</code>, <code>fas fa-volleyball-ball</code></small>
+                        </div>
+                        <div class="form-group">
+                            <label>Deskripsi Singkat</label>
+                            <textarea id="ekskulDesc" rows="3" required placeholder="Tuliskan penjelasan kegiatan ekstrakurikuler..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Urutan Tampil (Angka)</label>
+                            <input type="number" id="ekskulOrder" value="99" required placeholder="Contoh: 1">
+                        </div>
+                        <div class="form-group">
+                            <label>Upload Foto Kegiatan Ekstrakurikuler <span style="font-weight:400; color:#64748b;">(bisa lebih dari 1)</span></label>
+                            <div id="existingEkskulImgList" class="existing-img-list" style="display:none;"></div>
+                            <label class="upload-label" for="ekskulPhoto">
+                                &#128247; Pilih Foto Ekstrakurikuler
+                                <input type="file" id="ekskulPhoto" accept="image/*" multiple>
+                            </label>
+                            <div id="ekskulImgPreviewArea" class="file-preview-area"></div>
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Foto yang diupload akan muncul sebagai slideshow saat logo ekstrakurikuler diklik pengunjung.</small>
+                        </div>
+                        <button type="submit" class="btn-submit" id="saveEkskulBtn">Simpan Ekstrakurikuler</button>
+                    </form>
+                </div>
+
+                <!-- Table Ekskul -->
+                <div class="admin-card">
+                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Daftar Ekstrakurikuler</h2>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Icon</th>
+                                    <th>Nama</th>
+                                    <th>Foto</th>
+                                    <th>Urutan</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ekskulTableBody">
+                                <tr><td colspan="5">Memuat data...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
