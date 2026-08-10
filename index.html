@@ -240,8 +240,8 @@
         <button class="modal-nav modal-prev" id="modalPrev" aria-label="Sebelumnya"><i class="fas fa-chevron-left"></i></button>
         <div class="modal-body" id="modalBody">
             <div class="modal-scroll">
-                <img class="modal-content" id="modalImg">
-                <video class="modal-content" id="modalVideo" controls playsinline style="display:none;max-width:90vw;outline:none;"></video>
+                <img class="modal-content" id="modalImg" style="transition: opacity 0.3s ease;">
+                <video class="modal-content" id="modalVideo" controls muted playsinline style="display:none;max-width:90vw;outline:none;"></video>
                 <div id="modalCaption"></div>
             </div>
         </div>
@@ -587,7 +587,6 @@
                 modalImg.src = '';
                 modalVideo.style.display = '';
                 modalVideo.src = item.image_url;
-                modalVideo.play().catch(() => {});
             } else {
                 modalVideo.pause(); modalVideo.src = '';
                 modalVideo.style.display = 'none';
@@ -725,6 +724,8 @@
             if (noPhotoEl) noPhotoEl.style.display = 'none';
 
             modalImg.style.display = 'block';
+            modalImg.style.opacity = '0.5';
+            modalImg.onload = () => { modalImg.style.opacity = '1'; };
             modalImg.src = photos[currentEkskulPhotoIndex];
             counter.textContent = `Foto ${currentEkskulPhotoIndex + 1} dari ${photos.length}`;
 

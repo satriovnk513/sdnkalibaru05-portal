@@ -102,7 +102,7 @@
             </div>
             <div class="ekskul-modal-body" id="ekskulModalBody">
                 <button class="ekskul-modal-nav ekskul-modal-prev" id="ekskulModalPrev" aria-label="Sebelumnya"><i class="fas fa-chevron-left"></i></button>
-                <img id="ekskulModalImg" class="ekskul-modal-img" src="" alt="Foto Ekstrakurikuler">
+                <img id="ekskulModalImg" class="ekskul-modal-img" src="" alt="Foto Ekstrakurikuler" style="transition: opacity 0.3s ease;">
                 <button class="ekskul-modal-nav ekskul-modal-next" id="ekskulModalNext" aria-label="Berikutnya"><i class="fas fa-chevron-right"></i></button>
             </div>
             <div class="ekskul-modal-footer" id="ekskulModalFooter">
@@ -232,6 +232,8 @@
             if (noPhotoEl) noPhotoEl.style.display = 'none';
 
             modalImg.style.display = 'block';
+            modalImg.style.opacity = '0.5';
+            modalImg.onload = () => { modalImg.style.opacity = '1'; };
             modalImg.src = photos[currentEkskulPhotoIndex];
             counter.textContent = `Foto ${currentEkskulPhotoIndex + 1} dari ${photos.length}`;
 
