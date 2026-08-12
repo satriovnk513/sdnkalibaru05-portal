@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadNews();
         loadGallery();
         loadEkskul();
+        loadAIMemory();
+        loadAISettingsIntoForm();
     }
     
     // Listen for auth state changes (e.g. token expiration)
@@ -55,6 +57,8 @@ async function checkLogin() {
         loadNews();
         loadGallery();
         loadEkskul();
+        loadAIMemory();
+        loadAISettingsIntoForm();
     }
 }
 
@@ -1038,4 +1042,291 @@ async function deleteEkskul(id) {
         loadEkskul();
     }
 }
+
+/* ==========================================================================
+   AI Memory & Knowledge Base Handlers (Supabase ai_knowledge)
+   ========================================================================== */
+let editingMemoryId = null;
+
+async function loadAIMemory() {
+    const tbody = document.getElementById('aiMemoryTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="4">Memuat data memori...</td></tr>';
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('ai_knowledge')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        tbody.innerHTML = '';
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="color: #94a3b8; text-align: center;">Belum ada memori tambahan. Tambahkan memori di atas!</td></tr>';
+            return;
+        }
+
+        data.forEach(item => {
+            const tr = document.createElement('tr');
+            const statusBadge = item.is_active
+                ? '<span style="background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.78rem;">Aktif</span>'
+                : '<span style="background: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.78rem;">Non-Aktif</span>';
+
+            tr.innerHTML = `
+                <td style="font-weight: 700;">${escapeHtml(item.topic)}</td>
+                <td>${escapeHtml(item.content)}</td>
+                <td>${statusBadge}</td>
+                <td>
+                    <div style="display: flex; gap: 4px;">
+                        <button onclick="toggleAIMemoryStatus('${item.id}', ${item.is_active})" style="background: ${item.is_active ? '#e2e8f0' : '#dcfce7'}; color: #1e293b; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem; cursor: pointer;">${item.is_active ? 'Matikan' : 'Aktifkan'}</button>
+                        <button onclick="editAIMemory('${item.id}')" style="background: #3b82f6; color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem; cursor: pointer;">Edit</button>
+                        <button onclick="deleteAIMemory('${item.id}')" style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem; cursor: pointer;">Hapus</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        console.error('Error loading AI Memory:', err);
+        tbody.innerHTML = `<tr><td colspan="4" style="color: #ef4444;">Gagal memuat data memori: ${err.message}</td></tr>`;
+    }
+}
+
+async function saveAIMemory(e) {
+    e.preventDefault();
+    const btn = document.getElementById('saveAIMemoryBtn');
+    const topic = document.getElementById('aiMemoryTopic').value.trim();
+    const content = document.getElementById('aiMemoryContent').value.trim();
+    const isActive = document.getElementById('aiMemoryIsActive').checked;
+    const memId = document.getElementById('aiMemoryId').value;
+
+    if (!topic || !content) {
+        alert('Topik dan Isi Memori harus diisi!');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = 'Menyimpan...';
+
+    try {
+        if (memId) {
+            const { error } = await supabaseClient
+                .from('ai_knowledge')
+                .update({ topic, content, is_active: isActive, updated_at: new Date() })
+                .eq('id', memId);
+            if (error) throw error;
+        } else {
+            const { error } = await supabaseClient
+                .from('ai_knowledge')
+                .insert([{ topic, content, is_active: isActive }]);
+            if (error) throw error;
+        }
+
+        document.getElementById('aiMemoryForm').reset();
+        document.getElementById('aiMemoryId').value = '';
+        btn.innerText = 'Simpan Memori';
+        alert('Memori KaliBot berhasil disimpan!');
+        loadAIMemory();
+    } catch (err) {
+        console.error('Error saving AI Memory:', err);
+        alert('Gagal menyimpan memori: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = 'Simpan Memori';
+    }
+}
+
+async function editAIMemory(id) {
+    const { data, error } = await supabaseClient
+        .from('ai_knowledge')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (error || !data) {
+        alert('Gagal mengambil data memori!');
+        return;
+    }
+
+    document.getElementById('aiMemoryId').value = data.id;
+    document.getElementById('aiMemoryTopic').value = data.topic;
+    document.getElementById('aiMemoryContent').value = data.content;
+    document.getElementById('aiMemoryIsActive').checked = data.is_active;
+
+    document.getElementById('saveAIMemoryBtn').innerText = 'Update Memori';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function toggleAIMemoryStatus(id, currentStatus) {
+    const { error } = await supabaseClient
+        .from('ai_knowledge')
+        .update({ is_active: !currentStatus, updated_at: new Date() })
+        .eq('id', id);
+
+    if (error) {
+        alert('Gagal mengubah status: ' + error.message);
+    } else {
+        loadAIMemory();
+    }
+}
+
+async function deleteAIMemory(id) {
+    if (!confirm('Yakin ingin menghapus memori ini dari KaliBot?')) return;
+    const { error } = await supabaseClient
+        .from('ai_knowledge')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        alert('Gagal menghapus memori: ' + error.message);
+    } else {
+        loadAIMemory();
+    }
+}
+
+/* ==========================================================================
+   AI Gateway Settings Handlers
+   ========================================================================== */
+function loadAISettingsIntoForm() {
+    if (!window.AIService) return;
+    const settings = window.AIService.getAISettings();
+    
+    if (document.getElementById('aiBaseUrl')) {
+        document.getElementById('aiBaseUrl').value = settings.baseUrl || '';
+        document.getElementById('aiApiKey').value = settings.apiKey || '';
+        document.getElementById('aiModel').value = settings.model || '';
+        document.getElementById('aiMaxTokens').value = settings.maxTokens || 1024;
+    }
+}
+
+function saveAISettingsForm(e) {
+    e.preventDefault();
+    if (!window.AIService) return;
+
+    const settings = {
+        baseUrl: document.getElementById('aiBaseUrl').value.trim(),
+        apiKey: document.getElementById('aiApiKey').value.trim(),
+        model: document.getElementById('aiModel').value.trim(),
+        maxTokens: parseInt(document.getElementById('aiMaxTokens').value) || 1024
+    };
+
+    if (window.AIService.saveAISettings(settings)) {
+        alert('Pengaturan AI berhasil disimpan!');
+    } else {
+        alert('Gagal menyimpan pengaturan AI.');
+    }
+}
+
+async function testAIConnection() {
+    const resBox = document.getElementById('aiTestResult');
+    resBox.style.display = 'block';
+    resBox.style.background = '#f1f5f9';
+    resBox.style.color = '#334155';
+    resBox.innerText = 'Mengirim pesan uji koneksi ke PecutOpus AI Gateway...';
+
+    const testConfig = {
+        baseUrl: document.getElementById('aiBaseUrl').value.trim(),
+        apiKey: document.getElementById('aiApiKey').value.trim(),
+        model: document.getElementById('aiModel').value.trim(),
+        maxTokens: 100
+    };
+
+    try {
+        const reply = await window.AIService.sendAIChatRequest(
+            [{ role: 'user', content: 'Halo PecutOpus, respon singkat "Koneksi Berhasil"' }],
+            testConfig
+        );
+        resBox.style.background = '#dcfce7';
+        resBox.style.color = '#166534';
+        resBox.innerHTML = `<strong>Koneksi Berhasil! ✅</strong><br>Jawaban AI: <em>${escapeHtml(reply)}</em>`;
+    } catch (err) {
+        resBox.style.background = '#fee2e2';
+        resBox.style.color = '#991b1b';
+        resBox.innerHTML = `<strong>Koneksi Gagal ❌</strong><br>${escapeHtml(err.message)}`;
+    }
+}
+
+/* ==========================================================================
+   AI News Generator Handlers
+   ========================================================================== */
+async function generateNewsWithAI() {
+    const promptInput = document.getElementById('aiNewsPrompt');
+    const promptText = promptInput ? promptInput.value.trim() : '';
+
+    if (!promptText) {
+        alert('Silakan masukkan draf atau poin singkat berita terlebih dahulu pada kotak AI Assistant.');
+        if (promptInput) promptInput.focus();
+        return;
+    }
+
+    const btn = event.target;
+    const origText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = '✨ Membuat...';
+
+    try {
+        const result = await window.AIService.generateAINews(promptText);
+        if (result.title) document.getElementById('newsTitle').value = result.title;
+        if (result.content) document.getElementById('newsContent').value = result.content;
+        
+        if (result.content && document.getElementById('newsDesc')) {
+            document.getElementById('newsDesc').value = result.content.substring(0, 150) + '...';
+        }
+
+        if (document.getElementById('newsDate')) {
+            const today = new Date();
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            document.getElementById('newsDate').value = `${today.getDate()} ${months[today.getMonth()]} ${today.getFullYear()}`;
+        }
+
+        alert('Berita berhasil dibuat oleh AI! Anda dapat memeriksa dan mengedit kembali isi berita di form.');
+    } catch (err) {
+        console.error('Error generating AI news:', err);
+        alert('Gagal membuat berita AI: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = origText;
+    }
+}
+
+async function polishNewsContentWithAI() {
+    const contentEl = document.getElementById('newsContent');
+    const text = contentEl ? contentEl.value.trim() : '';
+
+    if (!text) {
+        alert('Tuliskan teks pada Isi Berita Lengkap terlebih dahulu untuk dirapikan.');
+        if (contentEl) contentEl.focus();
+        return;
+    }
+
+    const btn = event.target;
+    const origText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = '📝 Merapikan...';
+
+    try {
+        const polished = await window.AIService.polishAIText(text);
+        contentEl.value = polished;
+        alert('Teks berita berhasil dirapikan oleh AI!');
+    } catch (err) {
+        console.error('Error polishing text:', err);
+        alert('Gagal merapikan teks: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = origText;
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 

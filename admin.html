@@ -387,6 +387,8 @@
             <button class="tab-btn" onclick="showTab('tabNews')">Generator Berita (Manual)</button>
             <button class="tab-btn" onclick="showTab('tabGallery')">&#128247; Galeri Kegiatan</button>
             <button class="tab-btn" onclick="showTab('tabEkskul')">&#127919; Ekstrakurikuler & Foto</button>
+            <button class="tab-btn" onclick="showTab('tabAIMemory')">🧠 Memori KaliBot</button>
+            <button class="tab-btn" onclick="showTab('tabAISettings')">⚙️ Pengaturan AI</button>
         </div>
 
         <!-- TAB STAFF -->
@@ -458,7 +460,20 @@
         <div id="tabNews" class="tab-content">
             <div class="admin-container">
                 <div class="admin-card">
-                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Tambah Berita</h2>
+                    <h2 style="margin-bottom: 1rem; font-family: 'Poppins', sans-serif;">Tambah Berita</h2>
+                    
+                    <!-- AI Generator Helper -->
+                    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem;">
+                        <h4 style="margin: 0 0 0.4rem 0; color: #1e40af; display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem;">
+                            ✨ AI Writer &amp; Text Polish Assistant
+                        </h4>
+                        <p style="font-size: 0.82rem; color: #1e3a8a; margin: 0 0 0.75rem 0;">Ketik draf / poin singkat kegiatan, lalu klik "Buat Berita AI" untuk mengisi judul &amp; artikel secara otomatis.</p>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <input type="text" id="aiNewsPrompt" placeholder="Contoh: Lomba mewarnai kelas 1-3 hari Jumat meriah..." style="flex: 1; min-width: 220px; padding: 0.6rem 0.8rem; border-radius: 6px; border: 1px solid #93c5fd; font-size: 0.88rem;">
+                            <button type="button" onclick="generateNewsWithAI()" style="background: #2563eb; color: white; border: none; padding: 0.6rem 1rem; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85rem;">✨ Buat Berita AI</button>
+                            <button type="button" onclick="polishNewsContentWithAI()" style="background: #475569; color: white; border: none; padding: 0.6rem 1rem; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85rem;">📝 Rapikan Teks</button>
+                        </div>
+                    </div>
                     <form id="newsForm" onsubmit="saveNews(event)">
                         <div class="form-group">
                             <label>Judul Berita</label>
@@ -638,10 +653,97 @@
                     </div>
                 </div>
             </div>
+        <!-- TAB AI MEMORY / KNOWLEDGE BASE -->
+        <div id="tabAIMemory" class="tab-content">
+            <div class="admin-container">
+                <!-- Form Tambah / Edit Memori -->
+                <div class="admin-card">
+                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">🧠 Tambah Memori / Informasi KaliBot</h2>
+                    <p style="color: #64748b; font-size: 0.9rem; margin-top: -1rem; margin-bottom: 1.5rem;">Informasi yang ditulis di sini akan langsung diingat dan dijadikan bahan acuan oleh KaliBot saat menjawab pertanyaan pengunjung.</p>
+                    <form id="aiMemoryForm" onsubmit="saveAIMemory(event)">
+                        <input type="hidden" id="aiMemoryId">
+                        <div class="form-group">
+                            <label>Topik / Judul Informasi</label>
+                            <input type="text" id="aiMemoryTopic" required placeholder="Contoh: Jadwal Ujian Akhir, Pengumuman Libur, Tata Tertib Seragam">
+                        </div>
+                        <div class="form-group">
+                            <label>Isi Informasi / Catatan Memori</label>
+                            <textarea id="aiMemoryContent" rows="4" required placeholder="Tuliskan fakta atau aturan yang harus diingat KaliBot. Contoh: Penilaian Tengah Semester dilaksanakan tanggal 15-20 Juni 2026. Siswa wajib memakai seragam lengkap..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="aiMemoryIsActive" checked style="width: 18px; height: 18px;">
+                                <span>Aktifkan Memori Ini (KaliBot bisa membaca ini)</span>
+                            </label>
+                        </div>
+                        <button type="submit" class="btn-submit" id="saveAIMemoryBtn">Simpan Memori</button>
+                    </form>
+                </div>
+
+                <!-- Table Memori Tersimpan -->
+                <div class="admin-card">
+                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Daftar Memori Tersimpan</h2>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Topik</th>
+                                    <th>Isi Pengetahuan / Memori</th>
+                                    <th>Status</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="aiMemoryTableBody">
+                                <tr><td colspan="4">Memuat data memori...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB AI SETTINGS -->
+        <div id="tabAISettings" class="tab-content">
+            <div class="admin-container">
+                <div class="admin-card" style="max-width: 650px; margin: 0 auto;">
+                    <h2 style="margin-bottom: 0.5rem; font-family: 'Poppins', sans-serif;">⚙️ Pengaturan AI API Gateway</h2>
+                    <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Konfigurasikan API Gateway (PecutOpus, OpenAI, Groq, dll) yang digunakan oleh KaliBot dan AI Content Assistant.</p>
+                    
+                    <form id="aiSettingsForm" onsubmit="saveAISettingsForm(event)">
+                        <div class="form-group">
+                            <label>Base URL Gateway</label>
+                            <input type="text" id="aiBaseUrl" required placeholder="https://api.pecutopus.web.id/v1">
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Default: <code>https://api.pecutopus.web.id/v1</code></small>
+                        </div>
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <input type="password" id="aiApiKey" required placeholder="sk-pecut-xxxxxxxx">
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Token API rahasia milik Anda.</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Model AI</label>
+                            <input type="text" id="aiModel" required placeholder="pecut/gpt-5.6-luna">
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Rekomendasi model PecutOpus: <code>pecut/gpt-5.6-luna</code> atau <code>pecut/claude-opus-4-8</code></small>
+                        </div>
+                        <div class="form-group">
+                            <label>Max Tokens</label>
+                            <input type="number" id="aiMaxTokens" value="1024" required>
+                        </div>
+
+                        <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+                            <button type="submit" class="btn-submit" style="flex: 1;">Simpan Pengaturan</button>
+                            <button type="button" onclick="testAIConnection()" style="background: #0284c7; color: white; border: none; padding: 0.85rem 1.25rem; border-radius: 8px; font-weight: bold; cursor: pointer; flex-shrink: 0;">Uji Koneksi AI</button>
+                        </div>
+                    </form>
+
+                    <div id="aiTestResult" style="margin-top: 1rem; padding: 0.85rem; border-radius: 8px; font-size: 0.88rem; display: none;"></div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Custom Scripts -->
+    <script src="ai-service.js"></script>
     <script src="admin.js"></script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };

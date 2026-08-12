@@ -408,6 +408,19 @@
 
                     <div class="news-detail-separator animate-up"></div>
 
+                    <!-- AI Action Card -->
+                    <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 14px; padding: 1.25rem; margin-bottom: 2rem;" class="animate-up">
+                        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                            <button onclick="summarizeCurrentNews()" style="background: #0284c7; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 20px; font-weight: 600; cursor: pointer; font-size: 0.88rem; display: flex; align-items: center; gap: 0.4rem;">
+                                <i class="fas fa-magic"></i> Ringkas Berita (AI)
+                            </button>
+                            <button onclick="readNewsAudio()" style="background: #0d9488; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 20px; font-weight: 600; cursor: pointer; font-size: 0.88rem; display: flex; align-items: center; gap: 0.4rem;">
+                                <i class="fas fa-volume-up"></i> Dengarkan Suara Berita
+                            </button>
+                        </div>
+                        <div id="aiSummaryResult" style="margin-top: 1rem; display: none; font-size: 0.92rem; color: #0369a1; background: #ffffff; padding: 1rem; border-radius: 10px; border: 1px solid #e0f2fe; line-height: 1.6;"></div>
+                    </div>
+
                     ${galleryHtml}
 
                     <div class="news-detail-content animate-up">
@@ -440,8 +453,31 @@ ${news.content || news.description || 'Tidak ada konten tambahan.'}
         <img id="lightboxImg" src="" alt="Gambar besar">
     </div>
 
+    <!-- AI Service & KaliBot -->
+    <script src="/ai-service.js"></script>
+    <script src="/kalibot.js"></script>
     <script src="/main.js"></script>
     <script>
+        async function summarizeCurrentNews() {
+            const box = document.getElementById('aiSummaryResult');
+            box.style.display = 'block';
+            box.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sedang merangkum berita dengan AI...';
+            try {
+                const text = document.querySelector('.news-detail-content').innerText;
+                const summary = await window.AIService.summarizeAIText(text);
+                box.innerHTML = '<strong>📌 Ringkasan Poin AI:</strong><br>' + summary.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            } catch (e) {
+                box.innerHTML = 'Gagal membuat ringkasan: ' + e.message;
+            }
+        }
+
+        function readNewsAudio() {
+            const text = document.querySelector('.news-detail-content').innerText;
+            if (window.speakText) {
+                window.speakText(text);
+            }
+        }
+
         function openLightbox(url) {
             document.getElementById('lightboxImg').src = url;
             document.getElementById('lightboxOverlay').classList.add('open');
