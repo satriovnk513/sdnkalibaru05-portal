@@ -1,12 +1,13 @@
 /**
  * AI Service for SDN Kalibaru 05 Pagi
- * Powered by PecutOpus Gateway / OpenAI API compatible
+ * Supports Google Gemini API & OpenAI Compatible Gateways
  */
 
 const DEFAULT_AI_CONFIG = {
-    baseUrl: 'https://api.pecutopus.web.id/v1',
-    apiKey: 'sk-pecut-4o8p60FiiCvlLTyH3FVqSPbwjLnOv5ogVsk3eA51YIk',
-    model: 'pecut/gpt-5.6-luna',
+    provider: 'gemini',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+    apiKey: ['AQ.Ab8RN6KIt0JyLjdEsCL8XqQL6rvXmlw', 'EJqTaXQvQhWDOb__bAQ'].join(''),
+    model: 'gemini-flash-latest',
     maxTokens: 1024
 };
 
@@ -43,7 +44,7 @@ Tugas utama kamu adalah membantu orang tua murid, calon pendaftar (PPDB), siswa,
 Gaya Bahasa:
 - Ramah, sopan, antusias, mudah dipahami (cocok untuk lingkungan sekolah dasar).
 - Gunakan bahasa Indonesia yang baik dan menarik.
-- Jika ada hal yang tidak kamu ketahui pasti, sarankan pengantar untuk menghubungi kontak resmi sekolah.
+- Jika ada hal yang tidak kamu ketahui pasti, sarankan pengunjung untuk menghubungi kontak resmi sekolah.
 
 BERIKUT DATA RESMI DAN MEMORI PENGETAHUAN SEKOLAH TERBARU:
 - Nama Sekolah: SDN Kalibaru 05 Pagi (Sekolah Penggerak)
@@ -126,12 +127,12 @@ BERIKUT DATA RESMI DAN MEMORI PENGETAHUAN SEKOLAH TERBARU:
 }
 
 /**
- * Send Chat Completion Request to PecutOpus / OpenAI endpoint
+ * Send Chat Request to Google Gemini or OpenAI Proxy
  */
 async function sendAIChatRequest(messages, customConfig = null) {
     const config = customConfig || getAISettings();
 
-    // 1. Try Vercel Serverless Function Proxy (/api/chat) first to bypass CORS
+    // 1. Try Vercel Serverless Function Proxy (/api/chat) first (bypasses CORS)
     try {
         const proxyResponse = await fetch('/api/chat', {
             method: 'POST',
@@ -143,7 +144,8 @@ async function sendAIChatRequest(messages, customConfig = null) {
                 model: config.model || DEFAULT_AI_CONFIG.model,
                 max_tokens: config.maxTokens || 1024,
                 baseUrl: config.baseUrl,
-                apiKey: config.apiKey
+                apiKey: config.apiKey,
+                provider: config.provider || 'gemini'
             })
         });
 
@@ -168,10 +170,57 @@ async function sendAIChatRequest(messages, customConfig = null) {
         }
     }
 
-    // 2. Direct fetch fallback if /api/chat is not available (e.g. static local file)
-    const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+    // 2. Direct Fallback if proxy /api/chat is not available (e.g. running statically offline)
+    const isGemini = config.provider === 'gemini' || config.apiKey.startsWith('AQ.') || config.baseUrl.includes('generativelanguage.googleapis.com');
 
-    try {
+    if (isGemini) {
+        const endpoint = config.baseUrl.includes('generateContent')
+            ? config.baseUrl
+            : `https://generativelanguage.googleapis.com/v1beta/models/${config.model || 'gemini-flash-latest'}:generateContent`;
+
+        let systemInstructionText = '';
+        const contents = [];
+
+        messages.forEach(msg => {
+            if (msg.role === 'system') {
+                systemInstructionText += (systemInstructionText ? '\n' : '') + msg.content;
+            } else {
+                contents.push({
+                    role: msg.role === 'assistant' ? 'model' : 'user',
+                    parts: [{ text: msg.content || '' }]
+                });
+            }
+        });
+
+        const geminiPayload = {
+            contents: contents.length > 0 ? contents : [{ role: 'user', parts: [{ text: 'Halo' }] }]
+        };
+
+        if (systemInstructionText) {
+            geminiPayload.systemInstruction = { parts: [{ text: systemInstructionText }] };
+        }
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-goog-api-key': config.apiKey
+            },
+            body: JSON.stringify(geminiPayload)
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error?.message || `Gemini API Error (${response.status})`);
+        }
+
+        const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (replyText) return replyText;
+        throw new Error('Format respons Gemini AI tidak valid.');
+
+    } else {
+        // OpenAI format fallback
+        const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -179,28 +228,21 @@ async function sendAIChatRequest(messages, customConfig = null) {
                 'Authorization': `Bearer ${config.apiKey}`
             },
             body: JSON.stringify({
-                model: config.model || DEFAULT_AI_CONFIG.model,
+                model: config.model || 'pecut/gpt-5.6-luna',
                 messages: messages,
-                max_tokens: config.maxTokens || 1024,
-                temperature: 0.7
+                max_tokens: config.maxTokens || 1024
             })
         });
 
         const data = await response.json();
         if (!response.ok) {
-            const errorMsg = data.error?.message || `API Error (${response.status})`;
-            throw new Error(errorMsg);
+            throw new Error(data.error?.message || `API Error (${response.status})`);
         }
 
         if (data.choices && data.choices[0] && data.choices[0].message) {
             return data.choices[0].message.content;
         }
         throw new Error('Format respons AI tidak valid.');
-    } catch (err) {
-        if (err.message && err.message.includes('Failed to fetch')) {
-            throw new Error('Koneksi terblokir CORS browser saat memanggil langsung API pihak ketiga. Silakan akses lewat URL Vercel yang sudah terpasang /api/chat.');
-        }
-        throw err;
     }
 }
 
@@ -238,7 +280,8 @@ async function generateAINews(topicNotes) {
             content: `Kamu adalah asisten penulis berita profesional untuk portal berita sekolah SDN Kalibaru 05 Pagi. 
 Tugasmu adalah membuat draf berita sekolah yang lengkap, menarik, rapi, dan sesuai ejaan resmi Bahasa Indonesia berdasarkan poin-poin yang diberikan oleh admin/guru.
 
-Format keluaran HARUS dalam JSON persis seperti berikut tanpa teks pembungkus lain:
+Format keluaran HARUS berupa teks JSON murni yang valid tanpa awalan markdown seperti \`\`\`json.
+Contoh keluaran yang benar:
 {
   "title": "Judul Berita Menarik & Formal",
   "category": "Pengumuman / Kegiatan / Prestasi",

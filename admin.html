@@ -706,24 +706,31 @@
         <div id="tabAISettings" class="tab-content">
             <div class="admin-container">
                 <div class="admin-card" style="max-width: 650px; margin: 0 auto;">
-                    <h2 style="margin-bottom: 0.5rem; font-family: 'Poppins', sans-serif;">⚙️ Pengaturan AI API Gateway</h2>
-                    <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Konfigurasikan API Gateway (PecutOpus, OpenAI, Groq, dll) yang digunakan oleh KaliBot dan AI Content Assistant.</p>
+                    <h2 style="margin-bottom: 0.5rem; font-family: 'Poppins', sans-serif;">⚙️ Pengaturan Engine AI (Google Gemini API)</h2>
+                    <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Konfigurasikan penyedia layanan AI (Google Gemini API / PecutOpus Gateway / OpenAI) untuk KaliBot &amp; AI Content Assistant.</p>
                     
                     <form id="aiSettingsForm" onsubmit="saveAISettingsForm(event)">
                         <div class="form-group">
-                            <label>Base URL Gateway</label>
-                            <input type="text" id="aiBaseUrl" required placeholder="https://api.pecutopus.web.id/v1">
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Default: <code>https://api.pecutopus.web.id/v1</code></small>
+                            <label>Penyedia Layanan AI (Provider)</label>
+                            <select id="aiProvider" style="width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem;" onchange="onAIProviderChange()">
+                                <option value="gemini">Google Gemini API (Resmi &amp; Cepat)</option>
+                                <option value="openai">PecutOpus / OpenAI Gateway</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Base Endpoint URL</label>
+                            <input type="text" id="aiBaseUrl" required placeholder="https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent">
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Default Gemini: <code>https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent</code></small>
                         </div>
                         <div class="form-group">
                             <label>API Key</label>
-                            <input type="password" id="aiApiKey" required placeholder="sk-pecut-xxxxxxxx">
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Token API rahasia milik Anda.</small>
+                            <input type="password" id="aiApiKey" required placeholder="AI Key Layanan Anda (contoh: AQ.Ab8...)">
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">API Key rahasia layanan AI Anda.</small>
                         </div>
                         <div class="form-group">
-                            <label>Model AI</label>
-                            <input type="text" id="aiModel" required placeholder="pecut/gpt-5.6-luna">
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Rekomendasi model PecutOpus: <code>pecut/gpt-5.6-luna</code> atau <code>pecut/claude-opus-4-8</code></small>
+                            <label>Nama Model AI</label>
+                            <input type="text" id="aiModel" required placeholder="gemini-flash-latest">
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Default Gemini: <code>gemini-flash-latest</code> atau <code>gemini-1.5-flash</code></small>
                         </div>
                         <div class="form-group">
                             <label>Max Tokens</label>

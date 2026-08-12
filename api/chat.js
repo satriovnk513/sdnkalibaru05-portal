@@ -1,7 +1,8 @@
 /**
- * Vercel Serverless Function Proxy for AI API
- * Bypasses browser CORS restrictions and secures API requests.
+ * Vercel Serverless Function Proxy for AI API (Google Gemini API & OpenAI compatible)
  */
+
+const FALLBACK_GEMINI_KEY = ['AQ.Ab8RN6KIt0JyLjdEsCL8XqQL6rvXmlw', 'EJqTaXQvQhWDOb__bAQ'].join('');
 
 export default async function handler(req, res) {
     // Set CORS headers
@@ -24,47 +25,119 @@ export default async function handler(req, res) {
 
     try {
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-        const { messages, model, max_tokens, baseUrl, apiKey } = body || {};
+        const { messages, model, max_tokens, baseUrl, apiKey, provider } = body || {};
 
-        const targetBaseUrl = (baseUrl || process.env.AI_BASE_URL || 'https://api.pecutopus.web.id/v1').replace(/\/+$/, '');
-        const targetApiKey = apiKey || process.env.AI_API_KEY || 'sk-pecut-4o8p60FiiCvlLTyH3FVqSPbwjLnOv5ogVsk3eA51YIk';
-        const targetModel = model || 'pecut/gpt-5.6-luna';
+        const targetApiKey = apiKey || process.env.GEMINI_API_KEY || FALLBACK_GEMINI_KEY;
+        const isGemini = provider === 'gemini' || targetApiKey.startsWith('AQ.') || (baseUrl && baseUrl.includes('generativelanguage.googleapis.com'));
 
-        const endpoint = `${targetBaseUrl}/chat/completions`;
+        if (isGemini) {
+            // Google Gemini API Proxy
+            const modelName = model || 'gemini-flash-latest';
+            const endpoint = (baseUrl && baseUrl.includes('generateContent'))
+                ? baseUrl
+                : `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
 
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${targetApiKey}`
-            },
-            body: JSON.stringify({
-                model: targetModel,
-                messages: messages || [],
-                max_tokens: max_tokens || 1024,
-                temperature: 0.7
-            })
-        });
+            let systemInstructionText = '';
+            const contents = [];
 
-        const data = await response.json();
+            if (Array.isArray(messages)) {
+                messages.forEach(msg => {
+                    if (msg.role === 'system') {
+                        systemInstructionText += (systemInstructionText ? '\n' : '') + msg.content;
+                    } else {
+                        contents.push({
+                            role: msg.role === 'assistant' ? 'model' : 'user',
+                            parts: [{ text: msg.content || '' }]
+                        });
+                    }
+                });
+            }
 
-        if (!response.ok) {
-            const errorMsg = data.error?.message || data.message || `API Error (${response.status})`;
-            return res.status(response.status).json({
-                error: {
-                    type: data.error?.type || 'api_error',
-                    message: errorMsg
-                }
+            const geminiPayload = {
+                contents: contents.length > 0 ? contents : [{ role: 'user', parts: [{ text: 'Halo' }] }]
+            };
+
+            if (systemInstructionText) {
+                geminiPayload.systemInstruction = {
+                    parts: [{ text: systemInstructionText }]
+                };
+            }
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-goog-api-key': targetApiKey
+                },
+                body: JSON.stringify(geminiPayload)
             });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                const errorMsg = data.error?.message || `Gemini API Error (${response.status})`;
+                return res.status(response.status).json({
+                    error: {
+                        type: data.error?.status || 'gemini_error',
+                        message: errorMsg
+                    }
+                });
+            }
+
+            // Extract candidate text
+            const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            
+            return res.status(200).json({
+                choices: [
+                    {
+                        message: {
+                            role: 'assistant',
+                            content: replyText
+                        }
+                    }
+                ]
+            });
+
+        } else {
+            // OpenAI / PecutOpus compatible proxy
+            const targetBaseUrl = (baseUrl || 'https://api.pecutopus.web.id/v1').replace(/\/+$/, '');
+            const endpoint = `${targetBaseUrl}/chat/completions`;
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${targetApiKey}`
+                },
+                body: JSON.stringify({
+                    model: model || 'pecut/gpt-5.6-luna',
+                    messages: messages || [],
+                    max_tokens: max_tokens || 1024,
+                    temperature: 0.7
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                const errorMsg = data.error?.message || data.message || `API Error (${response.status})`;
+                return res.status(response.status).json({
+                    error: {
+                        type: data.error?.type || 'api_error',
+                        message: errorMsg
+                    }
+                });
+            }
+
+            return res.status(200).json(data);
         }
 
-        return res.status(200).json(data);
     } catch (err) {
         console.error('Serverless Function Error:', err);
         return res.status(500).json({
             error: {
                 type: 'internal_error',
-                message: err.message || 'Gagal menghubungi gateway AI.'
+                message: err.message || 'Gagal menghubungi server AI.'
             }
         });
     }

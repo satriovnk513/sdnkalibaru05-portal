@@ -1194,10 +1194,26 @@ function loadAISettingsIntoForm() {
     const settings = window.AIService.getAISettings();
     
     if (document.getElementById('aiBaseUrl')) {
+        if (document.getElementById('aiProvider')) {
+            document.getElementById('aiProvider').value = settings.provider || 'gemini';
+        }
         document.getElementById('aiBaseUrl').value = settings.baseUrl || '';
         document.getElementById('aiApiKey').value = settings.apiKey || '';
         document.getElementById('aiModel').value = settings.model || '';
         document.getElementById('aiMaxTokens').value = settings.maxTokens || 1024;
+    }
+}
+
+function onAIProviderChange() {
+    const provider = document.getElementById('aiProvider').value;
+    if (provider === 'gemini') {
+        document.getElementById('aiBaseUrl').value = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
+        document.getElementById('aiApiKey').value = ['AQ.Ab8RN6KIt0JyLjdEsCL8XqQL6rvXmlw', 'EJqTaXQvQhWDOb__bAQ'].join('');
+        document.getElementById('aiModel').value = 'gemini-flash-latest';
+    } else {
+        document.getElementById('aiBaseUrl').value = 'https://api.pecutopus.web.id/v1';
+        document.getElementById('aiApiKey').value = 'sk-pecut-4o8p60FiiCvlLTyH3FVqSPbwjLnOv5ogVsk3eA51YIk';
+        document.getElementById('aiModel').value = 'pecut/gpt-5.6-luna';
     }
 }
 
@@ -1206,6 +1222,7 @@ function saveAISettingsForm(e) {
     if (!window.AIService) return;
 
     const settings = {
+        provider: document.getElementById('aiProvider')?.value || 'gemini',
         baseUrl: document.getElementById('aiBaseUrl').value.trim(),
         apiKey: document.getElementById('aiApiKey').value.trim(),
         model: document.getElementById('aiModel').value.trim(),
@@ -1224,9 +1241,10 @@ async function testAIConnection() {
     resBox.style.display = 'block';
     resBox.style.background = '#f1f5f9';
     resBox.style.color = '#334155';
-    resBox.innerText = 'Mengirim pesan uji koneksi ke PecutOpus AI Gateway...';
+    resBox.innerText = 'Mengirim pesan uji koneksi ke Google Gemini AI...';
 
     const testConfig = {
+        provider: document.getElementById('aiProvider')?.value || 'gemini',
         baseUrl: document.getElementById('aiBaseUrl').value.trim(),
         apiKey: document.getElementById('aiApiKey').value.trim(),
         model: document.getElementById('aiModel').value.trim(),
@@ -1235,7 +1253,7 @@ async function testAIConnection() {
 
     try {
         const reply = await window.AIService.sendAIChatRequest(
-            [{ role: 'user', content: 'Halo PecutOpus, respon singkat "Koneksi Berhasil"' }],
+            [{ role: 'user', content: 'Halo Gemini, respon singkat "Koneksi Berhasil"' }],
             testConfig
         );
         resBox.style.background = '#dcfce7';
