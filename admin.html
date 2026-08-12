@@ -383,12 +383,12 @@
         </div>
 
         <div class="tabs">
-            <button class="tab-btn active" onclick="showTab('tabStaff')">Manajemen Guru & Staf (Otomatis)</button>
-            <button class="tab-btn" onclick="showTab('tabNews')">Generator Berita (Manual)</button>
-            <button class="tab-btn" onclick="showTab('tabGallery')">&#128247; Galeri Kegiatan</button>
-            <button class="tab-btn" onclick="showTab('tabEkskul')">&#127919; Ekstrakurikuler & Foto</button>
-            <button class="tab-btn" onclick="showTab('tabAIMemory')">🧠 Memori KaliBot</button>
-            <button class="tab-btn" onclick="showTab('tabAISettings')">⚙️ Pengaturan AI</button>
+            <button class="tab-btn active" onclick="showTab('tabStaff', this)">Manajemen Guru &amp; Staf (Otomatis)</button>
+            <button class="tab-btn" onclick="showTab('tabNews', this)">Generator Berita (Manual)</button>
+            <button class="tab-btn" onclick="showTab('tabGallery', this)">📷 Galeri Kegiatan</button>
+            <button class="tab-btn" onclick="showTab('tabEkskul', this)">🎯 Ekstrakurikuler &amp; Foto</button>
+            <button class="tab-btn" onclick="showTab('tabAIMemory', this)">🧠 Memori KaliBot</button>
+            <button class="tab-btn" onclick="showTab('tabAISettings', this)">⚙️ Pengaturan AI</button>
         </div>
 
         <!-- TAB STAFF -->
@@ -704,8 +704,8 @@
 
         <!-- TAB AI SETTINGS -->
         <div id="tabAISettings" class="tab-content">
-            <div class="admin-container">
-                <div class="admin-card" style="max-width: 650px; margin: 0 auto;">
+            <div style="max-width: 750px; margin: 0 auto;">
+                <div class="admin-card">
                     <h2 style="margin-bottom: 0.5rem; font-family: 'Poppins', sans-serif;">⚙️ Pengaturan Engine AI (Google Gemini API)</h2>
                     <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Konfigurasikan penyedia layanan AI (Google Gemini API / PecutOpus Gateway / OpenAI) untuk KaliBot &amp; AI Content Assistant.</p>
                     

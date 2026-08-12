@@ -68,12 +68,31 @@ async function logout() {
 }
 
 // Show Tab
-function showTab(tabId) {
+function showTab(tabId, btnEl = null) {
+    const targetTab = document.getElementById(tabId);
+    if (!targetTab) {
+        console.warn('Tab element tidak ditemukan:', tabId);
+        return;
+    }
+
     document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
-    document.getElementById(tabId).style.display = 'block';
+    targetTab.style.display = 'block';
     
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    document.querySelector(`.tab-btn[onclick="showTab('${tabId}')"]`).classList.add('active');
+    
+    if (btnEl) {
+        btnEl.classList.add('active');
+    } else {
+        const btn = document.querySelector(`.tab-btn[onclick*="${tabId}"]`);
+        if (btn) btn.classList.add('active');
+    }
+
+    if (tabId === 'tabAIMemory' && typeof loadAIMemory === 'function') {
+        loadAIMemory();
+    }
+    if (tabId === 'tabAISettings' && typeof loadAISettingsIntoForm === 'function') {
+        loadAISettingsIntoForm();
+    }
 }
 
 // Supabase Logic
