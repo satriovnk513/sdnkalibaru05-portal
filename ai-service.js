@@ -130,32 +130,78 @@ BERIKUT DATA RESMI DAN MEMORI PENGETAHUAN SEKOLAH TERBARU:
  */
 async function sendAIChatRequest(messages, customConfig = null) {
     const config = customConfig || getAISettings();
+
+    // 1. Try Vercel Serverless Function Proxy (/api/chat) first to bypass CORS
+    try {
+        const proxyResponse = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                messages: messages,
+                model: config.model || DEFAULT_AI_CONFIG.model,
+                max_tokens: config.maxTokens || 1024,
+                baseUrl: config.baseUrl,
+                apiKey: config.apiKey
+            })
+        });
+
+        if (proxyResponse.ok) {
+            const proxyData = await proxyResponse.json();
+            if (proxyData.choices && proxyData.choices[0] && proxyData.choices[0].message) {
+                return proxyData.choices[0].message.content;
+            }
+            if (proxyData.error) {
+                throw new Error(proxyData.error.message || 'API Error dari server AI');
+            }
+        } else {
+            const errData = await proxyResponse.json().catch(() => ({}));
+            if (errData.error && errData.error.message) {
+                throw new Error(errData.error.message);
+            }
+        }
+    } catch (proxyErr) {
+        console.warn('Proxy /api/chat attempt:', proxyErr.message);
+        if (proxyErr.message && !proxyErr.message.includes('Failed to fetch') && !proxyErr.message.includes('Unexpected token')) {
+            throw proxyErr;
+        }
+    }
+
+    // 2. Direct fetch fallback if /api/chat is not available (e.g. static local file)
     const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
 
-    const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${config.apiKey}`
-        },
-        body: JSON.stringify({
-            model: config.model || DEFAULT_AI_CONFIG.model,
-            messages: messages,
-            max_tokens: config.maxTokens || 1024,
-            temperature: 0.7
-        })
-    });
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.apiKey}`
+            },
+            body: JSON.stringify({
+                model: config.model || DEFAULT_AI_CONFIG.model,
+                messages: messages,
+                max_tokens: config.maxTokens || 1024,
+                temperature: 0.7
+            })
+        });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`AI API Request Failed (${response.status}): ${errorText}`);
-    }
+        const data = await response.json();
+        if (!response.ok) {
+            const errorMsg = data.error?.message || `API Error (${response.status})`;
+            throw new Error(errorMsg);
+        }
 
-    const data = await response.json();
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-        return data.choices[0].message.content;
+        if (data.choices && data.choices[0] && data.choices[0].message) {
+            return data.choices[0].message.content;
+        }
+        throw new Error('Format respons AI tidak valid.');
+    } catch (err) {
+        if (err.message && err.message.includes('Failed to fetch')) {
+            throw new Error('Koneksi terblokir CORS browser saat memanggil langsung API pihak ketiga. Silakan akses lewat URL Vercel yang sudah terpasang /api/chat.');
+        }
+        throw err;
     }
-    throw new Error('Format respons AI tidak valid.');
 }
 
 /**
