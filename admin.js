@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    initTableSearch();
     initFileInputs(); // wire multi-file inputs
     initGalleryInputs(); // wire gallery file input & drag-drop
     initEkskulFileInputs(); // wire ekskul file inputs
@@ -8,7 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if (session) {
         document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('mainContent').style.display = 'block';
+        document.getElementById('mainContent').style.display = 'flex';
         updateSubRoles();
         loadStaff();
         loadNews();
@@ -16,6 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadEkskul();
         loadAIMemory();
         loadAISettingsIntoForm();
+        loadDashboardStats();
     }
     
     // Listen for auth state changes (e.g. token expiration)
@@ -51,7 +53,7 @@ async function checkLogin() {
         console.error('Login error:', error.message);
     } else {
         document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('mainContent').style.display = 'block';
+        document.getElementById('mainContent').style.display = 'flex';
         updateSubRoles();
         loadStaff();
         loadNews();
@@ -59,6 +61,7 @@ async function checkLogin() {
         loadEkskul();
         loadAIMemory();
         loadAISettingsIntoForm();
+        loadDashboardStats();
     }
 }
 
@@ -68,31 +71,45 @@ async function logout() {
 }
 
 // Show Tab
-function showTab(tabId, btnEl = null) {
+function showTab(tabId, navEl = null) {
     const targetTab = document.getElementById(tabId);
-    if (!targetTab) {
-        console.warn('Tab element tidak ditemukan:', tabId);
-        return;
-    }
+    if (!targetTab) return;
 
     document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
     targetTab.style.display = 'block';
-    
-    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    
-    if (btnEl) {
-        btnEl.classList.add('active');
+
+    document.querySelectorAll('.sidebar .nav-item').forEach(el => el.classList.remove('active'));
+    if (navEl) {
+        navEl.classList.add('active');
     } else {
-        const btn = document.querySelector(`.tab-btn[onclick*="${tabId}"]`);
-        if (btn) btn.classList.add('active');
+        const nav = document.querySelector(`.nav-item[data-tab="${tabId}"]`);
+        if (nav) nav.classList.add('active');
     }
 
-    if (tabId === 'tabAIMemory' && typeof loadAIMemory === 'function') {
-        loadAIMemory();
+    // Update topbar title
+    const titles = {
+        tabDashboard: 'Dashboard',
+        tabStaff: 'Manajemen Guru & Staf',
+        tabNews: 'Manajemen Berita',
+        tabGallery: 'Galeri Kegiatan',
+        tabEkskul: 'Ekstrakurikuler',
+        tabAIMemory: 'Memori KaliBot',
+        tabAISettings: 'Pengaturan AI'
+    };
+    const topbarTitle = document.getElementById('topbarTitle');
+    if (topbarTitle) topbarTitle.textContent = titles[tabId] || 'Dashboard';
+
+    // Close sidebar on mobile
+    if (window.innerWidth <= 1024) {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (sidebar) sidebar.classList.remove('open');
+        if (overlay) overlay.classList.remove('active');
     }
-    if (tabId === 'tabAISettings' && typeof loadAISettingsIntoForm === 'function') {
-        loadAISettingsIntoForm();
-    }
+
+    // Lazy load data
+    if (tabId === 'tabAIMemory' && typeof loadAIMemory === 'function') loadAIMemory();
+    if (tabId === 'tabAISettings' && typeof loadAISettingsIntoForm === 'function') loadAISettingsIntoForm();
 }
 
 // Supabase Logic
@@ -124,8 +141,8 @@ async function loadStaff() {
             <td>${displayRole}</td>
             <td>${staff.order_index || 99}</td>
             <td>
-                <button onclick="editStaff('${staff.id}', '${staff.name.replace(/'/g, "\\'")}', '${staff.role.replace(/'/g, "\\'")}', '${(staff.nip || '').replace(/'/g, "\\'")}', '${staff.image_url}', ${staff.order_index})" style="background: #eab308; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Edit</button>
-                <button onclick="deleteStaff('${staff.id}')" style="background: #dc2626; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Hapus</button>
+                <button class="btn-edit" onclick="editStaff('${staff.id}', '${staff.name.replace(/'/g, "\\\'")}', '${staff.role.replace(/'/g, "\\\'")}', '${(staff.nip || '').replace(/'/g, "\\\'")}', '${staff.image_url}', ${staff.order_index})">✏️ Edit</button>
+                <button class="btn-delete" onclick="deleteStaff('${staff.id}')">🗑 Hapus</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -243,7 +260,7 @@ async function saveStaff(e) {
                 name, role, nip, image_url: imageUrl, order_index: orderIndex
             }).eq('id', editStaffId);
             if (error) throw error;
-            alert('Data berhasil diupdate!');
+            showToast('Data berhasil diupdate!', 'success');
             cancelEdit();
         } else {
             const { error } = await supabaseClient.from('staff').insert([{
@@ -251,14 +268,14 @@ async function saveStaff(e) {
             }]);
             if (error) throw error;
             document.getElementById('staffForm').reset();
-            alert('Data berhasil ditambahkan!');
+            showToast('Data berhasil ditambahkan!', 'success');
         }
         
         loadStaff();
 
     } catch (err) {
         console.error(err);
-        alert('Terjadi kesalahan: ' + (err.message || err.error_description || JSON.stringify(err)));
+        showToast('Terjadi kesalahan: ' + (err.message || err.error_description || JSON.stringify(err)), 'error');
     } finally {
         const btn = document.getElementById('saveStaffBtn');
         btn.innerText = editStaffId ? "Update Data" : "Simpan Data";
@@ -267,15 +284,15 @@ async function saveStaff(e) {
 }
 
 async function deleteStaff(id) {
-    if(!confirm("Yakin ingin menghapus data ini?")) return;
-    
-    const { error } = await supabaseClient.from('staff').delete().eq('id', id);
-    if(error) {
-        alert("Gagal menghapus data.");
-        console.error(error);
-    } else {
-        loadStaff();
-    }
+    showConfirm("Yakin ingin menghapus data ini?", async () => {
+        const { error } = await supabaseClient.from('staff').delete().eq('id', id);
+        if(error) {
+            showToast("Gagal menghapus data.", 'error');
+            console.error(error);
+        } else {
+            loadStaff();
+        }
+    });
 }
 
 // =======================
@@ -430,8 +447,8 @@ async function loadNews() {
             <td>${item.title}</td>
             <td>${item.date}</td>
             <td>
-                <button onclick="editNews('${item.id}', '${dataAttr}')" style="background: #eab308; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Edit</button>
-                <button onclick="deleteNews('${item.id}')" style="background: #dc2626; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Hapus</button>
+                <button class="btn-edit" onclick="editNews('${item.id}', '${dataAttr}')">✏️ Edit</button>
+                <button class="btn-delete" onclick="deleteNews('${item.id}')">🗑 Hapus</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -577,21 +594,21 @@ async function saveNews(e) {
         if (editNewsId) {
             const { error } = await supabaseClient.from('news').update(newsData).eq('id', editNewsId);
             if (error) throw error;
-            alert('Berita berhasil diupdate!');
+            showToast('Berita berhasil diupdate!', 'success');
             cancelEditNews();
         } else {
             const { error } = await supabaseClient.from('news').insert([newsData]);
             if (error) throw error;
             document.getElementById('newsForm').reset();
             clearFileSelections();
-            alert('Berita berhasil ditambahkan!');
+            showToast('Berita berhasil ditambahkan!', 'success');
         }
 
         loadNews();
 
     } catch (err) {
         console.error(err);
-        alert('Terjadi kesalahan: ' + (err.message || err.error_description || JSON.stringify(err)));
+        showToast('Terjadi kesalahan: ' + (err.message || err.error_description || JSON.stringify(err)), 'error');
     } finally {
         btn.innerText = editNewsId ? 'Update Berita' : 'Simpan Berita';
         btn.disabled = false;
@@ -600,14 +617,15 @@ async function saveNews(e) {
 
 // ---------- delete ----------
 async function deleteNews(id) {
-    if (!confirm('Yakin ingin menghapus berita ini?')) return;
-    const { error } = await supabaseClient.from('news').delete().eq('id', id);
-    if (error) {
-        alert('Gagal menghapus berita.');
-        console.error(error);
-    } else {
-        loadNews();
-    }
+    showConfirm('Yakin ingin menghapus berita ini?', async () => {
+        const { error } = await supabaseClient.from('news').delete().eq('id', id);
+        if (error) {
+            showToast('Gagal menghapus berita.', 'error');
+            console.error(error);
+        } else {
+            loadNews();
+        }
+    });
 }
 
 // =======================
@@ -749,7 +767,7 @@ async function loadGallery() {
 /** Upload selected gallery files to Supabase storage and insert into gallery table */
 async function saveGallery() {
     if (selectedGalleryFiles.length === 0) {
-        alert('Pilih setidaknya satu foto atau video terlebih dahulu.');
+        showToast('Pilih setidaknya satu foto atau video terlebih dahulu.', 'warning');
         return;
     }
 
@@ -808,11 +826,11 @@ async function saveGallery() {
         }, 1800);
 
         await loadGallery();
-        alert(`${total} file berhasil diupload ke Galeri Kegiatan!`);
+        showToast(`${total} file berhasil diupload ke Galeri Kegiatan!`, 'success');
 
     } catch (err) {
         console.error(err);
-        alert('Terjadi kesalahan saat upload: ' + (err.message || JSON.stringify(err)));
+        showToast('Terjadi kesalahan saat upload: ' + (err.message || JSON.stringify(err)), 'error');
     } finally {
         btn.disabled = false;
         btn.innerText = 'Upload ke Galeri';
@@ -821,16 +839,17 @@ async function saveGallery() {
 
 /** Delete a gallery item from the database */
 async function deleteGallery(id, btnEl) {
-    if (!confirm('Yakin ingin menghapus media ini dari galeri?')) return;
-    if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Menghapus...'; }
+    showConfirm('Yakin ingin menghapus media ini dari galeri?', async () => {
+        if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Menghapus...'; }
 
-    const { error } = await supabaseClient.from('gallery').delete().eq('id', id);
-    if (error) {
-        alert('Gagal menghapus media: ' + error.message);
-        if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '&#128465; Hapus'; }
-    } else {
-        await loadGallery();
-    }
+        const { error } = await supabaseClient.from('gallery').delete().eq('id', id);
+        if (error) {
+            showToast('Gagal menghapus media: ' + error.message, 'error');
+            if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '&#128465; Hapus'; }
+        } else {
+            await loadGallery();
+        }
+    });
 }
 
 // =======================
@@ -936,8 +955,8 @@ async function loadEkskul() {
             <td><span style="background:#e0f2fe;color:#0369a1;font-weight:700;padding:2px 8px;border-radius:12px;font-size:0.8rem;">📷 ${numPhotos} foto</span></td>
             <td>${item.order_index || 99}</td>
             <td>
-                <button onclick="editEkskul('${item.id}', '${dataAttr}')" style="background: #eab308; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Edit</button>
-                <button onclick="deleteEkskul('${item.id}')" style="background: #dc2626; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Hapus</button>
+                <button class="btn-edit" onclick="editEkskul('${item.id}', '${dataAttr}')">✏️ Edit</button>
+                <button class="btn-delete" onclick="deleteEkskul('${item.id}')">🗑 Hapus</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -1031,21 +1050,21 @@ async function saveEkskul(e) {
         if (editEkskulId) {
             const { error } = await supabaseClient.from('extracurricular').update(ekskulData).eq('id', editEkskulId);
             if (error) throw error;
-            alert('Ekstrakurikuler berhasil diupdate!');
+            showToast('Ekstrakurikuler berhasil diupdate!', 'success');
             cancelEditEkskul();
         } else {
             const { error } = await supabaseClient.from('extracurricular').insert([ekskulData]);
             if (error) throw error;
             document.getElementById('ekskulForm').reset();
             clearEkskulFileSelections();
-            alert('Ekstrakurikuler berhasil ditambahkan!');
+            showToast('Ekstrakurikuler berhasil ditambahkan!', 'success');
         }
 
         loadEkskul();
 
     } catch (err) {
         console.error(err);
-        alert('Terjadi kesalahan: ' + (err.message || JSON.stringify(err)));
+        showToast('Terjadi kesalahan: ' + (err.message || JSON.stringify(err)), 'error');
     } finally {
         btn.innerText = editEkskulId ? 'Update Ekstrakurikuler' : 'Simpan Ekstrakurikuler';
         btn.disabled = false;
@@ -1053,13 +1072,14 @@ async function saveEkskul(e) {
 }
 
 async function deleteEkskul(id) {
-    if (!confirm('Yakin ingin menghapus ekstrakurikuler ini?')) return;
-    const { error } = await supabaseClient.from('extracurricular').delete().eq('id', id);
-    if (error) {
-        alert('Gagal menghapus ekstrakurikuler: ' + error.message);
-    } else {
-        loadEkskul();
-    }
+    showConfirm('Yakin ingin menghapus ekstrakurikuler ini?', async () => {
+        const { error } = await supabaseClient.from('extracurricular').delete().eq('id', id);
+        if (error) {
+            showToast('Gagal menghapus ekstrakurikuler: ' + error.message, 'error');
+        } else {
+            loadEkskul();
+        }
+    });
 }
 
 /* ==========================================================================
@@ -1122,7 +1142,7 @@ async function saveAIMemory(e) {
     const memId = document.getElementById('aiMemoryId').value;
 
     if (!topic || !content) {
-        alert('Topik dan Isi Memori harus diisi!');
+        showToast('Topik dan Isi Memori harus diisi!', 'warning');
         return;
     }
 
@@ -1146,11 +1166,11 @@ async function saveAIMemory(e) {
         document.getElementById('aiMemoryForm').reset();
         document.getElementById('aiMemoryId').value = '';
         btn.innerText = 'Simpan Memori';
-        alert('Memori KaliBot berhasil disimpan!');
+        showToast('Memori KaliBot berhasil disimpan!', 'success');
         loadAIMemory();
     } catch (err) {
         console.error('Error saving AI Memory:', err);
-        alert('Gagal menyimpan memori: ' + err.message);
+        showToast('Gagal menyimpan memori: ' + err.message, 'error');
     } finally {
         btn.disabled = false;
         btn.innerText = 'Simpan Memori';
@@ -1165,7 +1185,7 @@ async function editAIMemory(id) {
         .single();
 
     if (error || !data) {
-        alert('Gagal mengambil data memori!');
+        showToast('Gagal mengambil data memori!', 'error');
         return;
     }
 
@@ -1185,24 +1205,25 @@ async function toggleAIMemoryStatus(id, currentStatus) {
         .eq('id', id);
 
     if (error) {
-        alert('Gagal mengubah status: ' + error.message);
+        showToast('Gagal mengubah status: ' + error.message, 'error');
     } else {
         loadAIMemory();
     }
 }
 
 async function deleteAIMemory(id) {
-    if (!confirm('Yakin ingin menghapus memori ini dari KaliBot?')) return;
-    const { error } = await supabaseClient
-        .from('ai_knowledge')
-        .delete()
-        .eq('id', id);
+    showConfirm('Yakin ingin menghapus memori ini dari KaliBot?', async () => {
+        const { error } = await supabaseClient
+            .from('ai_knowledge')
+            .delete()
+            .eq('id', id);
 
-    if (error) {
-        alert('Gagal menghapus memori: ' + error.message);
-    } else {
-        loadAIMemory();
-    }
+        if (error) {
+            showToast('Gagal menghapus memori: ' + error.message, 'error');
+        } else {
+            loadAIMemory();
+        }
+    });
 }
 
 /* ==========================================================================
@@ -1249,9 +1270,9 @@ function saveAISettingsForm(e) {
     };
 
     if (window.AIService.saveAISettings(settings)) {
-        alert('Pengaturan AI berhasil disimpan!');
+        showToast('Pengaturan AI berhasil disimpan!', 'success');
     } else {
-        alert('Gagal menyimpan pengaturan AI.');
+        showToast('Gagal menyimpan pengaturan AI.', 'error');
     }
 }
 
@@ -1293,7 +1314,7 @@ async function generateNewsWithAI() {
     const promptText = promptInput ? promptInput.value.trim() : '';
 
     if (!promptText) {
-        alert('Silakan masukkan draf atau poin singkat berita terlebih dahulu pada kotak AI Assistant.');
+        showToast('Silakan masukkan draf atau poin singkat berita terlebih dahulu pada kotak AI Assistant.', 'warning');
         if (promptInput) promptInput.focus();
         return;
     }
@@ -1318,10 +1339,10 @@ async function generateNewsWithAI() {
             document.getElementById('newsDate').value = `${today.getDate()} ${months[today.getMonth()]} ${today.getFullYear()}`;
         }
 
-        alert('Berita berhasil dibuat oleh AI! Anda dapat memeriksa dan mengedit kembali isi berita di form.');
+        showToast('Berita berhasil dibuat oleh AI! Anda dapat memeriksa dan mengedit kembali isi berita di form.', 'success');
     } catch (err) {
         console.error('Error generating AI news:', err);
-        alert('Gagal membuat berita AI: ' + err.message);
+        showToast('Gagal membuat berita AI: ' + err.message, 'error');
     } finally {
         btn.disabled = false;
         btn.innerText = origText;
@@ -1333,7 +1354,7 @@ async function polishNewsContentWithAI() {
     const text = contentEl ? contentEl.value.trim() : '';
 
     if (!text) {
-        alert('Tuliskan teks pada Isi Berita Lengkap terlebih dahulu untuk dirapikan.');
+        showToast('Tuliskan teks pada Isi Berita Lengkap terlebih dahulu untuk dirapikan.', 'warning');
         if (contentEl) contentEl.focus();
         return;
     }
@@ -1346,14 +1367,95 @@ async function polishNewsContentWithAI() {
     try {
         const polished = await window.AIService.polishAIText(text);
         contentEl.value = polished;
-        alert('Teks berita berhasil dirapikan oleh AI!');
+        showToast('Teks berita berhasil dirapikan oleh AI!', 'success');
     } catch (err) {
         console.error('Error polishing text:', err);
-        alert('Gagal merapikan teks: ' + err.message);
+        showToast('Gagal merapikan teks: ' + err.message, 'error');
     } finally {
         btn.disabled = false;
         btn.innerText = origText;
     }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (!sidebar) return;
+    sidebar.classList.toggle('open');
+    if (overlay) overlay.classList.toggle('active');
+}
+
+async function loadDashboardStats() {
+    try {
+        const [staffRes, newsRes, galleryRes, ekskulRes] = await Promise.all([
+            supabaseClient.from('staff').select('id', { count: 'exact', head: true }),
+            supabaseClient.from('news').select('id', { count: 'exact', head: true }),
+            supabaseClient.from('gallery').select('id', { count: 'exact', head: true }),
+            supabaseClient.from('extracurricular').select('id', { count: 'exact', head: true }),
+        ]);
+        
+        const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+        el('statStaff', staffRes.count ?? 0);
+        el('statNews', newsRes.count ?? 0);
+        el('statGallery', galleryRes.count ?? 0);
+        el('statEkskul', ekskulRes.count ?? 0);
+    } catch (err) {
+        console.error('Error loading dashboard stats:', err);
+    }
+}
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    if (!container) { alert(message); return; }
+    
+    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span>${icons[type] || ''}</span> <span>${message}</span>`;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('removing');
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+
+function showConfirm(message, onConfirm) {
+    const modal = document.getElementById('confirmModal');
+    const msgEl = document.getElementById('confirmMessage');
+    const yesBtn = document.getElementById('confirmYesBtn');
+    const noBtn = document.getElementById('confirmNoBtn');
+    if (!modal) { if (confirm(message)) onConfirm(); return; }
+    
+    msgEl.textContent = message;
+    modal.classList.add('active');
+    
+    const cleanup = () => { modal.classList.remove('active'); yesBtn.onclick = null; noBtn.onclick = null; };
+    yesBtn.onclick = () => { cleanup(); onConfirm(); };
+    noBtn.onclick = cleanup;
+}
+
+function initTableSearch() {
+    const searches = [
+        { input: 'searchStaff', table: 'staffTableBody' },
+        { input: 'searchNews', table: 'newsTableBody' },
+        { input: 'searchEkskul', table: 'ekskulTableBody' },
+        { input: 'searchMemory', table: 'aiMemoryTableBody' },
+    ];
+    
+    searches.forEach(({ input, table }) => {
+        const el = document.getElementById(input);
+        if (!el) return;
+        el.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            const tbody = document.getElementById(table);
+            if (!tbody) return;
+            Array.from(tbody.rows).forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        });
+    });
 }
 
 function escapeHtml(str) {

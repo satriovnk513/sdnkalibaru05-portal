@@ -5,349 +5,433 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Admin - SDN Kalibaru 05 Pagi</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
     <style>
-        body { background-color: #f8fafc; padding: 2rem; margin: 0; min-height: 100vh; font-family: 'Inter', sans-serif; }
-        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; }
-        .admin-header h1 { color: #da251c; font-family: 'Poppins', sans-serif; margin: 0; font-size: 1.75rem; }
-        .header-actions { display: flex; gap: 0.5rem; align-items: center; }
-        .btn-home { background: #f1f5f9; color: #334155; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: bold; flex-shrink: 0; font-size: 0.9rem; border: 1px solid #cbd5e1; display: flex; align-items: center; gap: 0.4rem; transition: 0.2s; }
-        .btn-home:hover { background: #e2e8f0; }
-        .logout-btn { background: #64748b; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: bold; flex-shrink: 0; transition: 0.2s; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; }
-        .logout-btn:hover { background: #475569; }
-        
-        .tabs { display: flex; gap: 0.5rem; margin-bottom: 2rem; overflow-x: auto; padding-bottom: 0.5rem; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        .tabs::-webkit-scrollbar { display: none; }
-        .tab-btn { padding: 0.75rem 1.25rem; background: white; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; font-weight: 600; color: #475569; white-space: nowrap; flex-shrink: 0; font-size: 0.9rem; }
-        .tab-btn.active { background: #da251c; color: white; border-color: #da251c; box-shadow: 0 4px 6px -1px rgba(218, 37, 28, 0.2); }
+        /* ── Reset & Base ── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #f4f5f7; font-family: 'Inter', sans-serif; min-height: 100vh; color: #1a1a2e; }
+
+        /* ── Login Overlay ── */
+        .login-overlay {
+            position: fixed; inset: 0; z-index: 9999;
+            display: flex; background: #f4f5f7;
+        }
+        .login-decor {
+            flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: linear-gradient(135deg, #1a1a2e 0%, #2d1f3d 50%, #c0392b 100%);
+            color: white; padding: 3rem; position: relative; overflow: hidden;
+        }
+        .login-decor::before {
+            content: ''; position: absolute; inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .login-decor-content { position: relative; z-index: 1; text-align: center; max-width: 400px; }
+        .login-decor-emoji { font-size: 4rem; margin-bottom: 1.5rem; display: block; }
+        .login-decor h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .login-decor p { opacity: 0.8; font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }
+        .login-features { display: flex; flex-direction: column; gap: 0.75rem; text-align: left; }
+        .login-features span { display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem; opacity: 0.85; }
+        .login-features span::before { content: '✓'; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: rgba(255,255,255,0.15); border-radius: 50%; font-size: 0.7rem; flex-shrink: 0; }
+
+        .login-form-side {
+            flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem;
+        }
+        .login-box {
+            width: 100%; max-width: 400px; animation: fadeUp 0.5s ease;
+        }
+        .login-box h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.75rem; font-weight: 800; color: #1a1a2e; margin-bottom: 0.25rem; }
+        .login-box .login-subtitle { color: #6c757d; font-size: 0.95rem; margin-bottom: 2rem; }
+        .login-box label { display: block; font-size: 0.82rem; font-weight: 600; color: #6c757d; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+        .login-box input[type="email"], .login-box input[type="password"] {
+            width: 100%; padding: 0.85rem 1rem; border: 1.5px solid #e2e8f0; border-radius: 10px;
+            font-family: 'Inter', sans-serif; font-size: 1rem; transition: 0.2s;
+            background: #f8f9fa; outline: none;
+        }
+        .login-box input:focus { border-color: #c0392b; background: white; box-shadow: 0 0 0 3px rgba(192,57,43,0.1); }
+        .login-field { margin-bottom: 1.25rem; }
+        .login-box .btn-login {
+            width: 100%; padding: 0.9rem; background: #c0392b; color: white; border: none;
+            border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer;
+            transition: 0.2s; margin-top: 0.5rem;
+        }
+        .login-box .btn-login:hover { background: #a93226; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(192,57,43,0.3); }
+        .login-box .back-link {
+            display: block; text-align: center; margin-top: 1.25rem; padding: 0.75rem;
+            background: #f1f5f9; color: #475569; text-decoration: none; border-radius: 10px;
+            font-weight: 600; font-size: 0.9rem; transition: 0.2s;
+        }
+        .login-box .back-link:hover { background: #e2e8f0; }
+        #loginError { color: #c0392b; font-size: 0.85rem; margin-top: 1rem; display: none; text-align: center; font-weight: 500; }
+
+        /* ── Admin Layout ── */
+        .admin-layout { display: flex; min-height: 100vh; }
+        #mainContent { display: none; }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: 260px; min-height: 100vh; background: #1a1a2e; color: rgba(255,255,255,0.7);
+            display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0;
+            z-index: 1000; overflow-y: auto; scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+        .sidebar-brand {
+            padding: 1.5rem 1.25rem; display: flex; align-items: center; gap: 0.75rem;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .brand-icon { font-size: 1.75rem; }
+        .brand-name { display: block; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 1rem; color: white; }
+        .brand-sub { display: block; font-size: 0.72rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 1px; }
+
+        .sidebar-nav { flex: 1; padding: 1rem 0.75rem; }
+        .nav-section-label {
+            font-size: 0.68rem; font-weight: 700; color: rgba(255,255,255,0.3);
+            text-transform: uppercase; letter-spacing: 0.1em; padding: 1rem 0.75rem 0.5rem;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 0.85rem;
+            border-radius: 8px; cursor: pointer; transition: 0.15s; font-size: 0.88rem;
+            font-weight: 500; color: rgba(255,255,255,0.6); text-decoration: none;
+            margin-bottom: 2px; border-left: 3px solid transparent;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); }
+        .nav-item.active {
+            background: rgba(192,57,43,0.15); color: white; font-weight: 600;
+            border-left-color: #c0392b;
+        }
+        .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        .sidebar-footer {
+            padding: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .nav-item.logout-item { color: rgba(255,100,100,0.7); }
+        .nav-item.logout-item:hover { background: rgba(255,100,100,0.1); color: #ff6b6b; }
+
+        .sidebar-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            z-index: 999; backdrop-filter: blur(2px);
+        }
+
+        /* ── Main Area ── */
+        .main-area { flex: 1; margin-left: 260px; display: flex; flex-direction: column; min-height: 100vh; }
+
+        /* ── Topbar ── */
+        .topbar {
+            position: sticky; top: 0; height: 64px; background: white; z-index: 100;
+            display: flex; align-items: center; padding: 0 1.5rem; gap: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .hamburger {
+            display: none; background: none; border: none; cursor: pointer; padding: 0.5rem;
+            color: #1a1a2e; border-radius: 8px; transition: 0.15s;
+        }
+        .hamburger:hover { background: #f1f5f9; }
+        .hamburger svg { width: 22px; height: 22px; }
+        .topbar-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 1.15rem; color: #1a1a2e; }
+        .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 1rem; }
+        .topbar-date { font-size: 0.82rem; color: #6c757d; font-weight: 500; }
+        .topbar-home-btn {
+            display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.85rem;
+            background: #f1f5f9; color: #475569; border-radius: 8px; text-decoration: none;
+            font-size: 0.82rem; font-weight: 600; transition: 0.15s; border: 1px solid #e2e8f0;
+        }
+        .topbar-home-btn:hover { background: #e2e8f0; }
+
+        /* ── Content Area ── */
+        .content-area { padding: 1.5rem; flex: 1; }
+
+        /* ── Tab Content ── */
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ── Stat Cards ── */
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-bottom: 2rem; }
+        .stat-card {
+            background: white; border-radius: 16px; padding: 1.5rem;
+            display: flex; align-items: center; gap: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+            transition: 0.2s; cursor: pointer;
+        }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+        .stat-icon {
+            width: 56px; height: 56px; border-radius: 14px; display: flex;
+            align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;
+        }
+        .stat-number { display: block; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.75rem; font-weight: 800; color: #1a1a2e; line-height: 1; }
+        .stat-label { display: block; font-size: 0.82rem; color: #6c757d; font-weight: 500; margin-top: 0.25rem; }
+
+        /* ── Quick Actions ── */
+        .quick-actions { background: white; border-radius: 16px; padding: 1.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+        .quick-actions h3 { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 1.05rem; margin-bottom: 1.25rem; color: #1a1a2e; }
+        .quick-action-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
+        .quick-action-btn {
+            display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem;
+            background: #f8f9fa; border: 1.5px solid #e9ecef; border-radius: 10px;
+            cursor: pointer; transition: 0.15s; font-size: 0.88rem; font-weight: 600;
+            color: #1a1a2e; text-decoration: none;
+        }
+        .quick-action-btn:hover { background: #fff; border-color: #c0392b; color: #c0392b; transform: translateY(-1px); }
+        .quick-action-btn span { font-size: 1.2rem; }
+
+        /* ── Section Header ── */
+        .section-header { margin-bottom: 1.5rem; }
+        .section-header h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 1.3rem; color: #1a1a2e; }
+
+        /* ── Admin Container ── */
+        .admin-container { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; }
+
+        /* ── Admin Card ── */
+        .admin-card {
+            background: white; padding: 1.75rem; border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+            height: fit-content;
+        }
+        .admin-card h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1rem; font-weight: 700; color: #1a1a2e; }
+
+        /* ── Form ── */
+        .form-group { margin-bottom: 1.25rem; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: #6c757d; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.03em; }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%; padding: 0.7rem 0.9rem; border: 1.5px solid #e2e8f0; border-radius: 10px;
+            font-family: 'Inter', sans-serif; font-size: 0.95rem; box-sizing: border-box;
+            transition: 0.2s; background: #f8f9fa; outline: none;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            border-color: #c0392b; background: white; box-shadow: 0 0 0 3px rgba(192,57,43,0.08);
+        }
+        .form-group textarea { min-height: 90px; resize: vertical; }
+        .form-group small { color: #6c757d; margin-top: 0.25rem; display: block; font-size: 0.8rem; }
+
+        /* ── Search Input ── */
+        .table-search {
+            width: 100%; padding: 0.65rem 0.9rem 0.65rem 2.5rem; border: 1.5px solid #e2e8f0;
+            border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 0.9rem;
+            background: #f8f9fa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E") no-repeat 0.85rem center;
+            outline: none; transition: 0.2s; margin-bottom: 1rem;
+        }
+        .table-search:focus { border-color: #c0392b; background-color: white; box-shadow: 0 0 0 3px rgba(192,57,43,0.08); }
+
+        /* ── Table ── */
+        .table-responsive { width: 100%; overflow-x: auto; border-radius: 10px; border: 1px solid #e9ecef; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 0.85rem 1rem; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; }
+        th { background: #f8f9fa; font-weight: 700; color: #6c757d; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.06em; }
+        tr:hover td { background: #fafbfc; }
+        tr:last-child td { border-bottom: none; }
+
+        /* ── Table Action Buttons ── */
+        .btn-edit {
+            background: #fef3c7; color: #92400e; border: none; padding: 0.4rem 0.75rem;
+            border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.78rem;
+            transition: 0.15s; display: inline-flex; align-items: center; gap: 0.3rem;
+        }
+        .btn-edit:hover { background: #fde68a; }
+        .btn-delete {
+            background: #fee2e2; color: #991b1b; border: none; padding: 0.4rem 0.75rem;
+            border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.78rem;
+            transition: 0.15s; display: inline-flex; align-items: center; gap: 0.3rem;
+        }
+        .btn-delete:hover { background: #fecaca; }
+
+        /* ── Submit Button ── */
+        .btn-submit {
+            width: 100%; background: #c0392b; color: white; border: none; padding: 0.85rem;
+            border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.2s; font-size: 0.95rem;
+            letter-spacing: 0.02em;
+        }
+        .btn-submit:hover { background: #a93226; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(192,57,43,0.25); }
+        .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* ── AI Writer Box ── */
+        .ai-writer-box {
+            background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px;
+            padding: 1.25rem; margin-bottom: 1.5rem;
+        }
+        .ai-writer-box h4 { margin: 0 0 0.4rem 0; color: #1e40af; display: flex; align-items: center; gap: 0.5rem; font-size: 0.92rem; }
+        .ai-writer-box p { font-size: 0.82rem; color: #1e3a8a; margin: 0 0 0.75rem 0; }
 
         /* ── Gallery Grid ── */
         .gallery-admin-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 1rem; margin-top: 1rem;
         }
         .gallery-admin-item {
-            position: relative;
-            border-radius: 10px;
-            overflow: hidden;
-            aspect-ratio: 1 / 1;
-            border: 2px solid #e2e8f0;
-            background: #f1f5f9;
+            position: relative; border-radius: 12px; overflow: hidden;
+            aspect-ratio: 1 / 1; border: 2px solid #e9ecef; background: #f8f9fa;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        .gallery-admin-item:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
-        .gallery-admin-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
+        .gallery-admin-item:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+        .gallery-admin-item img, .gallery-admin-item video { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .gallery-admin-item video { pointer-events: none; }
         .gallery-admin-item .gallery-item-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            position: absolute; bottom: 0; left: 0; right: 0;
             background: linear-gradient(to top, rgba(0,0,0,0.75), transparent);
-            padding: 0.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-            opacity: 0;
-            transition: opacity 0.2s;
+            padding: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;
+            opacity: 0; transition: opacity 0.2s;
         }
         .gallery-admin-item:hover .gallery-item-overlay { opacity: 1; }
-        .gallery-admin-item .gallery-caption {
-            font-size: 0.72rem;
-            color: white;
-            text-overflow: ellipsis;
-            overflow: hidden;
-            white-space: nowrap;
-        }
+        .gallery-admin-item .gallery-caption { font-size: 0.72rem; color: white; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
         .gallery-admin-item .btn-delete-gallery {
-            background: #dc2626;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 0.3rem 0.5rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            transition: background 0.2s;
+            background: #e74c3c; color: white; border: none; border-radius: 6px;
+            padding: 0.3rem 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer;
+            width: 100%; transition: background 0.2s;
         }
-        .gallery-admin-item .btn-delete-gallery:hover { background: #b91c1c; }
-        /* Video badge */
+        .gallery-admin-item .btn-delete-gallery:hover { background: #c0392b; }
         .gallery-admin-item .media-type-badge {
-            position: absolute;
-            top: 6px;
-            left: 6px;
-            background: rgba(0,0,0,0.65);
-            color: white;
-            font-size: 0.68rem;
-            font-weight: 700;
-            padding: 0.2rem 0.45rem;
-            border-radius: 4px;
-            letter-spacing: 0.03em;
-            pointer-events: none;
+            position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,0.65);
+            color: white; font-size: 0.68rem; font-weight: 700; padding: 0.2rem 0.45rem;
+            border-radius: 4px; letter-spacing: 0.03em; pointer-events: none;
         }
-        .gallery-admin-item video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-            pointer-events: none;
-        }
-        /* Video preview in new-previews area */
-        .gallery-new-preview-item video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            pointer-events: none;
-        }
+
+        /* ── Gallery Upload ── */
         .gallery-upload-drop {
-            border: 2px dashed #94a3b8;
-            border-radius: 12px;
-            padding: 2rem;
-            text-align: center;
-            color: #64748b;
-            cursor: pointer;
-            transition: 0.2s;
-            margin-top: 0.75rem;
-            background: #f8fafc;
+            border: 2px dashed #c5ccd6; border-radius: 12px; padding: 2rem; text-align: center;
+            color: #6c757d; cursor: pointer; transition: 0.2s; margin-top: 0.75rem; background: #f8f9fa;
         }
-        .gallery-upload-drop:hover, .gallery-upload-drop.dragover {
-            border-color: #da251c;
-            background: #fff1f2;
-            color: #da251c;
-        }
+        .gallery-upload-drop:hover, .gallery-upload-drop.dragover { border-color: #c0392b; background: #fef2f2; color: #c0392b; }
         .gallery-upload-drop .drop-icon { font-size: 2rem; margin-bottom: 0.5rem; }
         .gallery-upload-drop p { margin: 0; font-size: 0.9rem; font-weight: 600; }
         .gallery-upload-drop small { color: #94a3b8; font-size: 0.8rem; }
         #galleryFileInput { display: none; }
-        .gallery-new-previews {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-top: 0.75rem;
-        }
+        .gallery-new-previews { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
         .gallery-new-preview-item {
-            position: relative;
-            width: 80px;
-            height: 80px;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 2px solid #e2e8f0;
-            flex-shrink: 0;
+            position: relative; width: 80px; height: 80px; border-radius: 8px;
+            overflow: hidden; border: 2px solid #e2e8f0; flex-shrink: 0;
         }
-        .gallery-new-preview-item img { width: 100%; height: 100%; object-fit: cover; }
+        .gallery-new-preview-item img, .gallery-new-preview-item video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
         .gallery-new-preview-item .remove-btn {
-            position: absolute;
-            top: 2px;
-            right: 2px;
-            background: rgba(220, 38, 38, 0.85);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
+            position: absolute; top: 2px; right: 2px; background: rgba(220,38,38,0.85);
+            color: white; border: none; border-radius: 50%; width: 20px; height: 20px;
+            font-size: 12px; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; padding: 0;
         }
-        .gallery-upload-progress {
-            margin-top: 0.75rem;
-            font-size: 0.85rem;
-            color: #475569;
-            display: none;
-        }
-        .gallery-upload-progress .progress-bar-wrap {
-            background: #e2e8f0;
-            border-radius: 99px;
-            height: 8px;
-            margin-top: 0.3rem;
-            overflow: hidden;
-        }
-        .gallery-upload-progress .progress-bar {
-            background: #da251c;
-            height: 100%;
-            border-radius: 99px;
-            transition: width 0.3s;
-        }
-        
-        .tab-content { display: none; }
-        
-        .admin-container { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; }
-        .admin-card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); height: fit-content; }
-        .form-group { margin-bottom: 1.5rem; }
-        .form-group label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #1e293b; font-size: 0.95rem; }
-        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 1rem; box-sizing: border-box; }
+        .gallery-upload-progress { margin-top: 0.75rem; font-size: 0.85rem; color: #475569; display: none; }
+        .gallery-upload-progress .progress-bar-wrap { background: #e9ecef; border-radius: 99px; height: 8px; margin-top: 0.3rem; overflow: hidden; }
+        .gallery-upload-progress .progress-bar { background: #c0392b; height: 100%; border-radius: 99px; transition: width 0.3s; }
 
-        /* ── Multi-file preview ── */
-        .file-preview-area {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-top: 0.75rem;
-        }
+        /* ── File Preview ── */
+        .file-preview-area { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
         .preview-img-item {
-            position: relative;
-            width: 80px;
-            height: 80px;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 2px solid #e2e8f0;
-            flex-shrink: 0;
+            position: relative; width: 80px; height: 80px; border-radius: 8px;
+            overflow: hidden; border: 2px solid #e2e8f0; flex-shrink: 0;
         }
-        .preview-img-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .preview-img-item .remove-btn,
-        .preview-pdf-item .remove-btn {
-            position: absolute;
-            top: 2px;
-            right: 2px;
-            background: rgba(220, 38, 38, 0.85);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 12px;
-            line-height: 1;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
+        .preview-img-item img { width: 100%; height: 100%; object-fit: cover; }
+        .preview-img-item .remove-btn, .preview-pdf-item .remove-btn {
+            position: absolute; top: 2px; right: 2px; background: rgba(220,38,38,0.85);
+            color: white; border: none; border-radius: 50%; width: 20px; height: 20px;
+            font-size: 12px; line-height: 1; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; padding: 0;
         }
         .preview-pdf-item {
-            position: relative;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            background: #fef2f2;
-            border: 1px solid rgba(218,37,28,0.2);
-            border-radius: 8px;
-            padding: 0.45rem 0.7rem;
-            font-size: 0.82rem;
-            color: #334155;
-            max-width: 200px;
+            position: relative; display: flex; align-items: center; gap: 0.4rem;
+            background: #fef2f2; border: 1px solid rgba(192,57,43,0.2); border-radius: 8px;
+            padding: 0.45rem 0.7rem; font-size: 0.82rem; color: #334155; max-width: 200px;
         }
-        .preview-pdf-item span {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            flex: 1;
-            min-width: 0;
-        }
-        .existing-img-list, .existing-pdf-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-        }
+        .preview-pdf-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+        .existing-img-list, .existing-pdf-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
         .existing-img-chip {
-            position: relative;
-            width: 72px;
-            height: 72px;
-            border-radius: 6px;
-            overflow: hidden;
-            border: 2px solid #94a3b8;
+            position: relative; width: 72px; height: 72px; border-radius: 6px;
+            overflow: hidden; border: 2px solid #94a3b8;
         }
         .existing-img-chip img { width: 100%; height: 100%; object-fit: cover; }
-        .existing-img-chip .remove-existing,
-        .existing-pdf-chip .remove-existing {
-            position: absolute;
-            top: 2px;
-            right: 2px;
-            background: rgba(100,116,139,0.85);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 11px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
+        .existing-img-chip .remove-existing, .existing-pdf-chip .remove-existing {
+            position: absolute; top: 2px; right: 2px; background: rgba(100,116,139,0.85);
+            color: white; border: none; border-radius: 50%; width: 18px; height: 18px;
+            font-size: 11px; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; padding: 0;
         }
         .existing-pdf-chip {
-            position: relative;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            background: #f1f5f9;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            padding: 0.4rem 0.65rem;
-            font-size: 0.8rem;
-            color: #475569;
-            max-width: 190px;
+            position: relative; display: flex; align-items: center; gap: 0.4rem;
+            background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px;
+            padding: 0.4rem 0.65rem; font-size: 0.8rem; color: #475569; max-width: 190px;
         }
         .existing-pdf-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+
         .upload-label {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            background: #f1f5f9;
-            border: 1.5px dashed #94a3b8;
-            border-radius: 8px;
-            padding: 0.5rem 1rem;
-            cursor: pointer;
-            font-size: 0.85rem;
-            color: #475569;
-            font-weight: 600;
-            transition: 0.2s;
-            margin-top: 0.35rem;
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            background: #f8f9fa; border: 1.5px dashed #c5ccd6; border-radius: 8px;
+            padding: 0.5rem 1rem; cursor: pointer; font-size: 0.85rem; color: #475569;
+            font-weight: 600; transition: 0.2s; margin-top: 0.35rem;
         }
-        .upload-label:hover { border-color: #da251c; color: #da251c; background: #fff1f2; }
+        .upload-label:hover { border-color: #c0392b; color: #c0392b; background: #fef2f2; }
         .upload-label input[type=file] { display: none; }
 
-        .table-responsive { width: 100%; overflow-x: auto; margin-top: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; }
-        table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; }
-        th { background: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
-
-        .btn-submit { width: 100%; background: #da251c; color: white; border: none; padding: 1rem; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 1rem; }
-        .btn-submit:hover { background: #b91c13; transform: translateY(-1px); }
-        .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; }
-
-        /* Login Overlay Styles */
-        .login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 1rem; box-sizing: border-box; }
-        .login-box { background: white; padding: 2.5rem 2rem; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); width: 100%; max-width: 400px; text-align: center; }
-        .login-box input { width: 100%; padding: 0.75rem; margin: 0.5rem 0; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; text-align: center; box-sizing: border-box; font-size: 1rem; }
-        .login-box button { width: 100%; background: #da251c; color: white; border: none; padding: 0.75rem; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 1rem; margin-top: 1rem; }
-        .login-box .back-btn { display: block; width: 100%; background: #f1f5f9; color: #334155; text-decoration: none; padding: 0.75rem; border-radius: 8px; font-weight: bold; margin-top: 0.75rem; box-sizing: border-box; }
-        #mainContent { display: none; }
-
-        /* Mobile Responsive */
-        @media (max-width: 1024px) {
-            body { padding: 1rem; }
-            .admin-container { grid-template-columns: minmax(0, 1fr); }
-            .admin-card { padding: 1.5rem; }
-            .admin-header h1 { font-size: 1.5rem; }
+        /* ── Card Header with Badge ── */
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+        .card-badge {
+            background: #f1f5f9; color: #475569; font-size: 0.78rem; font-weight: 700;
+            padding: 0.3rem 0.75rem; border-radius: 99px;
         }
 
-        @media (max-width: 480px) {
-            .admin-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
-            .admin-header h1 { font-size: 1.5rem; }
-            .header-actions { width: 100%; display: flex; gap: 0.5rem; }
-            .btn-home, .logout-btn { flex: 1; text-align: center; padding: 0.6rem; font-size: 0.85rem; justify-content: center; }
-            .tabs { margin-bottom: 1.5rem; }
+        /* ── Toast Notification ── */
+        .toast-container {
+            position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 10000;
+            display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;
+        }
+        .toast {
+            padding: 0.85rem 1.25rem; border-radius: 10px; color: white; font-weight: 500;
+            font-size: 0.9rem; box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+            animation: toastIn 0.35s cubic-bezier(0.4,0,0.2,1);
+            display: flex; align-items: center; gap: 0.5rem; max-width: 420px;
+            pointer-events: auto;
+        }
+        .toast.success { background: #27ae60; }
+        .toast.error { background: #e74c3c; }
+        .toast.warning { background: #f39c12; color: #1a1a2e; }
+        .toast.info { background: #2980b9; }
+        .toast.removing { animation: toastOut 0.3s forwards; }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(80px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { to { opacity: 0; transform: translateX(80px); } }
+
+        /* ── Confirm Modal ── */
+        .confirm-modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10001;
+            display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .confirm-modal-overlay.active { display: flex; }
+        .confirm-modal-box {
+            background: white; border-radius: 16px; padding: 2rem;
+            max-width: 380px; width: 90%; text-align: center;
+            animation: modalIn 0.25s ease;
+        }
+        .confirm-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .confirm-modal-box p { color: #475569; font-size: 0.95rem; line-height: 1.5; }
+        .confirm-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+        .confirm-actions button { flex: 1; padding: 0.7rem; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; font-size: 0.9rem; transition: 0.15s; }
+        .btn-cancel { background: #f1f5f9; color: #475569; }
+        .btn-cancel:hover { background: #e2e8f0; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-danger:hover { background: #c0392b; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .sidebar { left: -280px; transition: left 0.3s cubic-bezier(0.4,0,0.2,1); }
+            .sidebar.open { left: 0; }
+            .sidebar-overlay.active { display: block; }
+            .main-area { margin-left: 0 !important; }
+            .hamburger { display: flex; }
+            .admin-container { grid-template-columns: 1fr; }
+            .stat-grid { grid-template-columns: repeat(2, 1fr); }
+            .content-area { padding: 1.25rem; }
+            .login-decor { display: none; }
+        }
+        @media (max-width: 640px) {
+            .stat-grid { grid-template-columns: 1fr; }
+            .topbar { padding: 0 1rem; }
+            .topbar-date { display: none; }
+            .content-area { padding: 1rem; }
             .admin-card { padding: 1.25rem; }
+            .quick-action-grid { grid-template-columns: 1fr; }
+            .toast-container { left: 1rem; right: 1rem; bottom: 1rem; }
+            .toast { max-width: none; }
         }
     </style>
     <link rel="icon" href="/favicon.ico" sizes="any">
@@ -358,405 +442,488 @@
 <body>
     <!-- Login Overlay -->
     <div class="login-overlay" id="loginOverlay">
-        <div class="login-box">
-            <h2 style="color: #da251c; font-family: 'Poppins', sans-serif; margin-bottom: 0.5rem;">Login Admin</h2>
-            <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.5rem;">SDN Kalibaru 05</p>
-            <input type="email" id="adminEmail" placeholder="Alamat Email" onkeypress="if(event.key === 'Enter') checkLogin()" style="margin-top: 0;">
-            <input type="password" id="adminPassword" placeholder="Password" onkeypress="if(event.key === 'Enter') checkLogin()" style="margin-top: 0.5rem;">
-            <button onclick="checkLogin()" style="margin-top: 1rem;">Masuk</button>
-            <a href="/" class="back-btn">Kembali ke Beranda</a>
-            <p id="loginError" style="color: #da251c; font-size: 0.85rem; margin-top: 1rem; display: none;">Email atau password salah!</p>
+        <div class="login-decor">
+            <div class="login-decor-content">
+                <span class="login-decor-emoji">🏫</span>
+                <h1>SDN Kalibaru 05 Pagi</h1>
+                <p>Sistem Manajemen Konten Sekolah — kelola informasi, berita, dan galeri sekolah dalam satu dashboard.</p>
+                <div class="login-features">
+                    <span>Kelola data guru dan staf</span>
+                    <span>Publikasi berita dengan AI writer</span>
+                    <span>Upload galeri foto &amp; video</span>
+                    <span>Manajemen ekstrakurikuler</span>
+                    <span>KaliBot AI knowledge base</span>
+                </div>
+            </div>
+        </div>
+        <div class="login-form-side">
+            <div class="login-box">
+                <h2>Selamat Datang 👋</h2>
+                <p class="login-subtitle">Masuk ke dashboard admin</p>
+                <div class="login-field">
+                    <label for="adminEmail">Email</label>
+                    <input type="email" id="adminEmail" placeholder="admin@sekolah.id" onkeypress="if(event.key === 'Enter') checkLogin()">
+                </div>
+                <div class="login-field">
+                    <label for="adminPassword">Password</label>
+                    <input type="password" id="adminPassword" placeholder="••••••••" onkeypress="if(event.key === 'Enter') checkLogin()">
+                </div>
+                <button class="btn-login" onclick="checkLogin()">Masuk</button>
+                <a href="/" class="back-link">← Kembali ke Beranda</a>
+                <p id="loginError">Email atau password salah!</p>
+            </div>
         </div>
     </div>
 
     <!-- Main Content -->
-    <div id="mainContent">
-        <div class="admin-header">
-            <h1>Dashboard Admin</h1>
-            <div class="header-actions">
-                <a href="/" class="btn-home">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                    Beranda
+    <div id="mainContent" class="admin-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-icon">🏫</span>
+                <div>
+                    <span class="brand-name">SDN Kalibaru 05</span>
+                    <span class="brand-sub">Panel Admin</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-label">MENU UTAMA</div>
+                <a class="nav-item active" data-tab="tabDashboard" onclick="showTab('tabDashboard', this)">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+                    Dashboard
                 </a>
-                <button class="logout-btn" onclick="logout()">Logout</button>
+                <a class="nav-item" data-tab="tabStaff" onclick="showTab('tabStaff', this)">
+                    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Guru &amp; Staf
+                </a>
+                <a class="nav-item" data-tab="tabNews" onclick="showTab('tabNews', this)">
+                    <svg viewBox="0 0 24 24"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+                    Berita
+                </a>
+                <a class="nav-item" data-tab="tabGallery" onclick="showTab('tabGallery', this)">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                    Galeri
+                </a>
+                <a class="nav-item" data-tab="tabEkskul" onclick="showTab('tabEkskul', this)">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                    Ekstrakurikuler
+                </a>
+
+                <div class="nav-section-label">AI &amp; SISTEM</div>
+                <a class="nav-item" data-tab="tabAIMemory" onclick="showTab('tabAIMemory', this)">
+                    <svg viewBox="0 0 24 24"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>
+                    Memori KaliBot
+                </a>
+                <a class="nav-item" data-tab="tabAISettings" onclick="showTab('tabAISettings', this)">
+                    <svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Pengaturan AI
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="/" class="nav-item">
+                    <svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    Kembali ke Website
+                </a>
+                <a class="nav-item logout-item" onclick="logout()">
+                    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Logout
+                </a>
             </div>
-        </div>
+        </aside>
 
-        <div class="tabs">
-            <button class="tab-btn active" onclick="showTab('tabStaff', this)">Manajemen Guru &amp; Staf (Otomatis)</button>
-            <button class="tab-btn" onclick="showTab('tabNews', this)">Generator Berita (Manual)</button>
-            <button class="tab-btn" onclick="showTab('tabGallery', this)">📷 Galeri Kegiatan</button>
-            <button class="tab-btn" onclick="showTab('tabEkskul', this)">🎯 Ekstrakurikuler &amp; Foto</button>
-            <button class="tab-btn" onclick="showTab('tabAIMemory', this)">🧠 Memori KaliBot</button>
-            <button class="tab-btn" onclick="showTab('tabAISettings', this)">⚙️ Pengaturan AI</button>
-        </div>
+        <!-- Sidebar Overlay (mobile) -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-        <!-- TAB STAFF -->
-        <div id="tabStaff" class="tab-content" style="display: block;">
-            <div class="admin-container">
-                <div class="admin-card">
-                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Tambah Guru/Staf</h2>
-                    <form id="staffForm" onsubmit="saveStaff(event)">
-                        <div class="form-group">
-                            <label>Nama Lengkap (beserta gelar)</label>
-                            <input type="text" id="staffName" required placeholder="Contoh: Budi Santoso, S.Pd.">
-                        </div>
-                        <div class="form-group">
-                            <label>Kategori Jabatan Utama</label>
-                            <select id="staffRole" onchange="updateSubRoles()" required>
-                                <option value="Kepala Sekolah">Kepala Sekolah</option>
-                                <option value="Guru Kelas">Guru Kelas</option>
-                                <option value="Guru Mata Pelajaran">Guru Mata Pelajaran</option>
-                                <option value="Tenaga Kependidikan">Tenaga Kependidikan</option>
-                            </select>
-                        </div>
-                        <div class="form-group" id="subRoleGroup" style="display: none;">
-                            <label>Spesifik Jabatan</label>
-                            <select id="staffSubRole">
-                                <option value="Kepala Sekolah">Kepala Sekolah</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>NIP / Keterangan Tambahan</label>
-                            <input type="text" id="staffNip" placeholder="Contoh: NIP. 19880112 201001 1 002">
-                        </div>
-                        <div class="form-group">
-                            <label>Urutan Tampil (Angka)</label>
-                            <input type="number" id="staffOrder" value="99" required placeholder="Contoh: 1">
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Gunakan angka 1 untuk Kepala Sekolah, 2 untuk Wakil Kepala, dst. Semakin kecil angkanya, semakin awal munculnya.</small>
-                        </div>
-                        <div class="form-group">
-                            <label>Upload Foto Baru</label>
-                            <input type="file" id="staffPhoto" accept="image/*">
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Kosongkan jika tidak ada foto (akan pakai foto default).</small>
-                        </div>
-                        <button type="submit" class="btn-submit" id="saveStaffBtn">Simpan Data</button>
-                    </form>
+        <!-- Main Area -->
+        <main class="main-area">
+            <!-- Topbar -->
+            <header class="topbar">
+                <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <h2 class="topbar-title" id="topbarTitle">Dashboard</h2>
+                <div class="topbar-right">
+                    <span class="topbar-date" id="topbarDate"></span>
+                    <a href="/" class="topbar-home-btn">🏠 Beranda</a>
                 </div>
+            </header>
 
-                <div class="admin-card">
-                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Daftar Guru & Staf</h2>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Foto</th>
-                                    <th>Nama</th>
-                                    <th>Jabatan</th>
-                                    <th>Urutan</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="staffTableBody">
-                                <tr><td colspan="5">Memuat data...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB NEWS -->
-        <div id="tabNews" class="tab-content">
-            <div class="admin-container">
-                <div class="admin-card">
-                    <h2 style="margin-bottom: 1rem; font-family: 'Poppins', sans-serif;">Tambah Berita</h2>
-                    
-                    <!-- AI Generator Helper -->
-                    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem;">
-                        <h4 style="margin: 0 0 0.4rem 0; color: #1e40af; display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem;">
-                            ✨ AI Writer &amp; Text Polish Assistant
-                        </h4>
-                        <p style="font-size: 0.82rem; color: #1e3a8a; margin: 0 0 0.75rem 0;">Ketik draf / poin singkat kegiatan, lalu klik "Buat Berita AI" untuk mengisi judul &amp; artikel secara otomatis.</p>
-                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <input type="text" id="aiNewsPrompt" placeholder="Contoh: Lomba mewarnai kelas 1-3 hari Jumat meriah..." style="flex: 1; min-width: 220px; padding: 0.6rem 0.8rem; border-radius: 6px; border: 1px solid #93c5fd; font-size: 0.88rem;">
-                            <button type="button" onclick="generateNewsWithAI()" style="background: #2563eb; color: white; border: none; padding: 0.6rem 1rem; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85rem;">✨ Buat Berita AI</button>
-                            <button type="button" onclick="polishNewsContentWithAI()" style="background: #475569; color: white; border: none; padding: 0.6rem 1rem; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85rem;">📝 Rapikan Teks</button>
+            <!-- Content -->
+            <div class="content-area">
+                <!-- ═══ DASHBOARD OVERVIEW ═══ -->
+                <div id="tabDashboard" class="tab-content" style="display: block;">
+                    <div class="stat-grid">
+                        <div class="stat-card" onclick="showTab('tabStaff')">
+                            <div class="stat-icon" style="background:#fadbd8;color:#c0392b;">👥</div>
+                            <div><span class="stat-number" id="statStaff">-</span><span class="stat-label">Guru &amp; Staf</span></div>
+                        </div>
+                        <div class="stat-card" onclick="showTab('tabNews')">
+                            <div class="stat-icon" style="background:#d5f5e3;color:#27ae60;">📰</div>
+                            <div><span class="stat-number" id="statNews">-</span><span class="stat-label">Berita</span></div>
+                        </div>
+                        <div class="stat-card" onclick="showTab('tabGallery')">
+                            <div class="stat-icon" style="background:#d6eaf8;color:#2980b9;">📷</div>
+                            <div><span class="stat-number" id="statGallery">-</span><span class="stat-label">Media Galeri</span></div>
+                        </div>
+                        <div class="stat-card" onclick="showTab('tabEkskul')">
+                            <div class="stat-icon" style="background:#fdebd0;color:#e67e22;">🎯</div>
+                            <div><span class="stat-number" id="statEkskul">-</span><span class="stat-label">Ekstrakurikuler</span></div>
                         </div>
                     </div>
-                    <form id="newsForm" onsubmit="saveNews(event)">
-                        <div class="form-group">
-                            <label>Judul Berita</label>
-                            <input type="text" id="newsTitle" required placeholder="Contoh: Juara 1 Lomba Cerdas Cermat">
+                    <div class="quick-actions">
+                        <h3>Aksi Cepat</h3>
+                        <div class="quick-action-grid">
+                            <a class="quick-action-btn" onclick="showTab('tabStaff')"><span>👥</span> Tambah Guru Baru</a>
+                            <a class="quick-action-btn" onclick="showTab('tabNews')"><span>📝</span> Tulis Berita Baru</a>
+                            <a class="quick-action-btn" onclick="showTab('tabGallery')"><span>📸</span> Upload Foto Galeri</a>
+                            <a class="quick-action-btn" onclick="showTab('tabEkskul')"><span>🎯</span> Kelola Ekskul</a>
+                            <a class="quick-action-btn" onclick="showTab('tabAIMemory')"><span>🧠</span> Tambah Memori AI</a>
+                            <a class="quick-action-btn" onclick="showTab('tabAISettings')"><span>⚙️</span> Pengaturan AI</a>
                         </div>
-                        <div class="form-group">
-                            <label>Tanggal</label>
-                            <input type="text" id="newsDate" required placeholder="Contoh: 15 Agustus 2026">
-                        </div>
-                        <div class="form-group">
-                            <label>Cuplikan Berita</label>
-                            <textarea id="newsDesc" required placeholder="Tuliskan deskripsi singkat berita di sini..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Link Target (Opsional)</label>
-                            <input type="text" id="newsLink" placeholder="Contoh: berita-detail" value="berita-detail">
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Biarkan 'berita-detail' agar mengarah ke halaman baca berita.</small>
-                        </div>
-                        <div class="form-group">
-                            <label>Isi Berita Lengkap</label>
-                            <textarea id="newsContent" rows="10" placeholder="Tuliskan isi berita lengkap di sini (mendukung enter/paragraf)..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Upload Gambar Berita <span style="font-weight:400; color:#64748b;">(bisa lebih dari 1)</span></label>
-                            <!-- Existing images when editing -->
-                            <div id="existingImgList" class="existing-img-list" style="display:none;"></div>
-                            <!-- New file picker -->
-                            <label class="upload-label" for="newsPhoto">
-                                &#128247; Pilih Gambar
-                                <input type="file" id="newsPhoto" accept="image/*" multiple>
-                            </label>
-                            <!-- Preview of newly selected files -->
-                            <div id="imgPreviewArea" class="file-preview-area"></div>
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Pilih beberapa gambar sekaligus. Gambar pertama jadi thumbnail utama.</small>
-                        </div>
-                        <div class="form-group">
-                            <label>Upload PDF Lampiran <span style="font-weight:400; color:#64748b;">(bisa lebih dari 1, opsional)</span></label>
-                            <!-- Existing PDFs when editing -->
-                            <div id="existingPdfList" class="existing-pdf-list" style="display:none;"></div>
-                            <!-- New file picker -->
-                            <label class="upload-label" for="newsPdf">
-                                &#128196; Pilih PDF
-                                <input type="file" id="newsPdf" accept=".pdf" multiple>
-                            </label>
-                            <!-- Preview of newly selected PDF files -->
-                            <div id="pdfPreviewArea" class="file-preview-area"></div>
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">File PDF akan muncul sebagai daftar download di halaman detail.</small>
-                        </div>
-                        <button type="submit" class="btn-submit" id="saveNewsBtn">Simpan Berita</button>
-                    </form>
-                </div>
-                
-                <div class="admin-card">
-                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Daftar Berita</h2>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Gambar</th>
-                                    <th>Judul</th>
-                                    <th>Tanggal</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="newsTableBody">
-                                <tr><td colspan="4">Memuat data...</td></tr>
-                            </tbody>
-                        </table>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- TAB GALLERY -->
-        <div id="tabGallery" class="tab-content">
-            <div class="admin-container">
-                <!-- Upload Form -->
-                <div class="admin-card">
-                    <h2 style="margin-bottom: 0.5rem; font-family: 'Poppins', sans-serif;">Upload Foto &amp; Video Galeri</h2>
-                    <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Foto dan video yang diupload akan langsung tampil di Galeri Kegiatan pada homepage.</p>
-
-                    <div class="form-group">
-                        <label>Keterangan <span style="font-weight:400;color:#94a3b8;">(opsional, berlaku untuk semua file yang dipilih)</span></label>
-                        <input type="text" id="galleryCaption" placeholder="Contoh: Upacara HUT RI ke-80">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Pilih Foto / Video <span style="font-weight:400;color:#64748b;">(bisa lebih dari 1)</span></label>
-                        <div class="gallery-upload-drop" id="galleryDropArea" onclick="document.getElementById('galleryFileInput').click()">
-                            <div class="drop-icon">&#128247;&#127916;</div>
-                            <p>Klik atau seret foto / video ke sini</p>
-                            <small>Foto: JPG, PNG, WEBP &bull; Video: MP4, MOV, WEBM &bull; Maks. 50 MB per file</small>
+                <!-- ═══ TAB STAFF ═══ -->
+                <div id="tabStaff" class="tab-content">
+                    <div class="section-header"><h2>Manajemen Guru &amp; Staf</h2></div>
+                    <div class="admin-container">
+                        <div class="admin-card">
+                            <h2 style="margin-bottom: 1.5rem;">Tambah Guru/Staf</h2>
+                            <form id="staffForm" onsubmit="saveStaff(event)">
+                                <div class="form-group">
+                                    <label>Nama Lengkap (beserta gelar)</label>
+                                    <input type="text" id="staffName" required placeholder="Contoh: Budi Santoso, S.Pd.">
+                                </div>
+                                <div class="form-group">
+                                    <label>Kategori Jabatan Utama</label>
+                                    <select id="staffRole" onchange="updateSubRoles()" required>
+                                        <option value="Kepala Sekolah">Kepala Sekolah</option>
+                                        <option value="Guru Kelas">Guru Kelas</option>
+                                        <option value="Guru Mata Pelajaran">Guru Mata Pelajaran</option>
+                                        <option value="Tenaga Kependidikan">Tenaga Kependidikan</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="subRoleGroup" style="display: none;">
+                                    <label>Spesifik Jabatan</label>
+                                    <select id="staffSubRole">
+                                        <option value="Kepala Sekolah">Kepala Sekolah</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>NIP / Keterangan Tambahan</label>
+                                    <input type="text" id="staffNip" placeholder="Contoh: NIP. 19880112 201001 1 002">
+                                </div>
+                                <div class="form-group">
+                                    <label>Urutan Tampil (Angka)</label>
+                                    <input type="number" id="staffOrder" value="99" required placeholder="Contoh: 1">
+                                    <small>Gunakan angka 1 untuk Kepala Sekolah, 2 untuk Wakil Kepala, dst. Semakin kecil angkanya, semakin awal munculnya.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Upload Foto Baru</label>
+                                    <input type="file" id="staffPhoto" accept="image/*">
+                                    <small>Kosongkan jika tidak ada foto (akan pakai foto default).</small>
+                                </div>
+                                <button type="submit" class="btn-submit" id="saveStaffBtn">Simpan Data</button>
+                            </form>
                         </div>
-                        <input type="file" id="galleryFileInput" accept="image/*,video/*" multiple>
-                        <div id="galleryNewPreviews" class="gallery-new-previews"></div>
-                        <div class="gallery-upload-progress" id="galleryUploadProgress">
-                            <span id="galleryProgressText">Mengupload...</span>
-                            <div class="progress-bar-wrap">
-                                <div class="progress-bar" id="galleryProgressBar" style="width:0%"></div>
+                        <div class="admin-card">
+                            <h2 style="margin-bottom: 1.25rem;">Daftar Guru &amp; Staf</h2>
+                            <input type="text" class="table-search" id="searchStaff" placeholder="Cari nama atau jabatan...">
+                            <div class="table-responsive">
+                                <table>
+                                    <thead><tr><th>Foto</th><th>Nama</th><th>Jabatan</th><th>Urutan</th><th>Aksi</th></tr></thead>
+                                    <tbody id="staffTableBody"><tr><td colspan="5">Memuat data...</td></tr></tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
-
-                    <button class="btn-submit" id="saveGalleryBtn" onclick="saveGallery()">Upload ke Galeri</button>
                 </div>
 
-                <!-- Gallery Grid -->
-                <div class="admin-card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
-                        <h2 style="margin:0; font-family: 'Poppins', sans-serif;">Media Tersimpan</h2>
-                        <span id="galleryCount" style="background:#f1f5f9; color:#475569; font-size:0.8rem; font-weight:700; padding:0.3rem 0.75rem; border-radius:99px;">0 item</span>
+                <!-- ═══ TAB NEWS ═══ -->
+                <div id="tabNews" class="tab-content">
+                    <div class="section-header"><h2>Manajemen Berita</h2></div>
+                    <div class="admin-container">
+                        <div class="admin-card">
+                            <h2 style="margin-bottom: 1rem;">Tambah Berita</h2>
+                            <!-- AI Writer -->
+                            <div class="ai-writer-box">
+                                <h4>✨ AI Writer &amp; Text Polish Assistant</h4>
+                                <p>Ketik draf / poin singkat kegiatan, lalu klik "Buat Berita AI" untuk mengisi judul &amp; artikel secara otomatis.</p>
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <input type="text" id="aiNewsPrompt" placeholder="Contoh: Lomba mewarnai kelas 1-3 hari Jumat meriah..." style="flex: 1; min-width: 220px; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #93c5fd; font-size: 0.88rem; font-family: 'Inter', sans-serif; outline: none;">
+                                    <button type="button" onclick="generateNewsWithAI()" style="background: #2563eb; color: white; border: none; padding: 0.6rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.85rem;">✨ Buat Berita AI</button>
+                                    <button type="button" onclick="polishNewsContentWithAI()" style="background: #475569; color: white; border: none; padding: 0.6rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.85rem;">📝 Rapikan Teks</button>
+                                </div>
+                            </div>
+                            <form id="newsForm" onsubmit="saveNews(event)">
+                                <div class="form-group">
+                                    <label>Judul Berita</label>
+                                    <input type="text" id="newsTitle" required placeholder="Contoh: Juara 1 Lomba Cerdas Cermat">
+                                </div>
+                                <div class="form-group">
+                                    <label>Tanggal</label>
+                                    <input type="text" id="newsDate" required placeholder="Contoh: 15 Agustus 2026">
+                                </div>
+                                <div class="form-group">
+                                    <label>Cuplikan Berita</label>
+                                    <textarea id="newsDesc" required placeholder="Tuliskan deskripsi singkat berita di sini..."></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Link Target (Opsional)</label>
+                                    <input type="text" id="newsLink" placeholder="Contoh: berita-detail" value="berita-detail">
+                                    <small>Biarkan 'berita-detail' agar mengarah ke halaman baca berita.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Isi Berita Lengkap</label>
+                                    <textarea id="newsContent" rows="10" placeholder="Tuliskan isi berita lengkap di sini (mendukung enter/paragraf)..."></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Upload Gambar Berita <span style="font-weight:400; color:#6c757d;">(bisa lebih dari 1)</span></label>
+                                    <div id="existingImgList" class="existing-img-list" style="display:none;"></div>
+                                    <label class="upload-label" for="newsPhoto">
+                                        &#128247; Pilih Gambar
+                                        <input type="file" id="newsPhoto" accept="image/*" multiple>
+                                    </label>
+                                    <div id="imgPreviewArea" class="file-preview-area"></div>
+                                    <small>Pilih beberapa gambar sekaligus. Gambar pertama jadi thumbnail utama.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Upload PDF Lampiran <span style="font-weight:400; color:#6c757d;">(bisa lebih dari 1, opsional)</span></label>
+                                    <div id="existingPdfList" class="existing-pdf-list" style="display:none;"></div>
+                                    <label class="upload-label" for="newsPdf">
+                                        &#128196; Pilih PDF
+                                        <input type="file" id="newsPdf" accept=".pdf" multiple>
+                                    </label>
+                                    <div id="pdfPreviewArea" class="file-preview-area"></div>
+                                    <small>File PDF akan muncul sebagai daftar download di halaman detail.</small>
+                                </div>
+                                <button type="submit" class="btn-submit" id="saveNewsBtn">Simpan Berita</button>
+                            </form>
+                        </div>
+                        <div class="admin-card">
+                            <h2 style="margin-bottom: 1.25rem;">Daftar Berita</h2>
+                            <input type="text" class="table-search" id="searchNews" placeholder="Cari judul berita...">
+                            <div class="table-responsive">
+                                <table>
+                                    <thead><tr><th>Gambar</th><th>Judul</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+                                    <tbody id="newsTableBody"><tr><td colspan="4">Memuat data...</td></tr></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                    <div id="galleryAdminGrid" class="gallery-admin-grid">
-                        <p style="color:#94a3b8; font-size:0.9rem;">Memuat media...</p>
+                </div>
+
+                <!-- ═══ TAB GALLERY ═══ -->
+                <div id="tabGallery" class="tab-content">
+                    <div class="section-header"><h2>Galeri Kegiatan</h2></div>
+                    <div class="admin-container">
+                        <div class="admin-card">
+                            <h2 style="margin-bottom: 0.5rem;">Upload Foto &amp; Video Galeri</h2>
+                            <p style="color: #6c757d; font-size: 0.88rem; margin-bottom: 1.5rem;">Foto dan video yang diupload akan langsung tampil di Galeri Kegiatan pada homepage.</p>
+                            <div class="form-group">
+                                <label>Keterangan <span style="font-weight:400;color:#94a3b8;">(opsional, berlaku untuk semua file yang dipilih)</span></label>
+                                <input type="text" id="galleryCaption" placeholder="Contoh: Upacara HUT RI ke-80">
+                            </div>
+                            <div class="form-group">
+                                <label>Pilih Foto / Video <span style="font-weight:400;color:#6c757d;">(bisa lebih dari 1)</span></label>
+                                <div class="gallery-upload-drop" id="galleryDropArea" onclick="document.getElementById('galleryFileInput').click()">
+                                    <div class="drop-icon">&#128247;&#127916;</div>
+                                    <p>Klik atau seret foto / video ke sini</p>
+                                    <small>Foto: JPG, PNG, WEBP &bull; Video: MP4, MOV, WEBM &bull; Maks. 50 MB per file</small>
+                                </div>
+                                <input type="file" id="galleryFileInput" accept="image/*,video/*" multiple>
+                                <div id="galleryNewPreviews" class="gallery-new-previews"></div>
+                                <div class="gallery-upload-progress" id="galleryUploadProgress">
+                                    <span id="galleryProgressText">Mengupload...</span>
+                                    <div class="progress-bar-wrap">
+                                        <div class="progress-bar" id="galleryProgressBar" style="width:0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn-submit" id="saveGalleryBtn" onclick="saveGallery()">Upload ke Galeri</button>
+                        </div>
+                        <div class="admin-card">
+                            <div class="card-header">
+                                <h2 style="margin: 0;">Media Tersimpan</h2>
+                                <span id="galleryCount" class="card-badge">0 item</span>
+                            </div>
+                            <div id="galleryAdminGrid" class="gallery-admin-grid">
+                                <p style="color:#94a3b8; font-size:0.9rem;">Memuat media...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ TAB EKSKUL ═══ -->
+                <div id="tabEkskul" class="tab-content">
+                    <div class="section-header"><h2>Kelola Ekstrakurikuler</h2></div>
+                    <div class="admin-container">
+                        <div class="admin-card">
+                            <h2 style="margin-bottom: 1.5rem;">Kelola Ekstrakurikuler &amp; Foto</h2>
+                            <form id="ekskulForm" onsubmit="saveEkskul(event)">
+                                <div class="form-group">
+                                    <label>Nama Ekstrakurikuler</label>
+                                    <input type="text" id="ekskulName" required placeholder="Contoh: Marawis, Paskibra, PMR">
+                                </div>
+                                <div class="form-group">
+                                    <label>Icon FontAwesome</label>
+                                    <input type="text" id="ekskulIcon" required placeholder="Contoh: fas fa-drum, fas fa-flag">
+                                    <small>Contoh pilihan icon: <code>fas fa-drum</code>, <code>fas fa-calculator</code>, <code>fas fa-flag</code>, <code>fas fa-fist-raised</code>, <code>fas fa-briefcase-medical</code>, <code>fas fa-campground</code>, <code>fas fa-quran</code>, <code>fas fa-palette</code>, <code>fas fa-child</code>, <code>fas fa-volleyball-ball</code></small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Deskripsi Singkat</label>
+                                    <textarea id="ekskulDesc" rows="3" required placeholder="Tuliskan penjelasan kegiatan ekstrakurikuler..."></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Urutan Tampil (Angka)</label>
+                                    <input type="number" id="ekskulOrder" value="99" required placeholder="Contoh: 1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Upload Foto Kegiatan Ekstrakurikuler <span style="font-weight:400; color:#6c757d;">(bisa lebih dari 1)</span></label>
+                                    <div id="existingEkskulImgList" class="existing-img-list" style="display:none;"></div>
+                                    <label class="upload-label" for="ekskulPhoto">
+                                        &#128247; Pilih Foto Ekstrakurikuler
+                                        <input type="file" id="ekskulPhoto" accept="image/*" multiple>
+                                    </label>
+                                    <div id="ekskulImgPreviewArea" class="file-preview-area"></div>
+                                    <small>Foto yang diupload akan muncul sebagai slideshow saat logo ekstrakurikuler diklik pengunjung.</small>
+                                </div>
+                                <button type="submit" class="btn-submit" id="saveEkskulBtn">Simpan Ekstrakurikuler</button>
+                            </form>
+                        </div>
+                        <div class="admin-card">
+                            <h2 style="margin-bottom: 1.25rem;">Daftar Ekstrakurikuler</h2>
+                            <input type="text" class="table-search" id="searchEkskul" placeholder="Cari nama ekskul...">
+                            <div class="table-responsive">
+                                <table>
+                                    <thead><tr><th>Icon</th><th>Nama</th><th>Foto</th><th>Urutan</th><th>Aksi</th></tr></thead>
+                                    <tbody id="ekskulTableBody"><tr><td colspan="5">Memuat data...</td></tr></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ TAB AI MEMORY ═══ -->
+                <div id="tabAIMemory" class="tab-content">
+                    <div class="section-header"><h2>Memori KaliBot</h2></div>
+                    <div class="admin-container">
+                        <div class="admin-card">
+                            <h2 style="margin-bottom: 0.75rem;">🧠 Tambah Memori / Informasi KaliBot</h2>
+                            <p style="color: #6c757d; font-size: 0.88rem; margin-bottom: 1.5rem;">Informasi yang ditulis di sini akan langsung diingat dan dijadikan bahan acuan oleh KaliBot saat menjawab pertanyaan pengunjung.</p>
+                            <form id="aiMemoryForm" onsubmit="saveAIMemory(event)">
+                                <input type="hidden" id="aiMemoryId">
+                                <div class="form-group">
+                                    <label>Topik / Judul Informasi</label>
+                                    <input type="text" id="aiMemoryTopic" required placeholder="Contoh: Jadwal Ujian Akhir, Pengumuman Libur, Tata Tertib Seragam">
+                                </div>
+                                <div class="form-group">
+                                    <label>Isi Informasi / Catatan Memori</label>
+                                    <textarea id="aiMemoryContent" rows="4" required placeholder="Tuliskan fakta atau aturan yang harus diingat KaliBot. Contoh: Penilaian Tengah Semester dilaksanakan tanggal 15-20 Juni 2026. Siswa wajib memakai seragam lengkap..."></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; text-transform: none; letter-spacing: normal; font-size: 0.9rem;">
+                                        <input type="checkbox" id="aiMemoryIsActive" checked style="width: 18px; height: 18px;">
+                                        <span>Aktifkan Memori Ini (KaliBot bisa membaca ini)</span>
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn-submit" id="saveAIMemoryBtn">Simpan Memori</button>
+                            </form>
+                        </div>
+                        <div class="admin-card">
+                            <h2 style="margin-bottom: 1.25rem;">Daftar Memori Tersimpan</h2>
+                            <input type="text" class="table-search" id="searchMemory" placeholder="Cari topik atau isi memori...">
+                            <div class="table-responsive">
+                                <table>
+                                    <thead><tr><th>Topik</th><th>Isi Pengetahuan / Memori</th><th>Status</th><th>Aksi</th></tr></thead>
+                                    <tbody id="aiMemoryTableBody"><tr><td colspan="4">Memuat data memori...</td></tr></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ TAB AI SETTINGS ═══ -->
+                <div id="tabAISettings" class="tab-content">
+                    <div class="section-header"><h2>Pengaturan AI</h2></div>
+                    <div style="max-width: 750px;">
+                        <div class="admin-card">
+                            <h2 style="margin-bottom: 0.5rem;">⚙️ Pengaturan Engine AI (Google Gemini API)</h2>
+                            <p style="color: #6c757d; font-size: 0.88rem; margin-bottom: 1.5rem;">Konfigurasikan penyedia layanan AI (Google Gemini API / PecutOpus Gateway / OpenAI) untuk KaliBot &amp; AI Content Assistant.</p>
+                            <form id="aiSettingsForm" onsubmit="saveAISettingsForm(event)">
+                                <div class="form-group">
+                                    <label>Penyedia Layanan AI (Provider)</label>
+                                    <select id="aiProvider" onchange="onAIProviderChange()">
+                                        <option value="gemini">Google Gemini API (Resmi &amp; Cepat)</option>
+                                        <option value="openai">PecutOpus / OpenAI Gateway</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Base Endpoint URL</label>
+                                    <input type="text" id="aiBaseUrl" required placeholder="https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent">
+                                    <small>Default Gemini: <code>https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent</code></small>
+                                </div>
+                                <div class="form-group">
+                                    <label>API Key</label>
+                                    <input type="password" id="aiApiKey" required placeholder="AI Key Layanan Anda (contoh: AQ.Ab8...)">
+                                    <small>API Key rahasia layanan AI Anda.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nama Model AI</label>
+                                    <input type="text" id="aiModel" required placeholder="gemini-flash-latest">
+                                    <small>Default Gemini: <code>gemini-flash-latest</code> atau <code>gemini-1.5-flash</code></small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Max Tokens</label>
+                                    <input type="number" id="aiMaxTokens" value="1024" required>
+                                </div>
+                                <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+                                    <button type="submit" class="btn-submit" style="flex: 1;">Simpan Pengaturan</button>
+                                    <button type="button" onclick="testAIConnection()" style="background: #2980b9; color: white; border: none; padding: 0.85rem 1.25rem; border-radius: 10px; font-weight: 700; cursor: pointer; flex-shrink: 0; transition: 0.2s; font-size: 0.9rem;">Uji Koneksi AI</button>
+                                </div>
+                            </form>
+                            <div id="aiTestResult" style="margin-top: 1rem; padding: 0.85rem; border-radius: 10px; font-size: 0.88rem; display: none;"></div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
+    </div>
 
-        <!-- TAB EKSKUL -->
-        <div id="tabEkskul" class="tab-content">
-            <div class="admin-container">
-                <!-- Form Tambah / Edit Ekskul -->
-                <div class="admin-card">
-                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Kelola Ekstrakurikuler &amp; Foto</h2>
-                    <form id="ekskulForm" onsubmit="saveEkskul(event)">
-                        <div class="form-group">
-                            <label>Nama Ekstrakurikuler</label>
-                            <input type="text" id="ekskulName" required placeholder="Contoh: Marawis, Paskibra, PMR">
-                        </div>
-                        <div class="form-group">
-                            <label>Icon FontAwesome</label>
-                            <input type="text" id="ekskulIcon" required placeholder="Contoh: fas fa-drum, fas fa-flag">
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Contoh pilihan icon: <code>fas fa-drum</code>, <code>fas fa-calculator</code>, <code>fas fa-flag</code>, <code>fas fa-fist-raised</code>, <code>fas fa-briefcase-medical</code>, <code>fas fa-campground</code>, <code>fas fa-quran</code>, <code>fas fa-palette</code>, <code>fas fa-child</code>, <code>fas fa-volleyball-ball</code></small>
-                        </div>
-                        <div class="form-group">
-                            <label>Deskripsi Singkat</label>
-                            <textarea id="ekskulDesc" rows="3" required placeholder="Tuliskan penjelasan kegiatan ekstrakurikuler..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Urutan Tampil (Angka)</label>
-                            <input type="number" id="ekskulOrder" value="99" required placeholder="Contoh: 1">
-                        </div>
-                        <div class="form-group">
-                            <label>Upload Foto Kegiatan Ekstrakurikuler <span style="font-weight:400; color:#64748b;">(bisa lebih dari 1)</span></label>
-                            <div id="existingEkskulImgList" class="existing-img-list" style="display:none;"></div>
-                            <label class="upload-label" for="ekskulPhoto">
-                                &#128247; Pilih Foto Ekstrakurikuler
-                                <input type="file" id="ekskulPhoto" accept="image/*" multiple>
-                            </label>
-                            <div id="ekskulImgPreviewArea" class="file-preview-area"></div>
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Foto yang diupload akan muncul sebagai slideshow saat logo ekstrakurikuler diklik pengunjung.</small>
-                        </div>
-                        <button type="submit" class="btn-submit" id="saveEkskulBtn">Simpan Ekstrakurikuler</button>
-                    </form>
-                </div>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
 
-                <!-- Table Ekskul -->
-                <div class="admin-card">
-                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Daftar Ekstrakurikuler</h2>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Icon</th>
-                                    <th>Nama</th>
-                                    <th>Foto</th>
-                                    <th>Urutan</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ekskulTableBody">
-                                <tr><td colspan="5">Memuat data...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB AI MEMORY / KNOWLEDGE BASE -->
-        <div id="tabAIMemory" class="tab-content" style="display: none;">
-            <div class="admin-container">
-                <!-- Form Tambah / Edit Memori -->
-                <div class="admin-card">
-                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">🧠 Tambah Memori / Informasi KaliBot</h2>
-                    <p style="color: #64748b; font-size: 0.9rem; margin-top: -1rem; margin-bottom: 1.5rem;">Informasi yang ditulis di sini akan langsung diingat dan dijadikan bahan acuan oleh KaliBot saat menjawab pertanyaan pengunjung.</p>
-                    <form id="aiMemoryForm" onsubmit="saveAIMemory(event)">
-                        <input type="hidden" id="aiMemoryId">
-                        <div class="form-group">
-                            <label>Topik / Judul Informasi</label>
-                            <input type="text" id="aiMemoryTopic" required placeholder="Contoh: Jadwal Ujian Akhir, Pengumuman Libur, Tata Tertib Seragam">
-                        </div>
-                        <div class="form-group">
-                            <label>Isi Informasi / Catatan Memori</label>
-                            <textarea id="aiMemoryContent" rows="4" required placeholder="Tuliskan fakta atau aturan yang harus diingat KaliBot. Contoh: Penilaian Tengah Semester dilaksanakan tanggal 15-20 Juni 2026. Siswa wajib memakai seragam lengkap..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                                <input type="checkbox" id="aiMemoryIsActive" checked style="width: 18px; height: 18px;">
-                                <span>Aktifkan Memori Ini (KaliBot bisa membaca ini)</span>
-                            </label>
-                        </div>
-                        <button type="submit" class="btn-submit" id="saveAIMemoryBtn">Simpan Memori</button>
-                    </form>
-                </div>
-
-                <!-- Table Memori Tersimpan -->
-                <div class="admin-card">
-                    <h2 style="margin-bottom: 1.5rem; font-family: 'Poppins', sans-serif;">Daftar Memori Tersimpan</h2>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Topik</th>
-                                    <th>Isi Pengetahuan / Memori</th>
-                                    <th>Status</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="aiMemoryTableBody">
-                                <tr><td colspan="4">Memuat data memori...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB AI SETTINGS -->
-        <div id="tabAISettings" class="tab-content" style="display: none;">
-            <div style="max-width: 750px; margin: 0 auto;">
-                <div class="admin-card">
-                    <h2 style="margin-bottom: 0.5rem; font-family: 'Poppins', sans-serif;">⚙️ Pengaturan Engine AI (Google Gemini API)</h2>
-                    <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Konfigurasikan penyedia layanan AI (Google Gemini API / PecutOpus Gateway / OpenAI) untuk KaliBot &amp; AI Content Assistant.</p>
-                    
-                    <form id="aiSettingsForm" onsubmit="saveAISettingsForm(event)">
-                        <div class="form-group">
-                            <label>Penyedia Layanan AI (Provider)</label>
-                            <select id="aiProvider" style="width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem;" onchange="onAIProviderChange()">
-                                <option value="gemini">Google Gemini API (Resmi &amp; Cepat)</option>
-                                <option value="openai">PecutOpus / OpenAI Gateway</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Base Endpoint URL</label>
-                            <input type="text" id="aiBaseUrl" required placeholder="https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent">
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Default Gemini: <code>https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent</code></small>
-                        </div>
-                        <div class="form-group">
-                            <label>API Key</label>
-                            <input type="password" id="aiApiKey" required placeholder="AI Key Layanan Anda (contoh: AQ.Ab8...)">
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">API Key rahasia layanan AI Anda.</small>
-                        </div>
-                        <div class="form-group">
-                            <label>Nama Model AI</label>
-                            <input type="text" id="aiModel" required placeholder="gemini-flash-latest">
-                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Default Gemini: <code>gemini-flash-latest</code> atau <code>gemini-1.5-flash</code></small>
-                        </div>
-                        <div class="form-group">
-                            <label>Max Tokens</label>
-                            <input type="number" id="aiMaxTokens" value="1024" required>
-                        </div>
-
-                        <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
-                            <button type="submit" class="btn-submit" style="flex: 1;">Simpan Pengaturan</button>
-                            <button type="button" onclick="testAIConnection()" style="background: #0284c7; color: white; border: none; padding: 0.85rem 1.25rem; border-radius: 8px; font-weight: bold; cursor: pointer; flex-shrink: 0;">Uji Koneksi AI</button>
-                        </div>
-                    </form>
-
-                    <div id="aiTestResult" style="margin-top: 1rem; padding: 0.85rem; border-radius: 8px; font-size: 0.88rem; display: none;"></div>
-                </div>
+    <!-- Confirm Modal -->
+    <div class="confirm-modal-overlay" id="confirmModal">
+        <div class="confirm-modal-box">
+            <div class="confirm-icon">⚠️</div>
+            <p id="confirmMessage">Yakin ingin menghapus?</p>
+            <div class="confirm-actions">
+                <button id="confirmNoBtn" class="btn-cancel">Batal</button>
+                <button id="confirmYesBtn" class="btn-danger">Ya, Hapus</button>
             </div>
         </div>
     </div>
 
+    <!-- Date Script -->
+    <script>
+        (function() {
+            const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+            const days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+            const d = new Date();
+            const el = document.getElementById('topbarDate');
+            if (el) el.textContent = days[d.getDay()] + ', ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+        })();
+    </script>
+
     <!-- Custom Scripts -->
     <script src="ai-service.js?v=2"></script>
-    <script src="admin.js?v=2"></script>
+    <script src="admin.js?v=3"></script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>
     <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
-
