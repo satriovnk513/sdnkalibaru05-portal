@@ -184,13 +184,13 @@
         .section-header h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 1.3rem; color: #1a1a2e; }
 
         /* ── Admin Container ── */
-        .admin-container { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; }
+        .admin-container { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 1.5rem; }
 
         /* ── Admin Card ── */
         .admin-card {
-            background: white; padding: 1.75rem; border-radius: 16px;
+            background: white; padding: 1.5rem; border-radius: 16px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
-            height: fit-content;
+            height: fit-content; min-width: 0;
         }
         .admin-card h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1rem; font-weight: 700; color: #1a1a2e; }
 
@@ -213,29 +213,32 @@
             width: 100%; padding: 0.65rem 0.9rem 0.65rem 2.5rem; border: 1.5px solid #e2e8f0;
             border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 0.9rem;
             background: #f8f9fa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E") no-repeat 0.85rem center;
-            outline: none; transition: 0.2s; margin-bottom: 1rem;
+            outline: none; transition: 0.2s; margin-bottom: 1rem; box-sizing: border-box;
         }
         .table-search:focus { border-color: #c0392b; background-color: white; box-shadow: 0 0 0 3px rgba(192,57,43,0.08); }
 
         /* ── Table ── */
-        .table-responsive { width: 100%; overflow-x: auto; border-radius: 10px; border: 1px solid #e9ecef; }
-        table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        th, td { padding: 0.85rem 1rem; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; }
-        th { background: #f8f9fa; font-weight: 700; color: #6c757d; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.06em; }
+        .table-responsive { width: 100%; max-width: 100%; overflow-x: auto; border-radius: 10px; border: 1px solid #e9ecef; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.7rem 0.6rem; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; vertical-align: middle; }
+        th { background: #f8f9fa; font-weight: 700; color: #6c757d; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.06em; white-space: nowrap; }
         tr:hover td { background: #fafbfc; }
         tr:last-child td { border-bottom: none; }
 
         /* ── Table Action Buttons ── */
+        .td-actions { display: flex; flex-direction: column; gap: 0.35rem; min-width: 75px; }
         .btn-edit {
-            background: #fef3c7; color: #92400e; border: none; padding: 0.4rem 0.75rem;
-            border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.78rem;
-            transition: 0.15s; display: inline-flex; align-items: center; gap: 0.3rem;
+            background: #fef3c7; color: #92400e; border: none; padding: 0.35rem 0.5rem;
+            border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.75rem;
+            transition: 0.15s; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem;
+            white-space: nowrap; width: 100%; box-sizing: border-box;
         }
         .btn-edit:hover { background: #fde68a; }
         .btn-delete {
-            background: #fee2e2; color: #991b1b; border: none; padding: 0.4rem 0.75rem;
-            border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.78rem;
-            transition: 0.15s; display: inline-flex; align-items: center; gap: 0.3rem;
+            background: #fee2e2; color: #991b1b; border: none; padding: 0.35rem 0.5rem;
+            border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.75rem;
+            transition: 0.15s; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem;
+            white-space: nowrap; width: 100%; box-sizing: border-box;
         }
         .btn-delete:hover { background: #fecaca; }
 
@@ -412,13 +415,15 @@
         @keyframes modalIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
 
         /* ── Responsive ── */
+        @media (max-width: 1200px) {
+            .admin-container { grid-template-columns: 1fr; }
+        }
         @media (max-width: 1024px) {
             .sidebar { left: -280px; transition: left 0.3s cubic-bezier(0.4,0,0.2,1); }
             .sidebar.open { left: 0; }
             .sidebar-overlay.active { display: block; }
             .main-area { margin-left: 0 !important; }
             .hamburger { display: flex; }
-            .admin-container { grid-template-columns: 1fr; }
             .stat-grid { grid-template-columns: repeat(2, 1fr); }
             .content-area { padding: 1.25rem; }
             .login-decor { display: none; }
@@ -633,6 +638,7 @@
                             <input type="text" class="table-search" id="searchStaff" placeholder="Cari nama atau jabatan...">
                             <div class="table-responsive">
                                 <table>
+                                    <colgroup><col style="width:60px"><col><col><col style="width:65px"><col style="width:90px"></colgroup>
                                     <thead><tr><th>Foto</th><th>Nama</th><th>Jabatan</th><th>Urutan</th><th>Aksi</th></tr></thead>
                                     <tbody id="staffTableBody"><tr><td colspan="5">Memuat data...</td></tr></tbody>
                                 </table>
@@ -707,6 +713,7 @@
                             <input type="text" class="table-search" id="searchNews" placeholder="Cari judul berita...">
                             <div class="table-responsive">
                                 <table>
+                                    <colgroup><col style="width:90px"><col><col style="width:110px"><col style="width:90px"></colgroup>
                                     <thead><tr><th>Gambar</th><th>Judul</th><th>Tanggal</th><th>Aksi</th></tr></thead>
                                     <tbody id="newsTableBody"><tr><td colspan="4">Memuat data...</td></tr></tbody>
                                 </table>
@@ -798,6 +805,7 @@
                             <input type="text" class="table-search" id="searchEkskul" placeholder="Cari nama ekskul...">
                             <div class="table-responsive">
                                 <table>
+                                    <colgroup><col style="width:50px"><col><col style="width:85px"><col style="width:65px"><col style="width:90px"></colgroup>
                                     <thead><tr><th>Icon</th><th>Nama</th><th>Foto</th><th>Urutan</th><th>Aksi</th></tr></thead>
                                     <tbody id="ekskulTableBody"><tr><td colspan="5">Memuat data...</td></tr></tbody>
                                 </table>
@@ -837,6 +845,7 @@
                             <input type="text" class="table-search" id="searchMemory" placeholder="Cari topik atau isi memori...">
                             <div class="table-responsive">
                                 <table>
+                                    <colgroup><col style="width:25%"><col><col style="width:85px"><col style="width:95px"></colgroup>
                                     <thead><tr><th>Topik</th><th>Isi Pengetahuan / Memori</th><th>Status</th><th>Aksi</th></tr></thead>
                                     <tbody id="aiMemoryTableBody"><tr><td colspan="4">Memuat data memori...</td></tr></tbody>
                                 </table>

@@ -141,8 +141,10 @@ async function loadStaff() {
             <td>${displayRole}</td>
             <td>${staff.order_index || 99}</td>
             <td>
+                <div class="td-actions">
                 <button class="btn-edit" onclick="editStaff('${staff.id}', '${staff.name.replace(/'/g, "\\\'")}', '${staff.role.replace(/'/g, "\\\'")}', '${(staff.nip || '').replace(/'/g, "\\\'")}', '${staff.image_url}', ${staff.order_index})">✏️ Edit</button>
                 <button class="btn-delete" onclick="deleteStaff('${staff.id}')">🗑 Hapus</button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -447,8 +449,10 @@ async function loadNews() {
             <td>${item.title}</td>
             <td>${item.date}</td>
             <td>
+                <div class="td-actions">
                 <button class="btn-edit" onclick="editNews('${item.id}', '${dataAttr}')">✏️ Edit</button>
                 <button class="btn-delete" onclick="deleteNews('${item.id}')">🗑 Hapus</button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -955,8 +959,10 @@ async function loadEkskul() {
             <td><span style="background:#e0f2fe;color:#0369a1;font-weight:700;padding:2px 8px;border-radius:12px;font-size:0.8rem;">📷 ${numPhotos} foto</span></td>
             <td>${item.order_index || 99}</td>
             <td>
+                <div class="td-actions">
                 <button class="btn-edit" onclick="editEkskul('${item.id}', '${dataAttr}')">✏️ Edit</button>
                 <button class="btn-delete" onclick="deleteEkskul('${item.id}')">🗑 Hapus</button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -1118,10 +1124,10 @@ async function loadAIMemory() {
                 <td>${escapeHtml(item.content)}</td>
                 <td>${statusBadge}</td>
                 <td>
-                    <div style="display: flex; gap: 4px;">
-                        <button onclick="toggleAIMemoryStatus('${item.id}', ${item.is_active})" style="background: ${item.is_active ? '#e2e8f0' : '#dcfce7'}; color: #1e293b; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem; cursor: pointer;">${item.is_active ? 'Matikan' : 'Aktifkan'}</button>
-                        <button onclick="editAIMemory('${item.id}')" style="background: #3b82f6; color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem; cursor: pointer;">Edit</button>
-                        <button onclick="deleteAIMemory('${item.id}')" style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem; cursor: pointer;">Hapus</button>
+                    <div class="td-actions">
+                        <button onclick="toggleAIMemoryStatus('${item.id}', ${item.is_active})" style="background: ${item.is_active ? '#f1f5f9' : '#dcfce7'}; color: ${item.is_active ? '#475569' : '#166534'}; border: none; padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;">${item.is_active ? '⏸ Matikan' : '▶ Aktifkan'}</button>
+                        <button class="btn-edit" onclick="editAIMemory('${item.id}')">✏️ Edit</button>
+                        <button class="btn-delete" onclick="deleteAIMemory('${item.id}')">🗑 Hapus</button>
                     </div>
                 </td>
             `;
