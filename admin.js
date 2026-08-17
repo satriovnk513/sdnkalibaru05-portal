@@ -1252,9 +1252,9 @@ function loadAISettingsIntoForm() {
 
 function onAIProviderChange() {
     // Only Google Gemini API is supported
-    document.getElementById('aiBaseUrl').value = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
+    document.getElementById('aiBaseUrl').value = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent';
     document.getElementById('aiApiKey').value = ['AQ.Ab8RN6KIt0JyLjdEsCL8XqQL6rvXmlw', 'EJqTaXQvQhWDOb__bAQ'].join('');
-    document.getElementById('aiModel').value = 'gemini-flash-latest';
+    document.getElementById('aiModel').value = 'gemini-3.7-flash';
 }
 
 function saveAISettingsForm(e) {

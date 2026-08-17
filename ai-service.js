@@ -5,9 +5,9 @@
 
 const DEFAULT_AI_CONFIG = {
     provider: 'gemini',
-    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent',
     apiKey: ['AQ.Ab8RN6KIt0JyLjdEsCL8XqQL6rvXmlw', 'EJqTaXQvQhWDOb__bAQ'].join(''),
-    model: 'gemini-flash-latest',
+    model: 'gemini-3.7-flash',
     maxTokens: 1024
 };
 
@@ -16,7 +16,16 @@ function getAISettings() {
     try {
         const saved = localStorage.getItem('kalibaru_ai_config');
         if (saved) {
-            return { ...DEFAULT_AI_CONFIG, ...JSON.parse(saved) };
+            const parsed = JSON.parse(saved);
+            // Auto migrate deprecated/legacy model names or endpoints
+            const legacyModels = ['gemini-flash-latest', 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash', 'pecut/gpt-5.6-luna'];
+            if (!parsed.model || legacyModels.includes(parsed.model) || (parsed.baseUrl && (parsed.baseUrl.includes('gemini-flash-latest') || parsed.baseUrl.includes('pecutopus'))) || parsed.provider === 'openai') {
+                parsed.model = 'gemini-3.7-flash';
+                parsed.provider = 'gemini';
+                parsed.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent';
+                localStorage.setItem('kalibaru_ai_config', JSON.stringify(parsed));
+            }
+            return { ...DEFAULT_AI_CONFIG, ...parsed };
         }
     } catch (e) {
         console.error('Error reading AI settings:', e);
@@ -174,9 +183,15 @@ async function sendAIChatRequest(messages, customConfig = null) {
     const isGemini = config.provider === 'gemini' || config.apiKey.startsWith('AQ.') || config.baseUrl.includes('generativelanguage.googleapis.com');
 
     if (isGemini) {
-        const endpoint = config.baseUrl.includes('generateContent')
-            ? config.baseUrl
-            : `https://generativelanguage.googleapis.com/v1beta/models/${config.model || 'gemini-flash-latest'}:generateContent`;
+        const candidateModels = [
+            config.model || 'gemini-3.7-flash',
+            'gemini-3.7-flash',
+            'gemini-3.6-flash',
+            'gemini-flash-lite-latest',
+            'gemini-3.5-flash-lite'
+        ];
+        // Unique model list
+        const modelsToTry = Array.from(new Set(candidateModels.filter(Boolean)));
 
         let systemInstructionText = '';
         const contents = [];
@@ -200,23 +215,47 @@ async function sendAIChatRequest(messages, customConfig = null) {
             geminiPayload.systemInstruction = { parts: [{ text: systemInstructionText }] };
         }
 
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-goog-api-key': config.apiKey
-            },
-            body: JSON.stringify(geminiPayload)
-        });
+        let lastError = null;
 
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.error?.message || `Gemini API Error (${response.status})`);
+        for (const currentModel of modelsToTry) {
+            try {
+                const endpoint = (config.baseUrl && config.baseUrl.includes('generateContent') && currentModel === config.model)
+                    ? config.baseUrl
+                    : `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent`;
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-goog-api-key': config.apiKey
+                    },
+                    body: JSON.stringify(geminiPayload)
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    const errMsg = data.error?.message || `Gemini API Error (${response.status})`;
+                    // If 503 (high demand), 429 (rate limit), or 404 (model not found), try next model
+                    if ([404, 429, 503].includes(response.status) || errMsg.includes('high demand') || errMsg.includes('ResourceExhausted')) {
+                        console.warn(`Model ${currentModel} returned ${response.status}. Retrying with next model...`);
+                        lastError = new Error(errMsg);
+                        continue;
+                    }
+                    throw new Error(errMsg);
+                }
+
+                const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (replyText) return replyText;
+            } catch (fetchErr) {
+                lastError = fetchErr;
+                if (fetchErr.message && (fetchErr.message.includes('high demand') || fetchErr.message.includes('404') || fetchErr.message.includes('503'))) {
+                    continue;
+                }
+                throw fetchErr;
+            }
         }
 
-        const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (replyText) return replyText;
-        throw new Error('Format respons Gemini AI tidak valid.');
+        throw lastError || new Error('Format respons Gemini AI tidak valid.');
 
     } else {
         throw new Error('Provider tidak didukung. Gunakan Google Gemini API.');

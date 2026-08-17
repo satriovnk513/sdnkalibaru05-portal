@@ -31,11 +31,15 @@ export default async function handler(req, res) {
         const isGemini = provider === 'gemini' || targetApiKey.startsWith('AQ.') || (baseUrl && baseUrl.includes('generativelanguage.googleapis.com'));
 
         if (isGemini) {
-            // Google Gemini API Proxy
-            const modelName = model || 'gemini-flash-latest';
-            const endpoint = (baseUrl && baseUrl.includes('generateContent'))
-                ? baseUrl
-                : `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
+            // Google Gemini API Proxy with multi-model fallback
+            const candidateModels = [
+                model || 'gemini-3.7-flash',
+                'gemini-3.7-flash',
+                'gemini-3.6-flash',
+                'gemini-flash-lite-latest',
+                'gemini-3.5-flash-lite'
+            ];
+            const modelsToTry = Array.from(new Set(candidateModels.filter(Boolean)));
 
             let systemInstructionText = '';
             const contents = [];
@@ -63,39 +67,64 @@ export default async function handler(req, res) {
                 };
             }
 
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-goog-api-key': targetApiKey
-                },
-                body: JSON.stringify(geminiPayload)
-            });
+            let lastError = null;
 
-            const data = await response.json();
+            for (const currentModel of modelsToTry) {
+                try {
+                    const endpoint = (baseUrl && baseUrl.includes('generateContent') && currentModel === model)
+                        ? baseUrl
+                        : `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent`;
 
-            if (!response.ok) {
-                const errorMsg = data.error?.message || `Gemini API Error (${response.status})`;
-                return res.status(response.status).json({
-                    error: {
-                        type: data.error?.status || 'gemini_error',
-                        message: errorMsg
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-goog-api-key': targetApiKey
+                        },
+                        body: JSON.stringify(geminiPayload)
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        const errorMsg = data.error?.message || `Gemini API Error (${response.status})`;
+                        if ([404, 429, 503].includes(response.status) || errorMsg.includes('high demand') || errorMsg.includes('ResourceExhausted')) {
+                            console.warn(`[Proxy] Model ${currentModel} returned ${response.status}. Retrying next model...`);
+                            lastError = { status: response.status, message: errorMsg, type: data.error?.status || 'gemini_error' };
+                            continue;
+                        }
+                        return res.status(response.status).json({
+                            error: {
+                                type: data.error?.status || 'gemini_error',
+                                message: errorMsg
+                            }
+                        });
                     }
-                });
+
+                    // Extract candidate text
+                    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                    
+                    return res.status(200).json({
+                        choices: [
+                            {
+                                message: {
+                                    role: 'assistant',
+                                    content: replyText
+                                }
+                            }
+                        ]
+                    });
+                } catch (fetchErr) {
+                    lastError = { status: 500, message: fetchErr.message, type: 'fetch_error' };
+                    continue;
+                }
             }
 
-            // Extract candidate text
-            const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            
-            return res.status(200).json({
-                choices: [
-                    {
-                        message: {
-                            role: 'assistant',
-                            content: replyText
-                        }
-                    }
-                ]
+            return res.status(lastError?.status || 500).json({
+                error: {
+                    type: lastError?.type || 'gemini_error',
+                    message: lastError?.message || 'Gagal menghubungi server Gemini AI.'
+                }
             });
 
         } else {
