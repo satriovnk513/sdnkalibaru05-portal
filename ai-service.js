@@ -1,6 +1,6 @@
 /**
  * AI Service for SDN Kalibaru 05 Pagi
- * Supports Google Gemini API & OpenAI Compatible Gateways
+ * Supports Google Gemini API
  */
 
 const DEFAULT_AI_CONFIG = {
@@ -127,7 +127,7 @@ BERIKUT DATA RESMI DAN MEMORI PENGETAHUAN SEKOLAH TERBARU:
 }
 
 /**
- * Send Chat Request to Google Gemini or OpenAI Proxy
+ * Send Chat Request to Google Gemini API
  */
 async function sendAIChatRequest(messages, customConfig = null) {
     const config = customConfig || getAISettings();
@@ -219,30 +219,7 @@ async function sendAIChatRequest(messages, customConfig = null) {
         throw new Error('Format respons Gemini AI tidak valid.');
 
     } else {
-        // OpenAI format fallback
-        const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${config.apiKey}`
-            },
-            body: JSON.stringify({
-                model: config.model || 'pecut/gpt-5.6-luna',
-                messages: messages,
-                max_tokens: config.maxTokens || 1024
-            })
-        });
-
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.error?.message || `API Error (${response.status})`);
-        }
-
-        if (data.choices && data.choices[0] && data.choices[0].message) {
-            return data.choices[0].message.content;
-        }
-        throw new Error('Format respons AI tidak valid.');
+        throw new Error('Provider tidak didukung. Gunakan Google Gemini API.');
     }
 }
 

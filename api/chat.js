@@ -1,5 +1,5 @@
 /**
- * Vercel Serverless Function Proxy for AI API (Google Gemini API & OpenAI compatible)
+ * Vercel Serverless Function Proxy for AI API (Google Gemini API)
  */
 
 const FALLBACK_GEMINI_KEY = ['AQ.Ab8RN6KIt0JyLjdEsCL8XqQL6rvXmlw', 'EJqTaXQvQhWDOb__bAQ'].join('');
@@ -99,37 +99,13 @@ export default async function handler(req, res) {
             });
 
         } else {
-            // OpenAI / PecutOpus compatible proxy
-            const targetBaseUrl = (baseUrl || 'https://api.pecutopus.web.id/v1').replace(/\/+$/, '');
-            const endpoint = `${targetBaseUrl}/chat/completions`;
-
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${targetApiKey}`
-                },
-                body: JSON.stringify({
-                    model: model || 'pecut/gpt-5.6-luna',
-                    messages: messages || [],
-                    max_tokens: max_tokens || 1024,
-                    temperature: 0.7
-                })
+            // Only Google Gemini API is supported
+            return res.status(400).json({
+                error: {
+                    type: 'unsupported_provider',
+                    message: 'Provider tidak didukung. Gunakan Google Gemini API.'
+                }
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                const errorMsg = data.error?.message || data.message || `API Error (${response.status})`;
-                return res.status(response.status).json({
-                    error: {
-                        type: data.error?.type || 'api_error',
-                        message: errorMsg
-                    }
-                });
-            }
-
-            return res.status(200).json(data);
         }
 
     } catch (err) {

@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Admin - SDN Kalibaru 05 Pagi</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://sdnkalibaru05.sch.id/admin">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -860,15 +862,9 @@
                     <div style="max-width: 750px;">
                         <div class="admin-card">
                             <h2 style="margin-bottom: 0.5rem;">⚙️ Pengaturan Engine AI (Google Gemini API)</h2>
-                            <p style="color: #6c757d; font-size: 0.88rem; margin-bottom: 1.5rem;">Konfigurasikan penyedia layanan AI (Google Gemini API / PecutOpus Gateway / OpenAI) untuk KaliBot &amp; AI Content Assistant.</p>
+                            <p style="color: #6c757d; font-size: 0.88rem; margin-bottom: 1.5rem;">Konfigurasikan penyedia layanan AI (Google Gemini API) untuk KaliBot &amp; AI Content Assistant.</p>
                             <form id="aiSettingsForm" onsubmit="saveAISettingsForm(event)">
-                                <div class="form-group">
-                                    <label>Penyedia Layanan AI (Provider)</label>
-                                    <select id="aiProvider" onchange="onAIProviderChange()">
-                                        <option value="gemini">Google Gemini API (Resmi &amp; Cepat)</option>
-                                        <option value="openai">PecutOpus / OpenAI Gateway</option>
-                                    </select>
-                                </div>
+                                <input type="hidden" id="aiProvider" value="gemini">
                                 <div class="form-group">
                                     <label>Base Endpoint URL</label>
                                     <input type="text" id="aiBaseUrl" required placeholder="https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent">

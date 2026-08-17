@@ -1251,16 +1251,10 @@ function loadAISettingsIntoForm() {
 }
 
 function onAIProviderChange() {
-    const provider = document.getElementById('aiProvider').value;
-    if (provider === 'gemini') {
-        document.getElementById('aiBaseUrl').value = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
-        document.getElementById('aiApiKey').value = ['AQ.Ab8RN6KIt0JyLjdEsCL8XqQL6rvXmlw', 'EJqTaXQvQhWDOb__bAQ'].join('');
-        document.getElementById('aiModel').value = 'gemini-flash-latest';
-    } else {
-        document.getElementById('aiBaseUrl').value = 'https://api.pecutopus.web.id/v1';
-        document.getElementById('aiApiKey').value = 'sk-pecut-4o8p60FiiCvlLTyH3FVqSPbwjLnOv5ogVsk3eA51YIk';
-        document.getElementById('aiModel').value = 'pecut/gpt-5.6-luna';
-    }
+    // Only Google Gemini API is supported
+    document.getElementById('aiBaseUrl').value = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
+    document.getElementById('aiApiKey').value = ['AQ.Ab8RN6KIt0JyLjdEsCL8XqQL6rvXmlw', 'EJqTaXQvQhWDOb__bAQ'].join('');
+    document.getElementById('aiModel').value = 'gemini-flash-latest';
 }
 
 function saveAISettingsForm(e) {
