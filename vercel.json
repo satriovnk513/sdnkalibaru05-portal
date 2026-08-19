@@ -15,10 +15,6 @@
   ],
   "rewrites": [
     {
-      "source": "/favicon.ico",
-      "destination": "https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo.ico"
-    },
-    {
       "source": "/berita/:slug",
       "destination": "/berita-detail?slug=:slug"
     }
