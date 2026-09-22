@@ -278,10 +278,10 @@
             </div>
             <ul class="nav-links">
                 <li><a href="/">Beranda</a></li>
-                <li><a href="profil">Profil</a></li>
-                <li><a href="guru-staff">Guru & Staf</a></li>
-                <li><a href="ekstrakurikuler">Ekstrakurikuler</a></li>
-                <li><a href="berita" class="active">Berita & Pengumuman</a></li>
+                <li><a href="/profil">Profil</a></li>
+                <li><a href="/guru-staff">Guru & Staf</a></li>
+                <li><a href="/ekstrakurikuler">Ekstrakurikuler</a></li>
+                <li><a href="/berita" class="active">Berita & Pengumuman</a></li>
                 <li class="has-dropdown">
                     <a href="#">Internal <i class="fas fa-chevron-down"></i></a>
                     <ul class="dropdown-menu">
@@ -289,9 +289,9 @@
                         <li><a href="https://erapor.sdnkalibaru05.sch.id" target="_blank">E-Rapor</a></li>
                     </ul>
                 </li>
-                <li><a href="admin"><i class="fas fa-edit"></i> Admin</a></li>
+                <li><a href="/admin"><i class="fas fa-edit"></i> Admin</a></li>
                 <li class="nav-right-start"><a href="https://www.instagram.com/sdnkalibaru05/" target="_blank"><i class="fab fa-instagram" style="margin-right: 5px;"></i>Foto Galeri</a></li>
-                <li><a href="kontak" class="btn-primary-outline">Kontak Kami</a></li>
+                <li><a href="/kontak" class="btn-primary-outline">Kontak Kami</a></li>
             </ul>
         </div>
     </nav>
@@ -320,6 +320,28 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/supabase-config.js"></script>
     <script>
+        // Sanitize HTML to prevent XSS injection attacks
+        function sanitizeHTML(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // Sanitize URL — only allow http/https protocols
+        function sanitizeURL(url) {
+            if (!url) return '';
+            try {
+                const parsed = new URL(url);
+                if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                    return parsed.href;
+                }
+                return '';
+            } catch {
+                return '';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const newsId = urlParams.get('id');
@@ -352,8 +374,12 @@
                 if (error) throw error;
                 if (!news) throw new Error(`Berita dengan tautan "${newsSlug}" tidak ditemukan di database kami.`);
 
+                const safeTitle = sanitizeHTML(news.title);
+                const safeDate = sanitizeHTML(news.date);
+                const safeContent = sanitizeHTML(news.content || news.description || 'Tidak ada konten tambahan.');
+
                 // Update Page Title
-                document.title = `${news.title} - SDN Kalibaru 05 Pagi`;
+                document.title = `${safeTitle} - SDN Kalibaru 05 Pagi`;
 
                 // Build image gallery (multiple or single)
                 const allImages = (Array.isArray(news.image_urls) && news.image_urls.length > 0)
@@ -365,7 +391,10 @@
                     const isSingle = allImages.length === 1;
                     galleryHtml = `<div class="news-img-gallery animate-up ${isSingle ? 'single' : ''}">`;
                     allImages.forEach((url, idx) => {
-                        galleryHtml += `<img src="${url}" alt="Gambar ${idx + 1} - ${news.title}" onclick="openLightbox('${url}')" onerror="this.closest('.news-img-gallery') && (this.style.display='none')">` ;
+                        const safeImgUrl = sanitizeURL(url);
+                        if (safeImgUrl) {
+                            galleryHtml += `<img src="${safeImgUrl}" alt="Gambar ${idx + 1} - ${safeTitle}" onclick="openLightbox('${safeImgUrl.replace(/'/g, "\\'")}')" onerror="this.closest('.news-img-gallery') && (this.style.display='none')">` ;
+                        }
                     });
                     galleryHtml += `</div>`;
                 }
@@ -379,32 +408,35 @@
                 if (allPdfs.length > 0) {
                     pdfHtml = `<div class="pdf-attachments-wrapper animate-up">`;
                     allPdfs.forEach(att => {
-                        const displayFilename = att.filename || `${news.title}.pdf`;
-                        pdfHtml += `
-                        <div class="pdf-attachment-card">
-                            <div class="pdf-info">
-                                <div class="pdf-icon-wrapper"><i class="fas fa-file-pdf"></i></div>
-                                <div class="pdf-text">
-                                    <h4>Lampiran Dokumen</h4>
-                                    <p title="${displayFilename}">${displayFilename}</p>
+                        const safePdfUrl = sanitizeURL(att.url);
+                        const safePdfFilename = sanitizeHTML(att.filename || `${news.title}.pdf`);
+                        if (safePdfUrl) {
+                            pdfHtml += `
+                            <div class="pdf-attachment-card">
+                                <div class="pdf-info">
+                                    <div class="pdf-icon-wrapper"><i class="fas fa-file-pdf"></i></div>
+                                    <div class="pdf-text">
+                                        <h4>Lampiran Dokumen</h4>
+                                        <p title="${safePdfFilename}">${safePdfFilename}</p>
+                                    </div>
                                 </div>
-                            </div>
-                            <a href="${att.url}" target="_blank" class="btn-download-pdf">
-                                <i class="fas fa-external-link-alt"></i> Buka PDF
-                            </a>
-                        </div>`;
+                                <a href="${safePdfUrl}" target="_blank" rel="noopener noreferrer" class="btn-download-pdf">
+                                    <i class="fas fa-external-link-alt"></i> Buka PDF
+                                </a>
+                            </div>`;
+                        }
                     });
                     pdfHtml += `</div>`;
                 }
 
                 container.innerHTML = `
                     <div class="news-breadcrumb animate-up">
-                        <a href="/">Beranda</a> / <a href="/berita">Berita &amp; Pengumuman</a> / ${news.title}
+                        <a href="/">Beranda</a> / <a href="/berita">Berita &amp; Pengumuman</a> / ${safeTitle}
                     </div>
 
                     <div class="news-detail-header animate-up">
-                        <span class="news-detail-date"><i class="far fa-calendar-alt" style="margin-right: 5px;"></i> ${news.date}</span>
-                        <h1 class="news-detail-title">${news.title}</h1>
+                        <span class="news-detail-date"><i class="far fa-calendar-alt" style="margin-right: 5px;"></i> ${safeDate}</span>
+                        <h1 class="news-detail-title">${safeTitle}</h1>
                     </div>
 
                     <div class="news-detail-separator animate-up"></div>
@@ -425,7 +457,7 @@
                     ${galleryHtml}
 
                     <div class="news-detail-content animate-up">
-${news.content || news.description || 'Tidak ada konten tambahan.'}
+${safeContent}
                     </div>
 
                     ${pdfHtml}
