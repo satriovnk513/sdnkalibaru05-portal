@@ -41,12 +41,11 @@ export default async function handler(req, res) {
         if (isGemini) {
             // Google Gemini API Proxy with multi-model fallback
             const candidateModels = [
-                model,
-                'gemini-2.5-flash',
-                'gemini-2.0-flash',
-                'gemini-1.5-flash',
-                'gemini-2.5-flash-lite',
-                'gemini-3.7-flash'
+                'gemini-3.5-flash-lite',
+                'gemini-flash-lite-latest',
+                'gemini-3.7-flash',
+                'gemini-3.6-flash',
+                model
             ];
             const modelsToTry = Array.from(new Set(candidateModels.filter(Boolean)));
 
@@ -95,7 +94,15 @@ export default async function handler(req, res) {
 
                     if (!response.ok) {
                         const errorMsg = data.error?.message || `Gemini API Error (${response.status})`;
-                        if ([404, 429, 503].includes(response.status) || errorMsg.includes('high demand') || errorMsg.includes('ResourceExhausted') || errorMsg.includes('prepayment') || errorMsg.includes('credits are depleted')) {
+                        if (
+                            [400, 404, 429, 503].includes(response.status) ||
+                            errorMsg.includes('high demand') ||
+                            errorMsg.includes('ResourceExhausted') ||
+                            errorMsg.includes('prepayment') ||
+                            errorMsg.includes('credits are depleted') ||
+                            errorMsg.includes('no longer available') ||
+                            errorMsg.includes('not found')
+                        ) {
                             console.warn(`[Proxy] Model ${currentModel} returned ${response.status}. Retrying next model...`);
                             lastError = { status: response.status, message: errorMsg, type: data.error?.status || 'gemini_error' };
                             continue;
