@@ -2,12 +2,17 @@
  * Vercel Serverless Function Proxy for AI API (Google Gemini API)
  */
 
-const FALLBACK_GEMINI_KEY = ['AQ.Ab8RN6KIt0JyLjdEsCL8XqQL6rvXmlw', 'EJqTaXQvQhWDOb__bAQ'].join('');
+// SECURITY: API key must be set in Vercel Environment Variables as GEMINI_API_KEY
+// Never hardcode API keys in source code
 
 export default async function handler(req, res) {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const allowedOrigins = ['https://sdnkalibaru05.sch.id', 'https://www.sdnkalibaru05.sch.id'];
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader(
         'Access-Control-Allow-Headers',
@@ -25,10 +30,13 @@ export default async function handler(req, res) {
 
     try {
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-        const { messages, model, max_tokens, baseUrl, apiKey, provider } = body || {};
+        const { messages, model, max_tokens, provider } = body || {};
 
-        const targetApiKey = apiKey || process.env.GEMINI_API_KEY || FALLBACK_GEMINI_KEY;
-        const isGemini = provider === 'gemini' || targetApiKey.startsWith('AQ.') || (baseUrl && baseUrl.includes('generativelanguage.googleapis.com'));
+        const targetApiKey = process.env.GEMINI_API_KEY;
+        if (!targetApiKey) {
+            return res.status(500).json({ error: { type: 'config_error', message: 'API key belum dikonfigurasi di server.' } });
+        }
+        const isGemini = true; // Only Gemini is supported
 
         if (isGemini) {
             // Google Gemini API Proxy with multi-model fallback
@@ -71,9 +79,7 @@ export default async function handler(req, res) {
 
             for (const currentModel of modelsToTry) {
                 try {
-                    const endpoint = (baseUrl && baseUrl.includes('generateContent') && currentModel === model)
-                        ? baseUrl
-                        : `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent`;
+                    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent`;
 
                     const response = await fetch(endpoint, {
                         method: 'POST',

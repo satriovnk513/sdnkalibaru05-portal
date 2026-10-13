@@ -156,12 +156,23 @@ function handleQuickChip(question) {
     sendKaliBotMessage();
 }
 
+function escapeHtmlKalibot(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 function appendMessage(sender, text) {
     const messagesContainer = document.getElementById('kalibot-messages');
     const msgDiv = document.createElement('div');
     msgDiv.className = `kalibot-msg ${sender}`;
 
-    const formattedContent = text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    const safeText = escapeHtmlKalibot(text);
+    const formattedContent = safeText.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
     let speakBtnHtml = '';
     if (sender === 'bot') {

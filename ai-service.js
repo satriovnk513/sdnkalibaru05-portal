@@ -5,8 +5,8 @@
 
 const DEFAULT_AI_CONFIG = {
     provider: 'gemini',
-    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent',
-    apiKey: ['AQ.Ab8RN6KIt0JyLjdEsCL8XqQL6rvXmlw', 'EJqTaXQvQhWDOb__bAQ'].join(''),
+    baseUrl: '/api/chat',
+    apiKey: '',  // API key is now stored server-side only (env: GEMINI_API_KEY)
     model: 'gemini-3.7-flash',
     maxTokens: 1024
 };
@@ -152,8 +152,6 @@ async function sendAIChatRequest(messages, customConfig = null) {
                 messages: messages,
                 model: config.model || DEFAULT_AI_CONFIG.model,
                 max_tokens: config.maxTokens || 1024,
-                baseUrl: config.baseUrl,
-                apiKey: config.apiKey,
                 provider: config.provider || 'gemini'
             })
         });
@@ -179,87 +177,9 @@ async function sendAIChatRequest(messages, customConfig = null) {
         }
     }
 
-    // 2. Direct Fallback if proxy /api/chat is not available (e.g. running statically offline)
-    const isGemini = config.provider === 'gemini' || config.apiKey.startsWith('AQ.') || config.baseUrl.includes('generativelanguage.googleapis.com');
-
-    if (isGemini) {
-        const candidateModels = [
-            config.model || 'gemini-3.7-flash',
-            'gemini-3.7-flash',
-            'gemini-3.6-flash',
-            'gemini-flash-lite-latest',
-            'gemini-3.5-flash-lite'
-        ];
-        // Unique model list
-        const modelsToTry = Array.from(new Set(candidateModels.filter(Boolean)));
-
-        let systemInstructionText = '';
-        const contents = [];
-
-        messages.forEach(msg => {
-            if (msg.role === 'system') {
-                systemInstructionText += (systemInstructionText ? '\n' : '') + msg.content;
-            } else {
-                contents.push({
-                    role: msg.role === 'assistant' ? 'model' : 'user',
-                    parts: [{ text: msg.content || '' }]
-                });
-            }
-        });
-
-        const geminiPayload = {
-            contents: contents.length > 0 ? contents : [{ role: 'user', parts: [{ text: 'Halo' }] }]
-        };
-
-        if (systemInstructionText) {
-            geminiPayload.systemInstruction = { parts: [{ text: systemInstructionText }] };
-        }
-
-        let lastError = null;
-
-        for (const currentModel of modelsToTry) {
-            try {
-                const endpoint = (config.baseUrl && config.baseUrl.includes('generateContent') && currentModel === config.model)
-                    ? config.baseUrl
-                    : `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent`;
-
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-goog-api-key': config.apiKey
-                    },
-                    body: JSON.stringify(geminiPayload)
-                });
-
-                const data = await response.json();
-                if (!response.ok) {
-                    const errMsg = data.error?.message || `Gemini API Error (${response.status})`;
-                    // If 503 (high demand), 429 (rate limit), or 404 (model not found), try next model
-                    if ([404, 429, 503].includes(response.status) || errMsg.includes('high demand') || errMsg.includes('ResourceExhausted')) {
-                        console.warn(`Model ${currentModel} returned ${response.status}. Retrying with next model...`);
-                        lastError = new Error(errMsg);
-                        continue;
-                    }
-                    throw new Error(errMsg);
-                }
-
-                const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (replyText) return replyText;
-            } catch (fetchErr) {
-                lastError = fetchErr;
-                if (fetchErr.message && (fetchErr.message.includes('high demand') || fetchErr.message.includes('404') || fetchErr.message.includes('503'))) {
-                    continue;
-                }
-                throw fetchErr;
-            }
-        }
-
-        throw lastError || new Error('Format respons Gemini AI tidak valid.');
-
-    } else {
-        throw new Error('Provider tidak didukung. Gunakan Google Gemini API.');
-    }
+    // Direct client-side API calls are no longer supported for security.
+    // All AI requests must go through the /api/chat server proxy.
+    throw new Error('Layanan AI tidak tersedia. Silakan coba lagi nanti.');
 }
 
 /**

@@ -7,5 +7,9 @@ desktop.ini
 .vscode/
 .idea/
 
+# Vercel & Environment variables
 .vercel
+.env
 .env*.local
+.env.local
+*.env

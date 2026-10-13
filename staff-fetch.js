@@ -22,7 +22,7 @@ function sanitizeURL(url) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        const { data, error } = await supabaseClient.from('staff').select('*');
+        const { data, error } = await supabaseClient.from('staff').select('name, role, image_url, order_index');
         
         if (error) {
             console.error('Supabase error:', error);
@@ -49,7 +49,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         data.forEach(staff => {
             const safeName = sanitizeHTML(staff.name);
             const safeImgUrl = sanitizeURL(staff.image_url);
-            const safeNip = sanitizeHTML(staff.nip || '-');
 
             const parts = sanitizeHTML(staff.role).split('|');
             const category = parts[0];
@@ -57,12 +56,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const html = `
                 <div class="staff-card ${(category === 'Kepala Sekolah' || category === 'Wakil Kepala Sekolah') ? 'principal-card' : ''}">
-                    <div class="staff-img-wrapper" onclick="openStaffLightbox('${safeImgUrl.replace(/'/g, "\\'")}', '${safeName.replace(/'/g, "\\'")}', '${displayRole.replace(/'/g, "\\'")}', '${safeNip.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+                    <div class="staff-img-wrapper" onclick="openStaffLightbox('${safeImgUrl.replace(/'/g, "\\'")}', '${safeName.replace(/'/g, "\\'")}', '${displayRole.replace(/'/g, "\\'")}')" style="cursor: pointer;">
                         <img src="${safeImgUrl}" alt="${safeName}" class="staff-img" style="object-position: center top;">
                     </div>
                     <h3 class="staff-name">${safeName}</h3>
                     <p class="staff-role">${displayRole}</p>
-                    <p class="staff-nip">${safeNip}</p>
                 </div>
             `;
 

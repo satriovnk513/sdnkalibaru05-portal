@@ -8,16 +8,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { data: { session } } = await supabaseClient.auth.getSession();
     
     if (session) {
-        document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('mainContent').style.display = 'flex';
-        updateSubRoles();
-        loadStaff();
-        loadNews();
-        loadGallery();
-        loadEkskul();
-        loadAIMemory();
-        loadAISettingsIntoForm();
-        loadDashboardStats();
+        // Validate admin role
+        const { data: roleData, error: roleError } = await supabaseClient
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+
+        if (roleData && roleData.role === 'admin') {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'flex';
+            updateSubRoles();
+            loadStaff();
+            loadNews();
+            loadGallery();
+            loadEkskul();
+            loadAIMemory();
+            loadAISettingsIntoForm();
+            loadDashboardStats();
+        } else {
+            await supabaseClient.auth.signOut();
+            const errorMsg = document.getElementById('loginError');
+            if (errorMsg) {
+                errorMsg.textContent = 'Akses ditolak: Akun tidak memiliki hak akses administrator!';
+                errorMsg.style.display = 'block';
+            }
+        }
     }
     
     // Listen for auth state changes (e.g. token expiration)
@@ -52,16 +68,29 @@ async function checkLogin() {
         errorMsg.style.display = 'block';
         console.error('Login error:', error.message);
     } else {
-        document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('mainContent').style.display = 'flex';
-        updateSubRoles();
-        loadStaff();
-        loadNews();
-        loadGallery();
-        loadEkskul();
-        loadAIMemory();
-        loadAISettingsIntoForm();
-        loadDashboardStats();
+        // Validate admin role
+        const { data: roleData } = await supabaseClient
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+
+        if (roleData && roleData.role === 'admin') {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'flex';
+            updateSubRoles();
+            loadStaff();
+            loadNews();
+            loadGallery();
+            loadEkskul();
+            loadAIMemory();
+            loadAISettingsIntoForm();
+            loadDashboardStats();
+        } else {
+            await supabaseClient.auth.signOut();
+            errorMsg.textContent = 'Akses ditolak: Akun tidak memiliki hak akses administrator!';
+            errorMsg.style.display = 'block';
+        }
     }
 }
 
@@ -133,16 +162,19 @@ async function loadStaff() {
     data.forEach(staff => {
         const parts = staff.role.split('|');
         const displayRole = parts[1] || parts[0];
+        const safeName = escapeHtml(staff.name);
+        const safeDisplayRole = escapeHtml(displayRole);
+        const safeImg = (staff.image_url && (staff.image_url.startsWith('http://') || staff.image_url.startsWith('https://'))) ? staff.image_url : 'https://via.placeholder.com/50x50.png?text=Foto';
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><img src="${staff.image_url}" alt="Foto" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;"></td>
-            <td>${staff.name}</td>
-            <td>${displayRole}</td>
+            <td><img src="${safeImg}" alt="Foto" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;"></td>
+            <td>${safeName}</td>
+            <td>${safeDisplayRole}</td>
             <td>${staff.order_index || 99}</td>
             <td>
                 <div class="td-actions">
-                <button class="btn-edit" onclick="editStaff('${staff.id}', '${staff.name.replace(/'/g, "\\\'")}', '${staff.role.replace(/'/g, "\\\'")}', '${(staff.nip || '').replace(/'/g, "\\\'")}', '${staff.image_url}', ${staff.order_index})">✏️ Edit</button>
+                <button class="btn-edit" onclick="editStaff('${staff.id}', '${safeName.replace(/'/g, "\\\'")}', '${escapeHtml(staff.role).replace(/'/g, "\\\'")}', '${escapeHtml(staff.nip || '').replace(/'/g, "\\\'")}', '${safeImg}', ${staff.order_index})">✏️ Edit</button>
                 <button class="btn-delete" onclick="deleteStaff('${staff.id}')">🗑 Hapus</button>
                 </div>
             </td>
@@ -440,14 +472,17 @@ async function loadNews() {
     data.forEach(item => {
         const tr = document.createElement('tr');
         // Thumbnail: prefer first of image_urls, fallback to image_url
-        const thumbUrl = (item.image_urls && item.image_urls.length > 0)
+        const rawThumb = (item.image_urls && item.image_urls.length > 0)
             ? item.image_urls[0]
             : (item.image_url || '');
+        const thumbUrl = (rawThumb && (rawThumb.startsWith('http://') || rawThumb.startsWith('https://'))) ? rawThumb : '';
+        const safeTitle = escapeHtml(item.title);
+        const safeDate = escapeHtml(item.date);
         const dataAttr = encodeURIComponent(JSON.stringify(item));
         tr.innerHTML = `
             <td><img src="${thumbUrl}" alt="Foto" style="width: 80px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
-            <td>${item.title}</td>
-            <td>${item.date}</td>
+            <td>${safeTitle}</td>
+            <td>${safeDate}</td>
             <td>
                 <div class="td-actions">
                 <button class="btn-edit" onclick="editNews('${item.id}', '${dataAttr}')">✏️ Edit</button>
@@ -749,18 +784,21 @@ async function loadGallery() {
         const isVideo = item.media_type === 'video';
         const el = document.createElement('div');
         el.className = 'gallery-admin-item';
+        const safeCaption = escapeHtml(item.caption || '');
+        const rawUrl = item.image_url || '';
+        const safeUrl = (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) ? rawUrl : '';
 
         const mediaEl = isVideo
-            ? `<video src="${item.image_url}" muted playsinline preload="metadata"
+            ? `<video src="${safeUrl}" muted playsinline preload="metadata"
                     onerror="this.parentElement.style.background='#fee2e2';"></video>
                <span class="media-type-badge">&#127916; VIDEO</span>`
-            : `<img src="${item.image_url}" alt="${item.caption || 'Galeri'}" loading="lazy"
+            : `<img src="${safeUrl}" alt="${safeCaption || 'Galeri'}" loading="lazy"
                     onerror="this.src='https://via.placeholder.com/200x200.png?text=Error';">`;
 
         el.innerHTML = `
             ${mediaEl}
             <div class="gallery-item-overlay">
-                <span class="gallery-caption">${item.caption || '(tanpa keterangan)'}</span>
+                <span class="gallery-caption">${safeCaption || '(tanpa keterangan)'}</span>
                 <button class="btn-delete-gallery" onclick="deleteGallery('${item.id}', this)">&#128465; Hapus</button>
             </div>
         `;
@@ -952,10 +990,13 @@ async function loadEkskul() {
         const tr = document.createElement('tr');
         const numPhotos = (item.image_urls && Array.isArray(item.image_urls)) ? item.image_urls.length : 0;
         const dataAttr = encodeURIComponent(JSON.stringify(item));
+        const safeName = escapeHtml(item.name);
+        const safeDesc = escapeHtml(item.description ? item.description.substring(0, 45) + '...' : '');
+        const safeIcon = escapeHtml(item.icon || 'fas fa-star');
         
         tr.innerHTML = `
-            <td><div style="width:36px;height:36px;background:#fef2f2;color:#da251c;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;"><i class="${item.icon}"></i></div></td>
-            <td><strong>${item.name}</strong><br><small style="color:#64748b">${item.description ? item.description.substring(0, 45) + '...' : ''}</small></td>
+            <td><div style="width:36px;height:36px;background:#fef2f2;color:#da251c;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;"><i class="${safeIcon}"></i></div></td>
+            <td><strong>${safeName}</strong><br><small style="color:#64748b">${safeDesc}</small></td>
             <td><span style="background:#e0f2fe;color:#0369a1;font-weight:700;padding:2px 8px;border-radius:12px;font-size:0.8rem;">📷 ${numPhotos} foto</span></td>
             <td>${item.order_index || 99}</td>
             <td>
@@ -1243,17 +1284,18 @@ function loadAISettingsIntoForm() {
         if (document.getElementById('aiProvider')) {
             document.getElementById('aiProvider').value = settings.provider || 'gemini';
         }
-        document.getElementById('aiBaseUrl').value = settings.baseUrl || '';
-        document.getElementById('aiApiKey').value = settings.apiKey || '';
-        document.getElementById('aiModel').value = settings.model || '';
+        document.getElementById('aiBaseUrl').value = settings.baseUrl || '/api/chat';
+        document.getElementById('aiApiKey').value = '';
+        document.getElementById('aiApiKey').placeholder = 'Terkonfigurasi di server (Vercel GEMINI_API_KEY)';
+        document.getElementById('aiModel').value = settings.model || 'gemini-3.7-flash';
         document.getElementById('aiMaxTokens').value = settings.maxTokens || 1024;
     }
 }
 
 function onAIProviderChange() {
     // Only Google Gemini API is supported
-    document.getElementById('aiBaseUrl').value = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent';
-    document.getElementById('aiApiKey').value = ['AQ.Ab8RN6KIt0JyLjdEsCL8XqQL6rvXmlw', 'EJqTaXQvQhWDOb__bAQ'].join('');
+    document.getElementById('aiBaseUrl').value = '/api/chat';
+    document.getElementById('aiApiKey').value = '';
     document.getElementById('aiModel').value = 'gemini-3.7-flash';
 }
 
@@ -1262,10 +1304,9 @@ function saveAISettingsForm(e) {
     if (!window.AIService) return;
 
     const settings = {
-        provider: document.getElementById('aiProvider')?.value || 'gemini',
-        baseUrl: document.getElementById('aiBaseUrl').value.trim(),
-        apiKey: document.getElementById('aiApiKey').value.trim(),
-        model: document.getElementById('aiModel').value.trim(),
+        provider: 'gemini',
+        baseUrl: '/api/chat',
+        model: document.getElementById('aiModel').value.trim() || 'gemini-3.7-flash',
         maxTokens: parseInt(document.getElementById('aiMaxTokens').value) || 1024
     };
 
@@ -1284,10 +1325,9 @@ async function testAIConnection() {
     resBox.innerText = 'Mengirim pesan uji koneksi ke Google Gemini AI...';
 
     const testConfig = {
-        provider: document.getElementById('aiProvider')?.value || 'gemini',
-        baseUrl: document.getElementById('aiBaseUrl').value.trim(),
-        apiKey: document.getElementById('aiApiKey').value.trim(),
-        model: document.getElementById('aiModel').value.trim(),
+        provider: 'gemini',
+        baseUrl: '/api/chat',
+        model: document.getElementById('aiModel')?.value.trim() || 'gemini-3.7-flash',
         maxTokens: 100
     };
 
