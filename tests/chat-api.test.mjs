@@ -104,3 +104,10 @@ test('preflight only succeeds for allowed origins', async () => {
     assert.equal((await call({ method: 'OPTIONS' })).status, 204);
     assert.equal((await call({ method: 'OPTIONS', origin: 'https://evil.example' })).status, 403);
 });
+
+test('allows a large KaliBot system prompt but caps it at 40k chars', async () => {
+    mockFetch([ok]);
+    const big = (n) => ({ messages: [{ role: 'system', content: 'x'.repeat(n) }, { role: 'user', content: 'Halo' }] });
+    assert.equal((await call({ body: big(30000) })).status, 200);
+    assert.equal((await call({ body: big(40001) })).status, 400);
+});

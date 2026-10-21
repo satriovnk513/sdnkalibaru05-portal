@@ -371,8 +371,8 @@
                 let query = supabaseClient.from('news').select('*');
                 
                 if (newsSlug) {
-                    // Case-insensitive exact match; escape LIKE wildcards so "%" or "_" cannot match other rows
-                    query = query.ilike('slug', newsSlug.replace(/[\\%_]/g, '\\$&'));
+                    // Case-insensitive exact match; escape LIKE wildcards so "%", "_" or "*" cannot match other rows
+                    query = query.ilike('slug', newsSlug.replace(/[\\%_*]/g, '\\$&'));
                 } else {
                     query = query.eq('id', newsId);
                 }

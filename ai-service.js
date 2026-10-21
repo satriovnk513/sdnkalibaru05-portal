@@ -44,6 +44,15 @@ function saveAISettings(settings) {
     }
 }
 
+// Keep requests under the /api/chat limits (24k chars per turn, 40k system prompt)
+const AI_TEXT_LIMIT = 20000;
+const AI_HISTORY_ITEM_LIMIT = 3000;
+const AI_SYSTEM_LIMIT = 38000;
+function clipText(text, limit) {
+    const s = String(text || '');
+    return s.length > limit ? s.slice(0, limit) + '\n[...dipotong]' : s;
+}
+
 // Fetch dynamic context from Supabase (ai_knowledge, news, staff, ekskul)
 async function buildSchoolSystemPrompt() {
     let basePrompt = `Kamu adalah KaliBot, Asisten AI resmi yang ramah, sopan, dan cerdas untuk portal sekolah SDN Kalibaru 05 Pagi (Sekolah Penggerak di Cilincing, Jakarta Utara).
@@ -189,19 +198,23 @@ async function askKaliBot(userQuestion, chatHistory = []) {
     const systemPrompt = await buildSchoolSystemPrompt();
     
     const messages = [
-        { role: 'system', content: systemPrompt }
+        { role: 'system', content: clipText(systemPrompt, AI_SYSTEM_LIMIT) }
     ];
 
-    // Append history (limit to last 6 messages)
-    const recentHistory = chatHistory.slice(-6);
+    // Append history (limit to last 6 messages). The caller has usually already pushed the
+    // current question into chatHistory; drop it here so it is not sent twice.
+    let history = chatHistory;
+    const last = history[history.length - 1];
+    if (last && last.sender === 'user' && last.text === userQuestion) history = history.slice(0, -1);
+    const recentHistory = history.slice(-6);
     recentHistory.forEach(msg => {
         messages.push({
             role: msg.sender === 'user' ? 'user' : 'assistant',
-            content: msg.text
+            content: clipText(msg.text, AI_HISTORY_ITEM_LIMIT)
         });
     });
 
-    messages.push({ role: 'user', content: userQuestion });
+    messages.push({ role: 'user', content: clipText(userQuestion, AI_TEXT_LIMIT) });
 
     return await sendAIChatRequest(messages);
 }
@@ -226,7 +239,7 @@ Contoh keluaran yang benar:
         },
         {
             role: 'user',
-            content: `Tolong buatkan draf berita dari poin-poin berikut: ${topicNotes}`
+            content: clipText(`Tolong buatkan draf berita dari poin-poin berikut: ${topicNotes}`, AI_TEXT_LIMIT)
         }
     ];
 
@@ -257,7 +270,7 @@ async function polishAIText(originalText) {
         },
         {
             role: 'user',
-            content: originalText
+            content: clipText(originalText, AI_TEXT_LIMIT)
         }
     ];
 
@@ -275,7 +288,7 @@ async function summarizeAIText(newsText) {
         },
         {
             role: 'user',
-            content: newsText
+            content: clipText(newsText, AI_TEXT_LIMIT)
         }
     ];
 

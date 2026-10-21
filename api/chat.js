@@ -24,8 +24,9 @@ const MODELS = [
 
 const LIMITS = {
     maxMessages: 20,
-    maxMessageChars: 24000,
-    maxTotalChars: 60000,
+    maxMessageChars: 24000,      // user / assistant turns
+    maxSystemChars: 40000,       // KaliBot prompt grows with ai_knowledge, staff, ekskul, news
+    maxTotalChars: 80000,
     maxOutputTokens: 4096,
     attemptTimeoutMs: 25000,
     totalBudgetMs: 50000,
@@ -88,7 +89,8 @@ function validateMessages(messages) {
         if (!msg || typeof msg !== 'object' || !ROLES.has(msg.role) || typeof msg.content !== 'string') {
             return { error: 'Format pesan tidak valid.' };
         }
-        if (msg.content.length > LIMITS.maxMessageChars) {
+        const limit = msg.role === 'system' ? LIMITS.maxSystemChars : LIMITS.maxMessageChars;
+        if (msg.content.length > limit) {
             return { error: 'Pesan terlalu panjang.' };
         }
         total += msg.content.length;
@@ -120,9 +122,9 @@ export default async function handler(req, res) {
     const origin = req.headers.origin;
     const originAllowed = allowedOrigins().includes(origin) || isLocalDevOrigin(origin);
 
+    res.setHeader('Vary', 'Origin');
     if (originAllowed) {
         res.setHeader('Access-Control-Allow-Origin', origin);
-        res.setHeader('Vary', 'Origin');
     }
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
