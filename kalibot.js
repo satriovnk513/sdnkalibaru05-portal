@@ -174,21 +174,19 @@ function appendMessage(sender, text) {
     const safeText = escapeHtmlKalibot(text);
     const formattedContent = safeText.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-    let speakBtnHtml = '';
-    if (sender === 'bot') {
-        speakBtnHtml = `<button class="kalibot-msg-speak" onclick="speakText('${escapeQuotes(text)}')" title="Bacakan Pesan"><i class="fas fa-volume-up"></i></button>`;
-    }
-
     msgDiv.innerHTML = `
         <div class="kalibot-msg-avatar"><i class="fas ${sender === 'bot' ? 'fa-robot' : 'fa-user'}"></i></div>
         <div class="kalibot-msg-bubble">
             ${formattedContent}
             <div class="kalibot-msg-footer">
                 <span class="kalibot-msg-time">${getFormattedTime()}</span>
-                ${speakBtnHtml}
+                ${sender === 'bot' ? '<button class="kalibot-msg-speak" title="Bacakan Pesan"><i class="fas fa-volume-up"></i></button>' : ''}
             </div>
         </div>
     `;
+
+    const speakBtn = msgDiv.querySelector('.kalibot-msg-speak');
+    if (speakBtn) speakBtn.addEventListener('click', () => speakText(String(text)));
 
     messagesContainer.appendChild(msgDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -235,10 +233,6 @@ function speakText(text) {
 function getFormattedTime() {
     const now = new Date();
     return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function escapeQuotes(str) {
-    return str.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
 }
 
 // Make chip handler global

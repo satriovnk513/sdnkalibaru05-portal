@@ -337,10 +337,13 @@
     <script>
         // Sanitize HTML to prevent XSS injection
         function sanitizeHTML(str) {
-            if (!str) return '';
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
         function sanitizeURL(url) {
             if (!url) return '';
@@ -357,32 +360,28 @@
                 
                 const staffContainer = document.getElementById('indexStaffContainer');
                 if (staffContainer && staffData) {
-                    // Debug log
-                    console.log('RAW DATA:', staffData.map(s => ({name: s.name, order_index: s.order_index, type: typeof s.order_index})));
-                    
                     // Sort client-side: by order_index ascending, 0/NULLs last
                     const sorted = staffData.sort((a, b) => {
                         const aIdx = (!a.order_index || a.order_index === 0) ? 9999 : Number(a.order_index);
                         const bIdx = (!b.order_index || b.order_index === 0) ? 9999 : Number(b.order_index);
                         return aIdx - bIdx;
                     }).slice(0, 9);
-                    
-                    console.log('SORTED:', sorted.map(s => ({name: s.name, order_index: s.order_index})));
 
                     sorted.forEach(staff => {
                         const safeName = sanitizeHTML(staff.name);
-                        const safeImgUrl = sanitizeURL(staff.image_url);
-                        const parts = sanitizeHTML(staff.role).split('|');
-                        const displayRole = parts[1] || parts[0];
-                        staffContainer.innerHTML += `
-                            <div class="staff-card">
+                        const safeImgUrl = sanitizeHTML(sanitizeURL(staff.image_url));
+                        const parts = String(staff.role || '').split('|');
+                        const displayRole = sanitizeHTML(parts[1] || parts[0]);
+                        const card = document.createElement('div');
+                        card.className = 'staff-card';
+                        card.innerHTML = `
                                 <div class="staff-img-wrapper">
                                     <img src="${safeImgUrl}" alt="${safeName}" class="staff-img" style="object-position: center top;">
                                 </div>
                                 <h3 class="staff-name">${safeName}</h3>
                                 <p class="staff-role">${displayRole}</p>
-                            </div>
                         `;
+                        staffContainer.appendChild(card);
                     });
                 }
             } catch (err) { console.error('Fetch staff error:', err); }
@@ -399,13 +398,14 @@
                         const safeTitle = sanitizeHTML(news.title);
                         const safeDate = sanitizeHTML(news.date);
                         const safeDesc = sanitizeHTML(news.description);
-                        const safeNewsImg = sanitizeURL(news.image_url);
-                        const safeSlug = news.slug ? sanitizeHTML(news.slug) : '';
-                        const newsLink = safeSlug ? `/berita/${safeSlug}` : `berita-detail?id=${sanitizeHTML(news.id)}`;
+                        const newsImg = sanitizeURL(news.image_url);
+                        const newsLink = sanitizeHTML(news.slug
+                            ? `/berita/${encodeURIComponent(news.slug)}`
+                            : `/berita-detail?id=${encodeURIComponent(news.id)}`);
                         const article = document.createElement('article');
                         article.className = `news-card ${delayClass}`;
                         article.innerHTML = `
-                            <div class="news-img" style="background-image: url('${safeNewsImg}')"></div>
+                            <div class="news-img"></div>
                             <div class="news-content">
                                 <span class="news-date">${safeDate}</span>
                                 <a href="${newsLink}" class="news-title-link">
@@ -415,6 +415,7 @@
                                 <a href="${newsLink}" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
                             </div>
                         `;
+                        if (newsImg) article.querySelector('.news-img').style.backgroundImage = `url(${JSON.stringify(newsImg)})`;
                         newsContainer.appendChild(article);
                         if (window.observer) window.observer.observe(article);
                     });
@@ -470,29 +471,31 @@
                 pageItems.forEach((item, index) => {
                     const globalIndex = start + index;
                     const isVideo = item.media_type === 'video';
+                    const mediaUrl = sanitizeHTML(sanitizeURL(item.image_url));
+                    const caption = sanitizeHTML(item.caption || '');
                     const galleryItem = document.createElement('div');
                     galleryItem.className = 'gallery-item animate-up';
                     galleryItem.style.transitionDelay = `${index * 0.05}s`;
 
                     if (isVideo) {
                         galleryItem.innerHTML = `
-                            <video src="${item.image_url}" muted playsinline preload="metadata"
+                            <video src="${mediaUrl}" muted playsinline preload="metadata"
                                    style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;"
                                    onerror="this.parentElement.style.background='#1e293b';"></video>
                             <div class="gallery-overlay">
                                 <i class="fas fa-play-circle" style="font-size:2.5rem;"></i>
-                                <span>${item.caption || ''}</span>
+                                <span>${caption}</span>
                             </div>
                         `;
                         galleryItem.addEventListener('click', () => openGalleryLightbox(globalIndex));
                     } else {
                         galleryItem.innerHTML = `
-                            <img src="${item.image_url}" alt="${item.caption || 'Galeri Foto'}"
+                            <img src="${mediaUrl}" alt="${caption || 'Galeri Foto'}"
                                  onerror="this.src='https://via.placeholder.com/400x400.png?text=Gambar+Tidak+Tersedia'; this.classList.add('error');"
                                  loading="lazy">
                             <div class="gallery-overlay">
                                 <i class="fas fa-search-plus"></i>
-                                <span>${item.caption || ''}</span>
+                                <span>${caption}</span>
                             </div>
                         `;
                         galleryItem.addEventListener('click', () => openGalleryLightbox(globalIndex));
@@ -587,7 +590,7 @@
             } catch (err) {
                 console.error('Fetch gallery error:', err);
                 const container = document.getElementById('galleryContainer');
-                if (container) container.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:var(--text-light);">Gagal memuat galeri. Error: ${err.message}</p>`;
+                if (container) container.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:var(--text-light);">Gagal memuat galeri. Error: ${sanitizeHTML(err.message)}</p>`;
             }
         });
 
@@ -609,15 +612,15 @@
                 modalImg.style.display = 'none';
                 modalImg.src = '';
                 modalVideo.style.display = '';
-                modalVideo.src = item.image_url;
+                modalVideo.src = sanitizeURL(item.image_url);
             } else {
                 modalVideo.pause(); modalVideo.src = '';
                 modalVideo.style.display = 'none';
                 modalImg.style.display = '';
-                modalImg.src = item.image_url;
+                modalImg.src = sanitizeURL(item.image_url);
             }
 
-            modalCaption.innerHTML = item.caption || '';
+            modalCaption.textContent = item.caption || '';
             counter.textContent = `${index + 1} / ${window.galleryAllData.length}`;
 
             // Show/hide nav buttons
@@ -705,7 +708,9 @@
             currentEkskulPhotoIndex = 0;
             const modal = document.getElementById('ekskulModal');
             document.getElementById('ekskulModalTitle').textContent = item.name;
-            document.getElementById('ekskulModalIcon').innerHTML = `<i class="${item.icon || 'fas fa-star'}"></i>`;
+            const iconEl = document.createElement('i');
+            iconEl.className = String(item.icon || 'fas fa-star');
+            document.getElementById('ekskulModalIcon').replaceChildren(iconEl);
             document.getElementById('ekskulModalDesc').textContent = item.description || '';
             
             modal.style.display = 'flex';
@@ -749,7 +754,7 @@
             modalImg.style.display = 'block';
             modalImg.style.opacity = '0.5';
             modalImg.onload = () => { modalImg.style.opacity = '1'; };
-            modalImg.src = photos[currentEkskulPhotoIndex];
+            modalImg.src = sanitizeURL(photos[currentEkskulPhotoIndex]);
             counter.textContent = `Foto ${currentEkskulPhotoIndex + 1} dari ${photos.length}`;
 
             prevBtn.style.display = currentEkskulPhotoIndex > 0 ? 'flex' : 'none';
