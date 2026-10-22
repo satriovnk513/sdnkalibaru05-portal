@@ -58,6 +58,9 @@ declare
     v_no        integer := 0;
     v_base_user_roles  bigint;
     v_base_auth_users  bigint;
+    v_fixture_hash     text;
+    v_hash_now         text;
+    v_denied           boolean;
 begin
     -- ---------------------------------------------------------------- persiapan
     -- Jumlah awal, dibandingkan lagi di bagian F.
@@ -96,6 +99,10 @@ begin
          'Perlu verifikasi lebih lanjut',
          '{"nama_siswa":"Siswa Fiktif Dua"}',
          null, null, '["Dapodik"]', v_batch);
+
+    -- Sidik jari isi siswa fiktif, untuk membuktikan percobaan tulis tidak mengubah apa pun.
+    select md5(string_agg(to_jsonb(r)::text, '|' order by r.nik)) into v_fixture_hash
+    from public.student_records r where r.nik in (c_nik_a, c_nik_b);
 
     execute 'reset role';
 
@@ -139,10 +146,32 @@ begin
     v_no := v_no + 1;
     if has_table_privilege('authenticated', 'public.student_import_batches', 'INSERT')
        or has_table_privilege('authenticated', 'public.student_import_batches', 'UPDATE')
-       or has_table_privilege('authenticated', 'public.student_import_batches', 'DELETE') then
-        raise exception 'GAGAL A%: authenticated bisa menulis student_import_batches', v_no;
+       or has_table_privilege('authenticated', 'public.student_import_batches', 'DELETE')
+       or has_table_privilege('authenticated', 'public.student_records', 'INSERT')
+       or has_table_privilege('authenticated', 'public.student_records', 'UPDATE')
+       or has_table_privilege('authenticated', 'public.student_records', 'DELETE') then
+        raise exception 'GAGAL A%: authenticated punya grant tulis pada tabel siswa', v_no;
     end if;
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Struktur', 'u', 'student_import_batches tidak bisa ditulis user login');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Struktur', 'u', 'authenticated tanpa grant INSERT/UPDATE/DELETE (read-only)');
+
+    v_no := v_no + 1;
+    select count(*) into v_count
+    from pg_policies
+    where schemaname = 'public'
+      and tablename in ('student_records', 'student_import_batches')
+      and cmd <> 'SELECT';
+    if v_count <> 0 then
+        raise exception 'GAGAL A%: ada % policy tulis pada tabel siswa', v_no, v_count;
+    end if;
+    select count(*) into v_count
+    from pg_policies
+    where schemaname = 'public'
+      and tablename in ('student_records', 'student_import_batches')
+      and cmd = 'SELECT' and roles = array['authenticated']::name[];
+    if v_count <> 2 then
+        raise exception 'GAGAL A%: policy SELECT admin harus tepat 2, ditemukan %', v_no, v_count;
+    end if;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Struktur', 'u', 'Hanya 2 policy SELECT admin, tanpa policy tulis');
 
     v_no := v_no + 1;
     if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -232,25 +261,32 @@ begin
         insert into public.student_records (nik, nama_siswa, status_daftar, payload)
         values ('9900000000000008', 'Fiktif Non Admin', 'Perlu verifikasi lebih lanjut', '{}');
         raise exception 'GAGAL C%: non-admin bisa INSERT', v_no;
-    exception when insufficient_privilege then null;  -- RLS violation = 42501
+    exception when insufficient_privilege then null;  -- tanpa grant / RLS = 42501
     end;
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Non-admin', 'u', 'INSERT ditolak RLS');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Non-admin', 'u', 'INSERT ditolak');
+
+    -- UPDATE/DELETE: lulus jika ditolak (tanpa grant) ATAU mengenai 0 baris (RLS).
+    v_no := v_no + 1;
+    begin
+        update public.student_records set nama_siswa = 'Diubah Non Admin' where nik = c_nik_a;
+        get diagnostics v_rows = row_count;
+        if v_rows <> 0 then
+            raise exception 'GAGAL C%: non-admin mengubah % baris', v_no, v_rows;
+        end if;
+    exception when insufficient_privilege then null;
+    end;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Non-admin', 'u', 'UPDATE ditolak / 0 baris');
 
     v_no := v_no + 1;
-    update public.student_records set nama_siswa = 'Diubah Non Admin' where nik = c_nik_a;
-    get diagnostics v_rows = row_count;
-    if v_rows <> 0 then
-        raise exception 'GAGAL C%: non-admin mengubah % baris', v_no, v_rows;
-    end if;
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Non-admin', 'u', 'UPDATE mengenai 0 baris');
-
-    v_no := v_no + 1;
-    delete from public.student_records where nik in (c_nik_a, c_nik_b);
-    get diagnostics v_rows = row_count;
-    if v_rows <> 0 then
-        raise exception 'GAGAL C%: non-admin menghapus % baris', v_no, v_rows;
-    end if;
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Non-admin', 'u', 'DELETE mengenai 0 baris');
+    begin
+        delete from public.student_records where nik in (c_nik_a, c_nik_b);
+        get diagnostics v_rows = row_count;
+        if v_rows <> 0 then
+            raise exception 'GAGAL C%: non-admin menghapus % baris', v_no, v_rows;
+        end if;
+    exception when insufficient_privilege then null;
+    end;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Non-admin', 'u', 'DELETE ditolak / 0 baris');
 
     v_no := v_no + 1;
     select * into v_sum from public.student_summary();
@@ -319,20 +355,52 @@ begin
     end if;
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Admin', 'u', 'daftar_kelas tanpa nilai kosong');
 
+    -- Dashboard read-only: admin browser tidak boleh menulis student_records.
     v_no := v_no + 1;
-    insert into public.student_records (nik, nama_siswa, status_daftar, payload)
-    values (c_nik_c, 'Siswa Fiktif Tiga', 'Perlu verifikasi lebih lanjut', '{}');
-    update public.student_records set nama_ibu_kandung = 'Ibu Fiktif Tiga' where nik = c_nik_c;
-    get diagnostics v_rows = row_count;
-    if v_rows <> 1 then
-        raise exception 'GAGAL D%: admin tidak bisa UPDATE', v_no;
+    begin
+        insert into public.student_records (nik, nama_siswa, status_daftar, payload)
+        values (c_nik_c, 'Siswa Fiktif Tiga', 'Perlu verifikasi lebih lanjut', '{}');
+        raise exception 'GAGAL D%: admin browser bisa INSERT student_records', v_no;
+    exception when insufficient_privilege then null;
+    end;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Admin', 'u', 'INSERT student_records ditolak (read-only)');
+
+    v_no := v_no + 1;
+    v_denied := false;
+    begin
+        update public.student_records set nama_ibu_kandung = 'Diubah Admin' where nik in (c_nik_a, c_nik_b);
+        get diagnostics v_rows = row_count;
+        if v_rows <> 0 then
+            raise exception 'GAGAL D%: admin browser mengubah % baris', v_no, v_rows;
+        end if;
+    exception when insufficient_privilege then v_denied := true;
+    end;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Admin', 'u',
+        case when v_denied then 'UPDATE student_records ditolak (read-only)'
+             else 'UPDATE student_records mengenai 0 baris (read-only)' end);
+
+    v_no := v_no + 1;
+    v_denied := false;
+    begin
+        delete from public.student_records where nik in (c_nik_a, c_nik_b);
+        get diagnostics v_rows = row_count;
+        if v_rows <> 0 then
+            raise exception 'GAGAL D%: admin browser menghapus % baris', v_no, v_rows;
+        end if;
+    exception when insufficient_privilege then v_denied := true;
+    end;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Admin', 'u',
+        case when v_denied then 'DELETE student_records ditolak (read-only)'
+             else 'DELETE student_records mengenai 0 baris (read-only)' end);
+
+    v_no := v_no + 1;
+    select md5(string_agg(to_jsonb(r)::text, '|' order by r.nik)) into v_hash_now
+    from public.student_records r where r.nik in (c_nik_a, c_nik_b);
+    if v_hash_now is distinct from v_fixture_hash
+       or exists (select 1 from public.student_records where nik = c_nik_c) then
+        raise exception 'GAGAL D%: siswa fiktif berubah setelah percobaan tulis', v_no;
     end if;
-    delete from public.student_records where nik = c_nik_c;
-    get diagnostics v_rows = row_count;
-    if v_rows <> 1 then
-        raise exception 'GAGAL D%: admin tidak bisa DELETE', v_no;
-    end if;
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Admin', 'u', 'INSERT, UPDATE, DELETE berhasil');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Admin', 'u', 'Siswa fiktif tidak berubah setelah percobaan tulis non-admin/admin');
 
     execute 'reset role';
 

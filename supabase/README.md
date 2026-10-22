@@ -10,7 +10,12 @@ Supabase CLI, jadi semua langkah dijalankan manual lewat **Supabase SQL Editor**
 | File | Isi |
 |---|---|
 | `migrations/20261022000001_student_information_system.sql` | Tabel `student_records` dan `student_import_batches`, constraint, indeks, trigger `updated_at`, grant, RLS, RPC `student_summary()` |
-| `tests/student_rls_test.sql` | 36 tes: struktur, anon, non-admin, admin, constraint, kebersihan. Data uji dibersihkan otomatis |
+| `tests/student_rls_test.sql` | 40 tes: struktur, anon, non-admin, admin, constraint, kebersihan. Data uji dibersihkan otomatis |
+
+**Model akses:** dashboard admin **read-only**. Admin hanya bisa `SELECT` kedua tabel.
+**Semua penulisan** data siswa dan riwayat impor **hanya melalui importer server-side**
+(`scripts/import-students.mjs`, memakai `service_role`). Browser tidak punya grant
+maupun policy `INSERT`/`UPDATE`/`DELETE`.
 
 ## Syarat sebelum menjalankan di produksi
 
@@ -33,11 +38,15 @@ tersendiri.
    - Diharapkan: `Success. No rows returned`.
    - Semua perintah ada dalam satu transaksi (`begin … commit`). Jika muncul error,
      tidak ada yang berubah. Salin pesan error-nya tanpa data pribadi.
-   - Aman dijalankan ulang. Menjalankan dua kali menghasilkan struktur yang sama.
+   - Aman dijalankan ulang **setelah versi migration yang sama ini berhasil
+     diterapkan**; hasilnya struktur yang sama. Migration ini **bukan** alat untuk
+     memperbaiki tabel draf dengan struktur berbeda (`create table if not exists` tidak
+     mengubah tabel yang sudah ada). Policy tulis dari draf lama
+     (`student_records_admin_insert/update/delete`) dihapus jika ada.
 2. **Cek kebersihan, sebelum tes.** Jalankan query *Cek kebersihan* di bawah, lalu catat
    hasilnya.
 3. **Tes RLS.** Tempel seluruh isi `tests/student_rls_test.sql` → **Run**.
-   - Diharapkan: tabel **36 baris**, kolom `hasil` semuanya `LULUS`.
+   - Diharapkan: tabel **40 baris**, kolom `hasil` semuanya `LULUS`.
    - Jika ada yang gagal, muncul error `GAGAL <kode>: <penjelasan>`. Postgres membatalkan
      seluruh blok tes secara otomatis, termasuk data uji serta perubahan role dan JWT claims.
    - Tes boleh dijalankan ulang kapan saja, termasuk setelah data asli diimpor. Tes tidak
@@ -87,6 +96,9 @@ select json_build_object(
                from pg_policies where tablename in ('student_records', 'student_import_batches')),
   'anon_grants', (select count(*) from information_schema.role_table_grants
                   where grantee = 'anon' and table_name in ('student_records', 'student_import_batches')),
+  'authenticated_grants', (select json_agg(distinct table_name || ':' || privilege_type)
+                  from information_schema.role_table_grants
+                  where grantee = 'authenticated' and table_name in ('student_records', 'student_import_batches')),
   'summary_security_definer', (select prosecdef from pg_proc where oid = 'public.student_summary()'::regprocedure),
   'summary_anon_execute', has_function_privilege('anon', 'public.student_summary()', 'EXECUTE')
 ) as hasil;
@@ -95,8 +107,10 @@ select json_build_object(
 Diharapkan:
 
 - `enabled` dan `forced` = `true` untuk kedua tabel;
-- 5 policy, semuanya dengan `roles` = `{authenticated}`;
+- **2 policy**, keduanya `cmd` = `SELECT` dan `roles` = `{authenticated}`:
+  `student_records_admin_select` dan `student_import_batches_admin_select`;
 - `anon_grants` = `0`;
+- `authenticated_grants` = hanya `student_import_batches:SELECT` dan `student_records:SELECT`;
 - `summary_security_definer` = `false`;
 - `summary_anon_execute` = `false`.
 
@@ -105,11 +119,12 @@ Diharapkan:
 | Pengguna | `student_records` | `student_import_batches` | `student_summary()` |
 |---|---|---|---|
 | **anon** (pengunjung, tanpa login) | Semua operasi ditolak: `permission denied` (tidak punya grant) | Ditolak | Ditolak (`EXECUTE` dicabut) |
-| **Login non-admin** (mis. akun guru aplikasi lain) | SELECT 0 baris, INSERT ditolak RLS, UPDATE/DELETE mengenai 0 baris | SELECT 0 baris, tulis ditolak | Semua angka 0, `daftar_kelas` kosong |
-| **Admin** (`user_roles.role = 'admin'`) | SELECT/INSERT/UPDATE/DELETE diizinkan | Hanya SELECT | Angka dihitung dari tabel |
+| **Login non-admin** (mis. akun guru aplikasi lain) | SELECT 0 baris; INSERT/UPDATE/DELETE ditolak | SELECT 0 baris; tulis ditolak | Semua angka 0, `daftar_kelas` kosong |
+| **Admin** (`user_roles.role = 'admin'`) | **SELECT saja**; INSERT/UPDATE/DELETE ditolak | **SELECT saja** | Angka dihitung dari tabel |
 | **service_role** (importer server-side) | Penuh, melewati RLS | Penuh | Penuh |
 
-UI versi awal tetap read-only, walaupun admin diizinkan menulis di level database.
+Semua penulisan hanya melalui importer server-side dengan `service_role`. Kunci
+`service_role` tidak pernah dipakai di browser.
 
 ## Riwayat migration (jika nanti memakai Supabase CLI)
 

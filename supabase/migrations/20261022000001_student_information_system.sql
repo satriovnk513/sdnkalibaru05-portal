@@ -2,9 +2,15 @@
 -- Modul Data Siswa — SDN Kalibaru 05
 -- Migration: tabel, constraint, indeks, trigger updated_at, RLS, dan RPC ringkasan.
 --
--- Aman dijalankan ulang: semua objek memakai IF NOT EXISTS / CREATE OR REPLACE /
--- DROP ... IF EXISTS sebelum CREATE. Seluruh isi berada dalam satu transaksi,
--- sehingga jika satu perintah gagal tidak ada perubahan yang tersimpan.
+-- Idempotensi: aman dijalankan ulang SETELAH versi migration yang sama ini
+-- berhasil diterapkan (IF NOT EXISTS / CREATE OR REPLACE / DROP ... IF EXISTS).
+-- Migration ini BUKAN alat untuk memperbaiki tabel draf dengan struktur berbeda:
+-- CREATE TABLE IF NOT EXISTS tidak mengubah tabel yang sudah ada. Seluruh isi
+-- berada dalam satu transaksi, sehingga jika satu perintah gagal tidak ada
+-- perubahan yang tersimpan.
+--
+-- Dashboard admin bersifat READ-ONLY. Semua penulisan data siswa hanya melalui
+-- importer server-side (service_role).
 --
 -- TIDAK menyentuh tabel, policy, atau storage yang sudah ada.
 -- TIDAK berisi data siswa. Data diimpor terpisah oleh scripts/import-students.mjs.
@@ -99,9 +105,6 @@ create table if not exists public.student_records (
         check (source_names is null or jsonb_typeof(source_names) = 'array')
 );
 
--- Jika tabel sudah pernah dibuat dari draf lama tanpa source_names.
-alter table public.student_records add column if not exists source_names jsonb;
-
 comment on table public.student_records is
     'Biodata siswa (PRIVAT: NIK, KK, HP, alamat, keluarga). Hanya admin. Bukan sumber pengetahuan KaliBot/AI.';
 comment on column public.student_records.nik is 'Identitas utama, 16 digit, disimpan sebagai text.';
@@ -172,9 +175,9 @@ create trigger student_records_set_updated_at
 revoke all on table public.student_records        from public, anon, authenticated;
 revoke all on table public.student_import_batches from public, anon, authenticated;
 
--- authenticated mendapat grant, tetapi RLS di bawah membatasi ke admin saja.
-grant select, insert, update, delete on table public.student_records        to authenticated;
-grant select                         on table public.student_import_batches to authenticated;
+-- authenticated hanya SELECT (dashboard read-only); RLS di bawah membatasi ke admin.
+grant select on table public.student_records        to authenticated;
+grant select on table public.student_import_batches to authenticated;
 
 -- Importer server-side (SUPABASE_SERVICE_ROLE_KEY).
 grant select, insert, update, delete on table public.student_records        to service_role;
@@ -188,8 +191,8 @@ alter table public.student_records        force  row level security;
 alter table public.student_import_batches enable row level security;
 alter table public.student_import_batches force  row level security;
 
--- student_records: admin saja untuk SELECT/INSERT/UPDATE/DELETE.
--- Syarat admin ditulis eksplisit dari user_roles + auth.uid().
+-- student_records: admin hanya SELECT. Syarat admin ditulis eksplisit dari
+-- user_roles + auth.uid().
 drop policy if exists student_records_admin_select on public.student_records;
 create policy student_records_admin_select
     on public.student_records
@@ -200,39 +203,12 @@ create policy student_records_admin_select
         where ur.user_id = (select auth.uid()) and ur.role = 'admin'
     ));
 
+-- Policy tulis dari draf sebelumnya dibersihkan dan TIDAK dibuat kembali.
+-- Tanpa grant INSERT/UPDATE/DELETE dan tanpa policy tulis, admin browser tidak
+-- bisa mengubah data; penulisan hanya oleh importer service_role (bypass RLS).
 drop policy if exists student_records_admin_insert on public.student_records;
-create policy student_records_admin_insert
-    on public.student_records
-    for insert
-    to authenticated
-    with check (exists (
-        select 1 from public.user_roles ur
-        where ur.user_id = (select auth.uid()) and ur.role = 'admin'
-    ));
-
 drop policy if exists student_records_admin_update on public.student_records;
-create policy student_records_admin_update
-    on public.student_records
-    for update
-    to authenticated
-    using (exists (
-        select 1 from public.user_roles ur
-        where ur.user_id = (select auth.uid()) and ur.role = 'admin'
-    ))
-    with check (exists (
-        select 1 from public.user_roles ur
-        where ur.user_id = (select auth.uid()) and ur.role = 'admin'
-    ));
-
 drop policy if exists student_records_admin_delete on public.student_records;
-create policy student_records_admin_delete
-    on public.student_records
-    for delete
-    to authenticated
-    using (exists (
-        select 1 from public.user_roles ur
-        where ur.user_id = (select auth.uid()) and ur.role = 'admin'
-    ));
 
 -- student_import_batches: admin hanya membaca. Tidak ada policy tulis;
 -- penulisan dilakukan importer service-role (bypass RLS).
