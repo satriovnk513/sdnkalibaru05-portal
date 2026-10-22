@@ -3,16 +3,16 @@
 // Semua data FIKTIF. Tidak ada koneksi ke Supabase sungguhan.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, chmodSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, chmodSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 import {
-    validateAndBuild, loadAndValidate, runImport, classifyKey, ImportError, EXPECTED,
+    validateAndBuild, loadAndValidate, runImport, classifyKey, compareManifest, ImportError, EXPECTED,
 } from '../scripts/import-students.mjs';
-import { makeFakeFile, FAKE_FIELDS } from './fixtures/fake-students.mjs';
+import { makeFakeFile, FAKE_FIELDS, FAKE_PRESENCE, fakeManifestFor } from './fixtures/fake-students.mjs';
 import { makeFetch, memoryBackend, pgliteBackend } from './helpers/fake-postgrest.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -36,9 +36,11 @@ function writeDataset(doc, name = 'student-data-fiktif.json', { fileMode = 0o600
 test.after(() => rmSync(BASE, { recursive: true, force: true }));
 
 const dataset = () => makeFakeFile();
-const PII = makeFakeFile().records.flatMap((r) => [
-    r.nik_siswa, r.nama_siswa, r.siswa_nama_ibu_kandung, r.no_kk, r.no_hp_ayah, r.anggota_1_nik, r.anggota_1_nama,
-]);
+const PII_KEY = /(^|_)(nik|no_kk|no_hp|no_telp|nama)(_|$)|nama_ibu|nik_wali/;
+const PII = [...new Set(makeFakeFile().records.flatMap((r) => Object.entries(r)
+    .filter(([k, v]) => PII_KEY.test(k) && typeof v === 'string' && v.length > 6).map(([, v]) => v)))];
+const idxWith = (d, f, from = 0) => d.records.findIndex((r, i) => i >= from && f in r && r[f] !== null);
+const idxWithout = (d, f) => d.records.findIndex((r) => !(f in r));
 function assertNoSecrets(text, label) {
     for (const v of PII) assert.ok(!text.includes(v), `${label}: output memuat data pribadi fiktif`);
     assert.ok(!text.includes(FAKE_SERVICE_KEY) && !text.includes('tanda-tangan-palsu'), `${label}: output memuat key`);
@@ -55,37 +57,68 @@ const expectIssue = (doc, re) => {
 };
 
 // ============================================================================ validasi
-test('fixture bentuk asli valid: 559 / 535 / 24 / 17, 110 field + 1 operasional = 111 key payload', () => {
+test('fixture sparse bentuk asli valid: 559/535/24/17, 110 dideklarasikan = 110 ditemukan, payload apa adanya', () => {
     const doc = dataset();
     const src = doc.records;
     const { rows, report } = validateAndBuild(doc);
     assert.equal(report.total, 559); assert.equal(report.listed, 535);
     assert.equal(report.review, 24); assert.equal(report.rombel, 17);
     assert.equal(report.nik_unik, 559);
-    assert.equal(report.field_sumber, 110);
+    assert.equal(report.field_sumber_dideklarasikan, 110);
+    assert.equal(report.field_sumber_ditemukan, 110);
+    assert.equal(report.field_hadir_di_semua_record.length, 9);
     assert.deepEqual(report.field_operasional, ['status_daftar']);
-    assert.equal(report.key_payload, 111);
-    for (const f of ['nik_siswa', 'siswa_nisn', 'siswa_nipd', 'no_kk', 'no_hp_ayah', 'kode_pos', 'rt', 'rw', 'anggota_1_nik']) {
+    assert.equal(report.kemungkinan_key_payload, 111);
+    assert.deepEqual(report.field_presence_counts, FAKE_PRESENCE, 'kehadiran per field sama dengan manifest');
+    const k = report.key_payload_per_record;
+    assert.ok(k.min < k.max && k.max <= 111 && k.min >= 5, JSON.stringify(k));
+    // Identifier memakai nama sumber asli.
+    for (const f of ['nik_siswa', 'siswa_nipd', 'siswa_nisn', 'siswa_no_kk', 'siswa_no_hp', 'siswa_rt', 'siswa_rw',
+        'siswa_kode_pos', 'siswa_no_telepon', 'wali_nik_wali', 'wali_no_kk', 'wali_no_hp', 'wali_no_telp', 'wali_kode_pos',
+        'kontak_no_hp', 'kontak_kode_pos', 'anggota_1_nik', 'ayah_nik', 'ibu_nik', 'ayah_no_hp', 'ibu_no_hp',
+        'lain_nomor_akta', 'lain_hp_orang_tua_ppdb']) {
         assert.ok(report.field_identifier_teks.includes(f), `identifier ${f}`);
     }
-    assert.deepEqual(report.field_angka_non_identifier, ['tinggi_badan']);
+    for (const f of ['nama_siswa', 'kelas', 'siswa_alamat', 'lain_lintang']) assert.ok(!report.field_identifier_teks.includes(f), `bukan identifier ${f}`);
+    assert.ok(report.field_angka_non_identifier.includes('lain_lintang'));
+    // Payload = record sumber apa adanya tanpa 3 metadata, untuk SETIAP record (sparse tetap sparse).
+    rows.forEach((r, i) => {
+        const { _sources, _catatan, _asal_data, ...bio } = src[i];
+        assert.deepEqual(r.payload, bio);
+        assert.equal(Object.keys(r.payload).length, Object.keys(bio).length);
+        assert.deepEqual(r.field_sources, _sources); assert.deepEqual(r.matching_notes, _catatan); assert.deepEqual(r.source_names, _asal_data);
+    });
+    // Mapping inti.
     const r0 = rows[0], s0 = src[0];
-    assert.deepEqual(r0.field_sources, s0._sources);
-    assert.deepEqual(r0.matching_notes, s0._catatan);
-    assert.deepEqual(r0.source_names, s0._asal_data);
-    for (const k of ['_sources', '_catatan', '_asal_data']) assert.ok(!(k in r0.payload));
-    // Mapping kolom inti dari key sumber.
-    assert.equal(r0.nik, s0.nik_siswa); assert.equal(r0.nipd, s0.siswa_nipd);
-    assert.equal(r0.nisn, s0.siswa_nisn); assert.ok(r0.nisn.startsWith('00'));
-    assert.equal(r0.nama_ibu_kandung, s0.siswa_nama_ibu_kandung);
+    assert.equal(r0.nik, s0.nik_siswa); assert.equal(r0.nama_ibu_kandung, s0.siswa_nama_ibu_kandung);
     assert.equal(r0.status_daftar, s0.status_daftar); assert.equal(r0.kelas, s0.kelas);
-    // Payload memakai key asli, tanpa metadata, tanpa key hasil rename.
-    const { _sources, _catatan, _asal_data, ...bio } = s0;
-    assert.deepEqual(r0.payload, bio);
-    assert.equal(Object.keys(r0.payload).length, 111);
-    assert.ok(!('nik' in r0.payload) && !('nisn' in r0.payload) && !('nipd' in r0.payload));
-    assert.equal(r0.payload.kode_pos, s0.kode_pos); assert.equal(r0.payload.rt, s0.rt);
-    assert.equal(rows[558].kelas, null);
+    const iNisn = idxWith(doc, 'siswa_nisn');
+    assert.equal(rows[iNisn].nisn, src[iNisn].siswa_nisn); assert.ok(rows[iNisn].nisn.startsWith('00'));
+    assert.equal(rows[558].kelas, '');
+});
+
+test('field opsional yang hilang diterima; kolom inti opsional jadi null; payload tidak ditambah key', () => {
+    const doc = dataset();
+    const { rows } = validateAndBuild(doc);
+    for (const [col, src] of [['nipd', 'siswa_nipd'], ['nisn', 'siswa_nisn']]) {
+        const i = idxWithout(doc, src);
+        assert.ok(i >= 0, `fixture punya record tanpa ${src}`);
+        assert.equal(rows[i][col], null);
+        assert.ok(!(src in rows[i].payload), `payload tidak boleh ditambah ${src}`);
+    }
+    // Hapus field opsional dari sebagian record tambahan: tetap valid, tanpa string kosong baru.
+    const d2 = dataset();
+    for (let i = 0; i < 100; i++) { delete d2.records[i].siswa_alamat; delete d2.records[i].status_dukcapil; delete d2.records[i].siswa_nama_ibu_kandung; }
+    const { rows: r2 } = validateAndBuild(d2);
+    for (let i = 0; i < 100; i++) {
+        assert.ok(!('siswa_alamat' in r2[i].payload));
+        assert.equal(r2[i].status_dukcapil, null); assert.equal(r2[i].nama_ibu_kandung, null);
+        assert.ok(!Object.values(r2[i].payload).includes('') || d2.records[i].kelas === '', 'tidak ada string kosong baru');
+    }
+    // Nilai null eksplisit dipertahankan sebagai null (bukan dihapus, bukan string kosong).
+    const iNull = doc.records.findIndex((r) => Object.values(r).includes(null));
+    const nullKey = Object.keys(doc.records[iNull]).find((k) => doc.records[iNull][k] === null);
+    assert.ok(nullKey in rows[iNull].payload); assert.equal(rows[iNull].payload[nullKey], null);
 });
 
 test('struktur top-level: hanya object dengan records (array) dan fields (array string)', () => {
@@ -106,32 +139,43 @@ test('struktur top-level: hanya object dengan records (array) dan fields (array 
 });
 
 test('validasi struktur fields dan mapping', () => {
-    { const d = dataset(); d.fields.pop(); d.records.forEach((r) => delete r[FAKE_FIELDS[109]]); expectIssue(d, /"fields" berisi 109 nama, seharusnya 110/); }
-    { const d = dataset(); d.fields[109] = d.fields[108]; expectIssue(d, /"fields" memuat nama ganda: keterangan_fiktif_091/); }
-    { const d = dataset(); delete d.records[3].kode_pos; expectIssue(d, /field "kode_pos" tidak ada pada 1 record/); }
-    { const d = dataset(); d.records.forEach((r) => { delete r.status_daftar; }); expectIssue(d, /field "status_daftar" tidak ada pada 559 record/); }
+    { const d = dataset(); d.fields.pop(); d.records.forEach((r) => delete r.wali_penghasilan); expectIssue(d, /"fields" berisi 109 nama, seharusnya 110/); }
+    { const d = dataset(); d.fields[109] = d.fields[108]; expectIssue(d, /"fields" memuat nama ganda: wali_tahun_lahir/); }
+    // Field dideklarasikan tetapi tidak pernah muncul.
+    { const d = dataset(); d.records.forEach((r) => delete r.wali_tahun_lahir); expectIssue(d, /tidak pernah muncul di record mana pun: wali_tahun_lahir/); }
+    // Field wajib hilang ditolak.
+    for (const f of ['nik_siswa', 'nama_siswa', 'kelas', 'status_daftar']) {
+        const d = dataset(); delete d.records[3][f];
+        expectIssue(d, new RegExp(`field wajib "${f}" tidak ada pada 1 record`));
+    }
+    { const d = dataset(); delete d.records[2]._asal_data; expectIssue(d, /field wajib "_asal_data" tidak ada pada 1 record/); }
+    { const d = dataset(); delete d.records[2]._sources; expectIssue(d, /field wajib "_sources" tidak ada pada 1 record/); }
+    // Key asing ditolak.
     { const d = dataset(); d.records[0].kolom_asing = 'x'; expectIssue(d, /key tak dikenal "kolom_asing"/); }
-    { const d = dataset(); d.fields = d.fields.map((f) => (f === 'siswa_nisn' ? 'nisn_lain' : f)); d.records.forEach((r) => { r.nisn_lain = r.siswa_nisn; delete r.siswa_nisn; }); expectIssue(d, /mapping kolom inti nisn <- "siswa_nisn" tidak ada/); }
+    { const d = dataset(); d.records[5].nik = d.records[5].nik_siswa; expectIssue(d, /key tak dikenal "nik"/); }
+    // Mapping inti tidak ada di struktur.
+    { const d = dataset(); d.fields = d.fields.map((f) => (f === 'siswa_nisn' ? 'nisn_lain' : f)); d.records.forEach((r) => { if ('siswa_nisn' in r) { r.nisn_lain = r.siswa_nisn; delete r.siswa_nisn; } }); expectIssue(d, /mapping kolom inti nisn <- "siswa_nisn" tidak ada/); }
     { const d = dataset(); d.records[4].siswa_nama_ibu_kandung = 7; expectIssue(d, /record #5: field "siswa_nama_ibu_kandung" \(kolom nama_ibu_kandung\) harus teks/); }
-    { const d = dataset(); delete d.records[2]._asal_data; expectIssue(d, /field "_asal_data" tidak ada pada 1 record/); }
     { const d = dataset(); d.fields.push('_sources'); expectIssue(d, /tidak boleh memuat metadata _sources/); }
 });
 
 test('validasi menolak setiap pelanggaran aturan (pesan tanpa data pribadi)', () => {
+    const at = (d, f) => { const i = idxWith(d, f); assert.ok(i >= 0, f); return i; };
     { const d = dataset(); d.records.pop(); expectIssue(d, /Total siswa 558/); }
     { const d = dataset(); d.records[10].nik_siswa = d.records[3].nik_siswa; expectIssue(d, /record #11: NIK sama dengan record #4/); }
     { const d = dataset(); d.records[5].nik_siswa = d.records[5].nik_siswa.slice(1); expectIssue(d, /record #6: NIK \(nik_siswa\) kosong atau bukan 16 digit/); }
     { const d = dataset(); d.records[5].nik_siswa = Number(d.records[5].nik_siswa); expectIssue(d, /record #6: field "nik_siswa" berupa angka/); }
-    { const d = dataset(); d.records[7].siswa_nisn = Number(d.records[7].siswa_nisn); expectIssue(d, /record #8: field "siswa_nisn" berupa angka/); }
-    { const d = dataset(); d.records[7].kode_pos = 1234; expectIssue(d, /record #8: field "kode_pos" berupa angka/); }
-    { const d = dataset(); d.records[9].no_kk = '9.90000000000501E+15'; expectIssue(d, /record #10: field "no_kk" berformat notasi ilmiah/); }
+    { const d = dataset(); const i = at(d, 'siswa_nisn'); d.records[i].siswa_nisn = Number(d.records[i].siswa_nisn); expectIssue(d, new RegExp(`record #${i + 1}: field "siswa_nisn" berupa angka`)); }
+    { const d = dataset(); const i = at(d, 'siswa_kode_pos'); d.records[i].siswa_kode_pos = 1234; expectIssue(d, new RegExp(`record #${i + 1}: field "siswa_kode_pos" berupa angka`)); }
+    { const d = dataset(); const i = at(d, 'wali_no_hp'); d.records[i].wali_no_hp = 81234567; expectIssue(d, new RegExp(`record #${i + 1}: field "wali_no_hp" berupa angka`)); }
+    { const d = dataset(); const i = at(d, 'siswa_no_kk'); d.records[i].siswa_no_kk = '9.90000000000501E+15'; expectIssue(d, new RegExp(`record #${i + 1}: field "siswa_no_kk" berformat notasi ilmiah`)); }
     { const d = dataset(); d.records[2].nama_siswa = '   '; expectIssue(d, /record #3: nama_siswa kosong/); }
     { const d = dataset(); d.records[2].kelas = ''; expectIssue(d, /record #3: tercantum di daftar kelas tetapi kelas kosong/); }
     { const d = dataset(); d.records[2].status_daftar = 'Tercantum di daftar kelas 2026/2027'; expectIssue(d, /record #3: status_daftar tidak dikenal/); }
     { const d = dataset(); d.records[2]._catatan = { a: 1 }; expectIssue(d, /record #3: _catatan harus array/); }
     { const d = dataset(); d.records[2]._sources = ['x']; expectIssue(d, /record #3: _sources harus object/); }
     { const d = dataset(); d.records.forEach((r) => { if (r.kelas === '6B') r.kelas = '6A'; }); expectIssue(d, /Rombel 16, seharusnya 17/); }
-    { const d = dataset(); d.records[0].status_daftar = 'Perlu verifikasi lebih lanjut'; d.records[0].kelas = null; expectIssue(d, /seharusnya 535/); }
+    { const d = dataset(); d.records[0].status_daftar = 'Perlu verifikasi lebih lanjut'; d.records[0].kelas = ''; expectIssue(d, /seharusnya 535/); }
 });
 
 test('file wajib di luar repo dengan izin 600 / folder 700', () => {
@@ -172,15 +216,36 @@ test('CLI dry-run: offline, agregat saja, mencetak SHA-256', () => {
     assert.match(out, /SHA-256\s+: [0-9a-f]{64}/);
     assert.match(out, /VALID/);
     assert.match(out, /Total siswa\s+: 559/);
-    assert.match(out, /Field sumber\s+: 110/);
-    assert.match(out, /Field operasional: 1 \(status_daftar\)/);
-    assert.match(out, /Key payload\s+: 111/);
+    assert.match(out, /Field sumber dideklarasikan: 110/);
+    assert.match(out, /Field sumber ditemukan\s+: 110/);
+    assert.match(out, /Field hadir di semua record: 9/);
+    assert.match(out, /Field operasional\s+: 1 \(status_daftar\)/);
+    assert.match(out, /Kemungkinan key payload\s+: 111/);
+    assert.match(out, /Key payload aktual\/record\s+: min \d+, maks \d+, rata-rata [\d.]+/);
     assert.ok(!out.includes('NETWORK-DIPANGGIL'));
     assertNoSecrets(out, 'dry-run');
 });
 
+test('CLI dry-run --manifest: cocok untuk fixture; berbeda -> exit 1', () => {
+    const file = writeDataset(dataset());
+    const r = loadAndValidate(file);
+    const mf = join(dirname(file), 'manifest.json');
+    writeFileSync(mf, JSON.stringify(fakeManifestFor(r.report, r)));
+    let out = cli(['--file', file, '--manifest', mf]);
+    assert.equal(out.code, 0, out.out); assert.match(out.out, /Manifest\s+: COCOK/);
+    const bad = fakeManifestFor(r.report, r); bad.field_presence_counts = { ...bad.field_presence_counts, siswa_nisn: 1 };
+    writeFileSync(mf, JSON.stringify(bad));
+    out = cli(['--file', file, '--manifest', mf]);
+    assert.equal(out.code, 1); assert.match(out.out, /TIDAK COCOK[\s\S]*presence "siswa_nisn" manifest 1/);
+    assertNoSecrets(out.out, 'manifest');
+    // Manifest asli dibandingkan dengan fixture: hanya hash/ukuran/rentang yang boleh berbeda.
+    const real = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/schema-manifest.json'), 'utf8'));
+    const diffs = compareManifest(r, real);
+    assert.ok(diffs.every((x) => /source_sha256|source_bytes|key per record/.test(x)), diffs.join(' | '));
+});
+
 test('CLI dry-run gagal validasi: tanpa data pribadi', () => {
-    const d = dataset(); d.records[4].nik_siswa = d.records[1].nik_siswa; d.records[6].siswa_nisn = 12;
+    const d = dataset(); d.records[4].nik_siswa = d.records[1].nik_siswa; d.records[idxWith(d, 'siswa_nisn')].siswa_nisn = 12;
     const { code, out } = cli(['--file', writeDataset(d)]);
     assert.equal(code, 1);
     assert.match(out, /NIK sama dengan record #2/);
@@ -305,10 +370,22 @@ test('[Postgres] impor sukses dengan migration asli, tabel lama tidak berubah', 
     assert.equal(s.error, null, s.logs);
     const c = await backend.counts();
     assert.deepEqual(c, { records: 559, batches: 1, news: 1 });
-    const r = (await backend.db.query(`select nisn, payload->>'kode_pos' kp, payload->>'rt' rt, jsonb_typeof(payload->'nik_siswa') t, payload->>'siswa_nisn' pn, (select count(*)::int from jsonb_object_keys(payload)) nk
-                                         from public.student_records order by nik limit 1`)).rows[0];
-    assert.equal(r.nisn, '0000000001'); assert.equal(r.kp, '00001'); assert.equal(r.rt, '002'); assert.equal(r.t, 'string');
-    assert.equal(r.pn, '0000000001'); assert.equal(r.nk, 111);
+    // Setiap payload di database sama persis dengan record sumber (sparse tetap sparse).
+    const src = dataset().records;
+    const db = (await backend.db.query('select nik, nisn, nipd, payload from public.student_records order by nik')).rows;
+    const byNik = new Map(db.map((x) => [x.nik, x]));
+    for (const rec of src) {
+        const { _sources, _catatan, _asal_data, ...bio } = rec;
+        const got = byNik.get(rec.nik_siswa);
+        assert.deepEqual(got.payload, bio);
+        assert.equal(got.nisn, rec.siswa_nisn ?? null); assert.equal(got.nipd, rec.siswa_nipd ?? null);
+    }
+    const pres = (await backend.db.query(`select count(*) filter (where payload ? 'siswa_nisn')::int nisn,
+        count(*) filter (where payload ? 'wali_tahun_lahir')::int wtl,
+        count(*) filter (where nisn is null)::int nisn_null,
+        count(*) filter (where jsonb_typeof(payload->'nik_siswa') <> 'string')::int nik_bukan_teks
+        from public.student_records`)).rows[0];
+    assert.deepEqual(pres, { nisn: 542, wtl: 1, nisn_null: 17, nik_bukan_teks: 0 });
     const sum = (await backend.db.query('select jumlah_rombel::int n from public.student_summary()')).rows[0].n;
     assert.equal(sum, 17);
     const again = await scenario({ backend });

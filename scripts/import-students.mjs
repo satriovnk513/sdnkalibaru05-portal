@@ -42,6 +42,9 @@ export const CORE_MAP = Object.freeze({
 export const CORE_FIELDS = Object.freeze(Object.keys(CORE_MAP));
 // Field operasional di luar daftar `fields` sumber.
 export const OPERATIONAL_FIELDS = Object.freeze(['status_daftar']);
+// Key yang WAJIB hadir di setiap record. Field sumber lain bersifat opsional (data sparse):
+// jika tidak ada, key itu tidak ditambahkan ke payload dan kolom intinya bernilai null.
+export const REQUIRED_KEYS = Object.freeze(['nik_siswa', 'nama_siswa', 'kelas', 'status_daftar']);
 export const META_FIELDS = Object.freeze({
     _sources: { column: 'field_sources', type: 'object' },
     _catatan: { column: 'matching_notes', type: 'array' },
@@ -121,8 +124,10 @@ export function validateAndBuild({ fields, records }, expected = EXPECTED) {
     for (const [col, src] of Object.entries(CORE_MAP)) {
         if (!allowed.has(src)) addS(`mapping kolom inti ${col} <- "${src}" tidak ada di "fields" maupun field operasional`);
     }
-    const missingCount = new Map();
+    const missingRequired = new Map();
     const extraCount = new Map();
+    const presence = new Map(fields.map((f) => [f, 0]));
+    const payloadSizes = [];
     const rows = [];
     const nikSeen = new Map();
     const fieldKeys = new Set();
@@ -140,11 +145,14 @@ export function validateAndBuild({ fields, records }, expected = EXPECTED) {
         const payload = {};
         const row = { field_sources: null, matching_notes: null, source_names: null };
 
-        for (const f of allowed) if (!(f in rec)) missingCount.set(f, (missingCount.get(f) || 0) + 1);
-        for (const k of Object.keys(rec)) {
-            if (!(k in META_FIELDS) && !allowed.has(k)) extraCount.set(k, (extraCount.get(k) || 0) + 1);
+        for (const k of [...REQUIRED_KEYS, ...Object.keys(META_FIELDS)]) {
+            if (!(k in rec)) missingRequired.set(k, (missingRequired.get(k) || 0) + 1);
         }
-        for (const k of Object.keys(META_FIELDS)) if (!(k in rec)) missingCount.set(k, (missingCount.get(k) || 0) + 1);
+        for (const k of Object.keys(rec)) {
+            if (k in META_FIELDS) continue;
+            if (!allowed.has(k)) extraCount.set(k, (extraCount.get(k) || 0) + 1);
+            else if (presence.has(k)) presence.set(k, presence.get(k) + 1);
+        }
 
         for (const [key, value] of Object.entries(rec)) {
             if (key in META_FIELDS) {
@@ -193,11 +201,14 @@ export function validateAndBuild({ fields, records }, expected = EXPECTED) {
         }
 
         if (typeOf(payload) !== 'object' || Object.keys(payload).length === 0) add(`record #${n}: payload kosong`);
-        row.payload = payload;
+        row.payload = payload; // bentuk record sumber apa adanya, tanpa 3 metadata
+        payloadSizes.push(Object.keys(payload).length);
         rows.push(row);
     });
 
-    for (const [f, c] of missingCount) addS(`field "${f}" tidak ada pada ${c} record`);
+    for (const [f, c] of missingRequired) addS(`field wajib "${f}" tidak ada pada ${c} record`);
+    const neverSeen = [...presence].filter(([, c]) => c === 0).map(([f]) => f);
+    if (neverSeen.length) addS(`field dideklarasikan tetapi tidak pernah muncul di record mana pun: ${neverSeen.join(', ')}`);
     for (const [f, c] of extraCount) addS(`key tak dikenal "${f}" (bukan field sumber/operasional/metadata) pada ${c} record`);
 
     const total = records.length;
@@ -211,9 +222,17 @@ export function validateAndBuild({ fields, records }, expected = EXPECTED) {
         rombel: rombel.size,
         siswa_per_rombel: Object.fromEntries([...rombel.entries()].sort(([a], [b]) => a.localeCompare(b, 'id', { numeric: true }))),
         nik_unik: nikSeen.size,
-        field_sumber: fields.length,
+        field_sumber_dideklarasikan: fields.length,
+        field_sumber_ditemukan: [...presence.values()].filter((c) => c > 0).length,
+        field_hadir_di_semua_record: [...presence].filter(([, c]) => c === records.length).map(([f]) => f),
+        field_presence_counts: Object.fromEntries(presence),
         field_operasional: operational,
-        key_payload: allowed.size,
+        kemungkinan_key_payload: allowed.size,
+        key_payload_per_record: payloadSizes.length ? {
+            min: Math.min(...payloadSizes),
+            max: Math.max(...payloadSizes),
+            average: Math.round((payloadSizes.reduce((a, b) => a + b, 0) / payloadSizes.length) * 100) / 100,
+        } : null,
         field_identifier_teks: [...fieldKeys].filter(isIdentifierKey).sort(),
         field_angka_non_identifier: [...numericNonIdentifierKeys].sort(),
         record_dengan_metadata: metaPresent,
@@ -234,7 +253,7 @@ export function loadAndValidate(filePath, { expected = EXPECTED, enforceLocation
     const doc = parseDocument(buf.toString('utf8'));
     const { rows, report } = validateAndBuild(doc, expected);
     report.top_level_keys = doc.topLevelKeys;
-    return { rows, report, hash, bytes: buf.length, sourceName: basename(loc.real), location: loc };
+    return { rows, report, hash, bytes: buf.length, sourceName: basename(loc.real), location: loc, fields: doc.fields };
 }
 
 // ----------------------------------------------------------------------------- key
@@ -420,10 +439,35 @@ function parseArgs(argv) {
         if (k === '--execute') a.execute = true;
         else if (k === '--file') a.file = argv[++i];
         else if (k === '--confirm-sha256') a.confirm = argv[++i];
+        else if (k === '--manifest') a.manifest = argv[++i];
         else if (k === '--help' || k === '-h') a.help = true;
         else throw new ImportError(`Argumen tidak dikenal: ${k}`);
     }
     return a;
+}
+
+/** Bandingkan laporan dengan manifest skema (nama field & hitungan saja, tanpa data pribadi). */
+export function compareManifest(r, manifest) {
+    const diffs = [];
+    const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const rep = r.report;
+    if (manifest.source_sha256 && manifest.source_sha256 !== r.hash) diffs.push('source_sha256 berbeda dengan file');
+    if (manifest.source_bytes && manifest.source_bytes !== r.bytes) diffs.push(`source_bytes ${manifest.source_bytes} vs file ${r.bytes}`);
+    if (manifest.top_level_keys && !eq(manifest.top_level_keys, rep.top_level_keys)) diffs.push('top_level_keys berbeda');
+    if (manifest.declared_fields && !eq(manifest.declared_fields, r.fields)) diffs.push('declared_fields berbeda (nama/urutan)');
+    if (manifest.record_count && manifest.record_count !== rep.total) diffs.push(`record_count ${manifest.record_count} vs ${rep.total}`);
+    for (const [f, c] of Object.entries(manifest.field_presence_counts || {})) {
+        if (rep.field_presence_counts[f] !== c) diffs.push(`presence "${f}" manifest ${c} vs file ${rep.field_presence_counts[f]}`);
+    }
+    const m = manifest.record_nonmetadata_key_count;
+    if (m && (m.min !== rep.key_payload_per_record.min || m.max !== rep.key_payload_per_record.max || m.average !== rep.key_payload_per_record.average)) {
+        diffs.push(`key per record manifest ${JSON.stringify(m)} vs file ${JSON.stringify(rep.key_payload_per_record)}`);
+    }
+    for (const [k, c] of Object.entries(manifest.metadata_presence_counts || {})) {
+        if (rep.record_dengan_metadata[k] !== c) diffs.push(`metadata "${k}" manifest ${c} vs file ${rep.record_dengan_metadata[k]}`);
+    }
+    if (manifest.core_map && !eq(manifest.core_map, CORE_MAP)) diffs.push('core_map berbeda dengan importer');
+    return diffs;
 }
 
 function printDryRun(r) {
@@ -438,9 +482,14 @@ function printDryRun(r) {
     console.log(`NIK unik 16 digit: ${rep.nik_unik}`);
     console.log(`Siswa per rombel: ${JSON.stringify(rep.siswa_per_rombel)}`);
     console.log(`Key top-level   : ${rep.top_level_keys.join(', ')}`);
-    console.log(`Field sumber    : ${rep.field_sumber} (dari "fields", nama unik, ada di setiap record)`);
-    console.log(`Field operasional: ${rep.field_operasional.length} (${rep.field_operasional.join(', ') || '-'}), bukan duplikasi`);
-    console.log(`Key payload     : ${rep.key_payload} (= ${rep.field_sumber} sumber + ${rep.field_operasional.length} operasional; nama key asli dipertahankan)`);
+    console.log(`Field sumber dideklarasikan: ${rep.field_sumber_dideklarasikan} (nama unik di "fields")`);
+    console.log(`Field sumber ditemukan     : ${rep.field_sumber_ditemukan} (gabungan seluruh record)`);
+    console.log(`Field hadir di semua record: ${rep.field_hadir_di_semua_record.length} (sisanya opsional/sparse)`);
+    console.log(`Field operasional          : ${rep.field_operasional.length} (${rep.field_operasional.join(', ') || '-'}), bukan duplikasi`);
+    console.log(`Kemungkinan key payload    : ${rep.kemungkinan_key_payload} (= ${rep.field_sumber_dideklarasikan} sumber + ${rep.field_operasional.length} operasional; nama key asli dipertahankan)`);
+    const k = rep.key_payload_per_record;
+    console.log(`Key payload aktual/record  : min ${k.min}, maks ${k.max}, rata-rata ${k.average} (key yang tidak ada tidak ditambahkan)`);
+    console.log(`Field wajib tiap record    : ${REQUIRED_KEYS.join(', ')} + ${Object.keys(META_FIELDS).join(', ')}`);
     console.log(`Mapping inti    : ${Object.entries(rep.mapping_inti).map(([c, s]) => `${c}<-${s}`).join(', ')}`);
     console.log(`Field identifier (wajib teks, lulus): ${rep.field_identifier_teks.join(', ') || '-'}`);
     console.log(`Field bernilai angka (bukan identifier): ${rep.field_angka_non_identifier.join(', ') || '-'}`);
@@ -453,11 +502,22 @@ function printDryRun(r) {
 async function main() {
     const args = parseArgs(process.argv.slice(2));
     if (args.help || !args.file) {
-        console.log('Pakai: node scripts/import-students.mjs --file <data.json> [--execute --confirm-sha256 <hash>]');
+        console.log('Pakai: node scripts/import-students.mjs --file <data.json> [--manifest <manifest.json>] [--execute --confirm-sha256 <hash>]');
         process.exit(args.help ? 0 : 2);
     }
     if (!args.execute) {
-        printDryRun(loadAndValidate(args.file));
+        const r = loadAndValidate(args.file);
+        printDryRun(r);
+        if (args.manifest) {
+            const diffs = compareManifest(r, JSON.parse(readFileSync(args.manifest, 'utf8')));
+            if (diffs.length) {
+                console.log(`Manifest        : TIDAK COCOK (${diffs.length})`);
+                diffs.forEach((d) => console.log(`  - ${d}`));
+                process.exitCode = 1;
+            } else {
+                console.log('Manifest        : COCOK (hash, ukuran, top-level, 110 field, presence per field, key per record, metadata, core_map)');
+            }
+        }
         return;
     }
     const ctrl = new AbortController();

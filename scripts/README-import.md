@@ -37,7 +37,16 @@ Validasi seluruh file dilakukan **sebelum** ada penulisan apa pun:
 - struktur wajib: top-level object dengan `records` (array) dan `fields` (array string).
   Key lain (`version`, `school`, `schoolYear`, `labels`, `summary`) diabaikan, tetapi
   namanya dilaporkan;
-- `fields` berisi tepat 110 nama unik, dan setiap nama ada di setiap record;
+- `fields` berisi tepat 110 nama unik, dan gabungan key di seluruh record memuat
+  ke-110 nama itu (field yang dideklarasikan tetapi tidak pernah muncul ditolak);
+- data **sparse** diterima: field opsional boleh tidak ditulis pada sebagian record.
+  Key yang tidak ada **tidak** ditambahkan ke payload dan tidak diubah jadi string
+  kosong; kolom inti opsional (`nipd`, `nisn`, `nama_ibu_kandung`, `status_dukcapil`)
+  menjadi `null`;
+- wajib hadir di setiap record: `nik_siswa`, `nama_siswa`, `kelas`, `status_daftar`,
+  `_sources`, `_catatan`, `_asal_data`;
+- opsional: `--manifest <file>` membandingkan hasil dry-run dengan manifest skema
+  (hash, ukuran, 110 field, kehadiran per field, key per record, metadata, core_map);
 - `status_daftar` adalah **field operasional** di luar `fields`, sehingga payload berisi
   111 key (110 sumber + 1 operasional). Ini bukan duplikasi. Key lain di luar field
   sumber, field operasional, dan metadata ditolak;
