@@ -14,7 +14,24 @@
 -- Tes memakai uid admin pertama dari public.user_roles untuk mensimulasikan
 -- session admin (hanya di dalam transaksi ini, lewat request.jwt.claims), dan
 -- uid acak yang tidak ada di user_roles untuk mensimulasikan user non-admin.
+--
+-- Tes TIDAK membuat akun, TIDAK menulis ke user_roles/auth.users, dan TIDAK
+-- membuat tabel/fungsi permanen. Satu-satunya objek yang dibuat adalah tabel
+-- TEMPORARY untuk hasil, yang hanya terlihat oleh session ini dan hilang saat
+-- session SQL Editor ditutup.
+--
+-- Bagian F (Kebersihan) membuktikan setelah tes berhasil: tidak ada siswa/batch
+-- fiktif tersisa, jumlah user_roles dan auth.users tidak berubah, tidak ada
+-- objek permanen milik tes, dan role/JWT claims sudah kembali normal.
+-- Untuk kasus tes GAGAL, gunakan query "Cek kebersihan" di supabase/README.md.
 -- =============================================================================
+
+-- Kondisi session sebelum tes (dibandingkan lagi di akhir).
+drop table if exists pg_temp.student_rls_test_session;
+create temp table student_rls_test_session as
+select current_user::text                                          as role_before,
+       coalesce(current_setting('request.jwt.claims', true), '')    as claims_before,
+       coalesce(current_setting('request.jwt.claim.sub', true), '') as claim_sub_before;
 
 drop table if exists pg_temp.student_rls_test_results;
 create temp table student_rls_test_results (
@@ -39,8 +56,14 @@ declare
     v_direct    record;
     v_log       jsonb := '[]'::jsonb;
     v_no        integer := 0;
+    v_base_user_roles  bigint;
+    v_base_auth_users  bigint;
 begin
     -- ---------------------------------------------------------------- persiapan
+    -- Jumlah awal, dibandingkan lagi di bagian F.
+    select count(*) into v_base_user_roles from public.user_roles;
+    select count(*) into v_base_auth_users from auth.users;
+
     execute 'set local role service_role';
 
     select ur.user_id into v_admin
@@ -385,7 +408,50 @@ begin
     -- ------------------------------------------------------ bersihkan data uji
     delete from public.student_records where nik in (c_nik_a, c_nik_b, c_nik_c);
     delete from public.student_import_batches where id = v_batch;
+
+    -- ----------------------------------------------------- F. kebersihan
+    -- Masih sebagai service_role (melewati RLS) agar pemeriksaan melihat semua baris.
+    v_no := v_no + 1;
+    select count(*) into v_count from public.student_records where nik like '990000000000000_';
+    if v_count <> 0 then
+        raise exception 'GAGAL F%: % siswa fiktif tersisa', v_no, v_count;
+    end if;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Kebersihan', 'u', 'Tidak ada siswa fiktif tersisa');
+
+    v_no := v_no + 1;
+    select count(*) into v_count from public.student_import_batches
+    where id = v_batch or source_name in ('UJI-RLS-FIKTIF', 'UJI-ADMIN');
+    if v_count <> 0 then
+        raise exception 'GAGAL F%: % batch impor fiktif tersisa', v_no, v_count;
+    end if;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Kebersihan', 'u', 'Tidak ada batch impor fiktif tersisa');
+
     execute 'reset role';
+    -- Kembalikan JWT claims ke nilai sebelum tes.
+    perform set_config('request.jwt.claims',
+        (select claims_before from student_rls_test_session), true);
+
+    v_no := v_no + 1;
+    if (select count(*) from public.user_roles) <> v_base_user_roles
+       or (select count(*) from auth.users) <> v_base_auth_users
+       or exists (select 1 from public.user_roles where user_id = v_nonadmin) then
+        raise exception 'GAGAL F%: jumlah user_roles/auth.users berubah', v_no;
+    end if;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Kebersihan', 'u', 'user_roles dan auth.users tidak berubah (tidak ada akun uji)');
+
+    v_no := v_no + 1;
+    select count(*) into v_count
+    from (
+        select c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where c.relname like 'student_rls_test%' and n.nspname not like 'pg_temp%' and n.nspname not like 'pg_toast_temp%'
+        union all
+        select p.proname from pg_proc p
+        where p.proname like 'student_rls_test%'
+    ) leftovers;
+    if v_count <> 0 then
+        raise exception 'GAGAL F%: ada % objek permanen milik tes', v_no, v_count;
+    end if;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Kebersihan', 'u', 'Tidak ada tabel/fungsi permanen milik tes');
 
     insert into student_rls_test_results (no, kelompok, uji, hasil)
     select (e->>'no')::int, e->>'k', e->>'u', 'LULUS'
@@ -393,4 +459,18 @@ begin
 end
 $test$;
 
-select no, kelompok, uji, hasil from student_rls_test_results order by no;
+-- Dijalankan SETELAH blok DO selesai: membuktikan role dan JWT claims tidak
+-- terbawa ke statement berikutnya.
+select no, kelompok, uji, hasil
+from student_rls_test_results
+union all
+select
+    (select count(*) from student_rls_test_results)::int + 1,
+    'Kebersihan',
+    'Role dan JWT claims kembali seperti sebelum tes',
+    case when current_user::text = b.role_before
+              and coalesce(current_setting('request.jwt.claims', true), '') = b.claims_before
+              and coalesce(current_setting('request.jwt.claim.sub', true), '') = b.claim_sub_before
+         then 'LULUS' else 'GAGAL' end
+from student_rls_test_session b
+order by no;
