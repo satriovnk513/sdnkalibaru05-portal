@@ -90,20 +90,21 @@
                         </div>
                     </div>
                 </div>
-                <form class="contact-form" onsubmit="event.preventDefault(); alert('Pesan Anda telah terkirim!');">
+                <form class="contact-form" id="contactForm">
                     <div class="form-group">
-                        <input type="text" placeholder="Nama Lengkap" required>
+                        <input type="text" name="name" placeholder="Nama Lengkap" aria-label="Nama Lengkap" maxlength="100" required>
                     </div>
                     <div class="form-group">
-                        <input type="email" placeholder="Alamat Email" required>
+                        <input type="email" name="email" placeholder="Alamat Email" aria-label="Alamat Email" maxlength="150" required>
                     </div>
                     <div class="form-group">
-                        <input type="text" placeholder="Subjek Pesan" required>
+                        <input type="text" name="subject" placeholder="Subjek Pesan" aria-label="Subjek Pesan" maxlength="150" required>
                     </div>
                     <div class="form-group">
-                        <textarea rows="5" placeholder="Tuliskan pesan atau pertanyaan Anda di sini..." required></textarea>
+                        <textarea name="message" rows="5" placeholder="Tuliskan pesan atau pertanyaan Anda di sini..." aria-label="Pesan" maxlength="1500" required></textarea>
                     </div>
                     <button type="submit" class="btn-primary">Kirim Pesan <i class="fas fa-paper-plane" style="margin-left: 0.5rem;"></i></button>
+                    <p id="contactFormNote" role="status" style="margin-top: 0.75rem; font-size: 0.9rem; color: #64748b;">Pesan akan dibuka di aplikasi email Anda dan dikirim ke sdnkalibarunollima@gmail.com.</p>
                 </form>
             </div>
         </div>
@@ -173,6 +174,21 @@
     <script src="ai-service.js"></script>
     <script src="kalibot.js"></script>
     <script src="main.js"></script>
+    <script>
+        // No backend for messages yet: open the visitor's email app with the message pre-filled
+        document.getElementById('contactForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const value = (name) => form.elements[name].value.trim();
+            const body = `Nama: ${value('name')}\nEmail: ${value('email')}\n\n${value('message')}`;
+            const mailto = 'mailto:sdnkalibarunollima@gmail.com'
+                + '?subject=' + encodeURIComponent('[Website] ' + value('subject'))
+                + '&body=' + encodeURIComponent(body);
+            window.location.href = mailto;
+            document.getElementById('contactFormNote').textContent =
+                'Aplikasi email Anda sedang dibuka. Pesan baru terkirim setelah Anda menekan "Kirim" di aplikasi email. Jika tidak terbuka, kirim langsung ke sdnkalibarunollima@gmail.com atau hubungi 0821-1016-4352.';
+        });
+    </script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>

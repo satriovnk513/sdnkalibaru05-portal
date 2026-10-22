@@ -133,10 +133,21 @@
     <script src="main.js"></script>
     <script>
         function sanitizeHTML(str) {
-            if (!str) return '';
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function sanitizeURL(url) {
+            if (!url) return '';
+            try {
+                const p = new URL(url);
+                return (p.protocol === 'http:' || p.protocol === 'https:') ? p.href : '';
+            } catch { return ''; }
         }
 
         let currentEkskulData = null;
@@ -193,7 +204,9 @@
             currentEkskulPhotoIndex = 0;
             const modal = document.getElementById('ekskulModal');
             document.getElementById('ekskulModalTitle').textContent = item.name;
-            document.getElementById('ekskulModalIcon').innerHTML = `<i class="${item.icon || 'fas fa-star'}"></i>`;
+            const iconEl = document.createElement('i');
+            iconEl.className = String(item.icon || 'fas fa-star');
+            document.getElementById('ekskulModalIcon').replaceChildren(iconEl);
             document.getElementById('ekskulModalDesc').textContent = item.description || '';
             
             modal.style.display = 'flex';
@@ -237,7 +250,7 @@
             modalImg.style.display = 'block';
             modalImg.style.opacity = '0.5';
             modalImg.onload = () => { modalImg.style.opacity = '1'; };
-            modalImg.src = photos[currentEkskulPhotoIndex];
+            modalImg.src = sanitizeURL(photos[currentEkskulPhotoIndex]);
             counter.textContent = `Foto ${currentEkskulPhotoIndex + 1} dari ${photos.length}`;
 
             prevBtn.style.display = currentEkskulPhotoIndex > 0 ? 'flex' : 'none';

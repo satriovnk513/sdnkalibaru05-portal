@@ -1,9 +1,12 @@
-// Sanitize HTML to prevent XSS injection attacks
+// Escape text for HTML text and quoted-attribute contexts
 function sanitizeHTMLNews(str) {
-    if (!str) return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 function sanitizeURLNews(url) {
     if (!url) return '';
@@ -12,11 +15,16 @@ function sanitizeURLNews(url) {
         return (p.protocol === 'http:' || p.protocol === 'https:') ? p.href : '';
     } catch { return ''; }
 }
+function newsLinkFor(news) {
+    return news.slug
+        ? `/berita/${encodeURIComponent(news.slug)}`
+        : `/berita-detail?id=${encodeURIComponent(news.id)}`;
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const { data, error } = await supabaseClient.from('news').select('*').order('created_at', { ascending: false });
-        
+
         if (error) {
             console.error('Supabase error:', error);
             return;
@@ -31,32 +39,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         container.innerHTML = '';
-        data.forEach((news, index) => {
-            const delayClass = index % 3 === 0 ? '' : `delay-${index % 3}`;
-            const safeTitle = sanitizeHTMLNews(news.title);
-            const safeDate = sanitizeHTMLNews(news.date);
-            const safeDesc = sanitizeHTMLNews(news.description);
-            const safeImg = sanitizeURLNews(news.image_url);
-            const safeSlug = news.slug ? sanitizeHTMLNews(news.slug) : '';
-            const newsLink = safeSlug ? `/berita/${safeSlug}` : `berita-detail?id=${sanitizeHTMLNews(news.id)}`;
-            const html = `
-                <article class="news-card">
-                    <div class="news-img" style="background-image: url('${safeImg}')"></div>
-                    <div class="news-content">
-                        <span class="news-date">${safeDate}</span>
-                        <a href="${newsLink}" class="news-title-link">
-                            <h3 class="news-title">${safeTitle}</h3>
-                        </a>
-                        <p>${safeDesc}</p>
-                        <a href="${newsLink}" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
-                    </div>
-                </article>
+        data.forEach((news) => {
+            const newsLink = sanitizeHTMLNews(newsLinkFor(news));
+            const article = document.createElement('article');
+            article.className = 'news-card';
+            article.innerHTML = `
+                <div class="news-img"></div>
+                <div class="news-content">
+                    <span class="news-date">${sanitizeHTMLNews(news.date)}</span>
+                    <a href="${newsLink}" class="news-title-link">
+                        <h3 class="news-title">${sanitizeHTMLNews(news.title)}</h3>
+                    </a>
+                    <p>${sanitizeHTMLNews(news.description)}</p>
+                    <a href="${newsLink}" class="read-more">Baca Selengkapnya <i class="fas fa-arrow-right"></i></a>
+                </div>
             `;
-            container.innerHTML += html;
+            const img = sanitizeURLNews(news.image_url);
+            if (img) article.querySelector('.news-img').style.backgroundImage = `url(${JSON.stringify(img)})`;
+            container.appendChild(article);
         });
 
     } catch (err) {
         console.error('Fetch error:', err);
     }
 });
-

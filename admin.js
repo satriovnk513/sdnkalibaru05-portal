@@ -168,17 +168,20 @@ async function loadStaff() {
         
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><img src="${safeImg}" alt="Foto" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;"></td>
+            <td><img src="${escapeHtml(safeImg)}" alt="Foto" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;"></td>
             <td>${safeName}</td>
             <td>${safeDisplayRole}</td>
-            <td>${staff.order_index || 99}</td>
+            <td>${escapeHtml(staff.order_index || 99)}</td>
             <td>
                 <div class="td-actions">
-                <button class="btn-edit" onclick="editStaff('${staff.id}', '${safeName.replace(/'/g, "\\\'")}', '${escapeHtml(staff.role).replace(/'/g, "\\\'")}', '${escapeHtml(staff.nip || '').replace(/'/g, "\\\'")}', '${safeImg}', ${staff.order_index})">✏️ Edit</button>
-                <button class="btn-delete" onclick="deleteStaff('${staff.id}')">🗑 Hapus</button>
+                <button class="btn-edit">✏️ Edit</button>
+                <button class="btn-delete">🗑 Hapus</button>
                 </div>
             </td>
         `;
+        tr.querySelector('.btn-edit').addEventListener('click', () =>
+            editStaff(staff.id, staff.name || '', staff.role || '', staff.nip || '', safeImg, staff.order_index));
+        tr.querySelector('.btn-delete').addEventListener('click', () => deleteStaff(staff.id));
         tbody.appendChild(tr);
     });
 }
@@ -371,7 +374,7 @@ function renderPdfPreviews() {
     selectedPdfFiles.forEach((file, i) => {
         const wrap = document.createElement('div');
         wrap.className = 'preview-pdf-item';
-        wrap.innerHTML = `📄 <span title="${file.name}">${file.name}</span>
+        wrap.innerHTML = `📄 <span title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
             <button type="button" class="remove-btn" title="Hapus">&#10005;</button>`;
         wrap.querySelector('.remove-btn').onclick = () => {
             selectedPdfFiles.splice(i, 1);
@@ -390,7 +393,7 @@ function renderExistingImgs() {
     existingImgUrls.forEach((url, i) => {
         const chip = document.createElement('div');
         chip.className = 'existing-img-chip';
-        chip.innerHTML = `<img src="${url}" alt="img">
+        chip.innerHTML = `<img src="${escapeHtml(url)}" alt="img">
             <button type="button" class="remove-existing" title="Hapus">&#10005;</button>`;
         chip.querySelector('.remove-existing').onclick = () => {
             existingImgUrls.splice(i, 1);
@@ -409,7 +412,7 @@ function renderExistingPdfs() {
     existingPdfAttachments.forEach((att, i) => {
         const chip = document.createElement('div');
         chip.className = 'existing-pdf-chip';
-        chip.innerHTML = `📄 <span title="${att.filename}">${att.filename}</span>
+        chip.innerHTML = `📄 <span title="${escapeHtml(att.filename)}">${escapeHtml(att.filename)}</span>
             <button type="button" class="remove-existing" title="Hapus">&#10005;</button>`;
         chip.querySelector('.remove-existing').onclick = () => {
             existingPdfAttachments.splice(i, 1);
@@ -480,16 +483,18 @@ async function loadNews() {
         const safeDate = escapeHtml(item.date);
         const dataAttr = encodeURIComponent(JSON.stringify(item));
         tr.innerHTML = `
-            <td><img src="${thumbUrl}" alt="Foto" style="width: 80px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
+            <td><img src="${escapeHtml(thumbUrl)}" alt="Foto" style="width: 80px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
             <td>${safeTitle}</td>
             <td>${safeDate}</td>
             <td>
                 <div class="td-actions">
-                <button class="btn-edit" onclick="editNews('${item.id}', '${dataAttr}')">✏️ Edit</button>
-                <button class="btn-delete" onclick="deleteNews('${item.id}')">🗑 Hapus</button>
+                <button class="btn-edit">✏️ Edit</button>
+                <button class="btn-delete">🗑 Hapus</button>
                 </div>
             </td>
         `;
+        tr.querySelector('.btn-edit').addEventListener('click', () => editNews(item.id, dataAttr));
+        tr.querySelector('.btn-delete').addEventListener('click', () => deleteNews(item.id));
         tbody.appendChild(tr);
     });
 }
@@ -768,7 +773,7 @@ async function loadGallery() {
         .order('created_at', { ascending: false });
 
     if (error) {
-        grid.innerHTML = `<p style="color:#dc2626;font-size:0.9rem;">Gagal memuat galeri: ${error.message}</p>`;
+        grid.innerHTML = `<p style="color:#dc2626;font-size:0.9rem;">Gagal memuat galeri: ${escapeHtml(error.message)}</p>`;
         return;
     }
 
@@ -789,19 +794,21 @@ async function loadGallery() {
         const safeUrl = (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) ? rawUrl : '';
 
         const mediaEl = isVideo
-            ? `<video src="${safeUrl}" muted playsinline preload="metadata"
+            ? `<video src="${escapeHtml(safeUrl)}" muted playsinline preload="metadata"
                     onerror="this.parentElement.style.background='#fee2e2';"></video>
                <span class="media-type-badge">&#127916; VIDEO</span>`
-            : `<img src="${safeUrl}" alt="${safeCaption || 'Galeri'}" loading="lazy"
+            : `<img src="${escapeHtml(safeUrl)}" alt="${safeCaption || 'Galeri'}" loading="lazy"
                     onerror="this.src='https://via.placeholder.com/200x200.png?text=Error';">`;
 
         el.innerHTML = `
             ${mediaEl}
             <div class="gallery-item-overlay">
                 <span class="gallery-caption">${safeCaption || '(tanpa keterangan)'}</span>
-                <button class="btn-delete-gallery" onclick="deleteGallery('${item.id}', this)">&#128465; Hapus</button>
+                <button class="btn-delete-gallery">&#128465; Hapus</button>
             </div>
         `;
+        const delBtn = el.querySelector('.btn-delete-gallery');
+        delBtn.addEventListener('click', () => deleteGallery(item.id, delBtn));
         grid.appendChild(el);
     });
 }
@@ -947,7 +954,7 @@ function renderExistingEkskulImgs() {
     existingEkskulImgUrls.forEach((url, i) => {
         const chip = document.createElement('div');
         chip.className = 'existing-img-chip';
-        chip.innerHTML = `<img src="${url}" alt="img">
+        chip.innerHTML = `<img src="${escapeHtml(url)}" alt="img">
             <button type="button" class="remove-existing" title="Hapus">&#10005;</button>`;
         chip.querySelector('.remove-existing').onclick = () => {
             existingEkskulImgUrls.splice(i, 1);
@@ -975,7 +982,7 @@ async function loadEkskul() {
     
     if (error) {
         console.error('Error loading extracurricular:', error);
-        tbody.innerHTML = `<tr><td colspan="5" style="color:#dc2626">Gagal memuat data: ${error.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="color:#dc2626">Gagal memuat data: ${escapeHtml(error.message)}</td></tr>`;
         return;
     }
 
@@ -998,14 +1005,16 @@ async function loadEkskul() {
             <td><div style="width:36px;height:36px;background:#fef2f2;color:#da251c;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;"><i class="${safeIcon}"></i></div></td>
             <td><strong>${safeName}</strong><br><small style="color:#64748b">${safeDesc}</small></td>
             <td><span style="background:#e0f2fe;color:#0369a1;font-weight:700;padding:2px 8px;border-radius:12px;font-size:0.8rem;">📷 ${numPhotos} foto</span></td>
-            <td>${item.order_index || 99}</td>
+            <td>${escapeHtml(item.order_index || 99)}</td>
             <td>
                 <div class="td-actions">
-                <button class="btn-edit" onclick="editEkskul('${item.id}', '${dataAttr}')">✏️ Edit</button>
-                <button class="btn-delete" onclick="deleteEkskul('${item.id}')">🗑 Hapus</button>
+                <button class="btn-edit">✏️ Edit</button>
+                <button class="btn-delete">🗑 Hapus</button>
                 </div>
             </td>
         `;
+        tr.querySelector('.btn-edit').addEventListener('click', () => editEkskul(item.id, dataAttr));
+        tr.querySelector('.btn-delete').addEventListener('click', () => deleteEkskul(item.id));
         tbody.appendChild(tr);
     });
 }
@@ -1166,17 +1175,20 @@ async function loadAIMemory() {
                 <td>${statusBadge}</td>
                 <td>
                     <div class="td-actions">
-                        <button onclick="toggleAIMemoryStatus('${item.id}', ${item.is_active})" style="background: ${item.is_active ? '#f1f5f9' : '#dcfce7'}; color: ${item.is_active ? '#475569' : '#166534'}; border: none; padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;">${item.is_active ? '⏸ Matikan' : '▶ Aktifkan'}</button>
-                        <button class="btn-edit" onclick="editAIMemory('${item.id}')">✏️ Edit</button>
-                        <button class="btn-delete" onclick="deleteAIMemory('${item.id}')">🗑 Hapus</button>
+                        <button class="btn-toggle-memory" style="background: ${item.is_active ? '#f1f5f9' : '#dcfce7'}; color: ${item.is_active ? '#475569' : '#166534'}; border: none; padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;">${item.is_active ? '⏸ Matikan' : '▶ Aktifkan'}</button>
+                        <button class="btn-edit">✏️ Edit</button>
+                        <button class="btn-delete">🗑 Hapus</button>
                     </div>
                 </td>
             `;
+            tr.querySelector('.btn-toggle-memory').addEventListener('click', () => toggleAIMemoryStatus(item.id, !!item.is_active));
+            tr.querySelector('.btn-edit').addEventListener('click', () => editAIMemory(item.id));
+            tr.querySelector('.btn-delete').addEventListener('click', () => deleteAIMemory(item.id));
             tbody.appendChild(tr);
         });
     } catch (err) {
         console.error('Error loading AI Memory:', err);
-        tbody.innerHTML = `<tr><td colspan="4" style="color: #ef4444;">Gagal memuat data memori: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="color: #ef4444;">Gagal memuat data memori: ${escapeHtml(err.message)}</td></tr>`;
     }
 }
 
@@ -1451,7 +1463,8 @@ function showToast(message, type = 'success') {
     const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `<span>${icons[type] || ''}</span> <span>${message}</span>`;
+    toast.innerHTML = `<span>${icons[type] || ''}</span> <span></span>`;
+    toast.lastElementChild.textContent = String(message);
     container.appendChild(toast);
     
     setTimeout(() => {
@@ -1499,7 +1512,7 @@ function initTableSearch() {
 }
 
 function escapeHtml(str) {
-    if (!str) return '';
+    if (str === null || str === undefined) return '';
     return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')

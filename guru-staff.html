@@ -140,9 +140,11 @@
             
             modalImg.src = src;
             modalCaption.innerHTML = `
-                <div style="font-weight: 700; font-size: 1.4rem; margin-bottom: 5px; font-family: var(--font-heading);">${name}</div>
-                <div style="color: #f43f5e; font-weight: 600; font-size: 1.1rem; margin-bottom: 5px;">${role}</div>
+                <div style="font-weight: 700; font-size: 1.4rem; margin-bottom: 5px; font-family: var(--font-heading);"></div>
+                <div style="color: #f43f5e; font-weight: 600; font-size: 1.1rem; margin-bottom: 5px;"></div>
             `;
+            modalCaption.children[0].textContent = name || '';
+            modalCaption.children[1].textContent = role || '';
             document.body.style.overflow = 'hidden'; // Disable scroll
         }
 
