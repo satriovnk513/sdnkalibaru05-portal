@@ -13,3 +13,11 @@ desktop.ini
 .env*.local
 .env.local
 *.env
+
+# Data siswa PRIVAT — jangan pernah di-commit (berisi NIK, KK, HP, alamat, keluarga)
+data-private/
+student-data*.json
+student-data*.csv
+student-data*.xlsx
+*.student.json
+import-report*.json

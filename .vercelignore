@@ -1,2 +1,5 @@
 tests/
 netlify.toml
+supabase/
+scripts/
+data-private/
