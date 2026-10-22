@@ -34,6 +34,18 @@ node scripts/import-students.mjs --file ~/private/sdnkalibaru05-students/<file>.
 
 Validasi seluruh file dilakukan **sebelum** ada penulisan apa pun:
 
+- struktur wajib: top-level object dengan `records` (array) dan `fields` (array string).
+  Key lain (`version`, `school`, `schoolYear`, `labels`, `summary`) diabaikan, tetapi
+  namanya dilaporkan;
+- `fields` berisi tepat 110 nama unik, dan setiap nama ada di setiap record;
+- `status_daftar` adalah **field operasional** di luar `fields`, sehingga payload berisi
+  111 key (110 sumber + 1 operasional). Ini bukan duplikasi. Key lain di luar field
+  sumber, field operasional, dan metadata ditolak;
+- mapping kolom inti (key sumber tetap dipakai apa adanya di `payload`):
+  `nik`←`nik_siswa`, `nama_siswa`←`nama_siswa`, `nipd`←`siswa_nipd`,
+  `nisn`←`siswa_nisn`, `kelas`←`kelas`, `nama_ibu_kandung`←`siswa_nama_ibu_kandung`,
+  `status_daftar`←`status_daftar`, `status_dukcapil`←`status_dukcapil`. Semuanya wajib
+  ada dan bertipe teks atau null;
 - total 559, tercantum 535, perlu verifikasi 24, rombel 17;
 - NIK 16 digit dan unik, nama siswa tidak kosong;
 - siswa berstatus tercantum wajib punya kelas;

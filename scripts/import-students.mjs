@@ -26,12 +26,22 @@ import { fileURLToPath } from 'node:url';
 export const DEFAULT_SUPABASE_URL = 'https://wwpbghdepykfqgzhyvmh.supabase.co';
 export const STATUS_LISTED = 'Tercantum di daftar kelas';
 export const STATUS_REVIEW = 'Perlu verifikasi lebih lanjut';
-export const EXPECTED = Object.freeze({ total: 559, listed: 535, review: 24, rombel: 17 });
+export const EXPECTED = Object.freeze({ total: 559, listed: 535, review: 24, rombel: 17, fields: 110 });
 
-// Kolom inti student_records <- key pada JSON sumber (nama sama).
-export const CORE_FIELDS = Object.freeze([
-    'nik', 'nama_siswa', 'nipd', 'nisn', 'kelas', 'nama_ibu_kandung', 'status_daftar', 'status_dukcapil',
-]);
+// Kolom inti student_records <- key pada record sumber. Payload tetap memakai key asli.
+export const CORE_MAP = Object.freeze({
+    nik: 'nik_siswa',
+    nama_siswa: 'nama_siswa',
+    nipd: 'siswa_nipd',
+    nisn: 'siswa_nisn',
+    kelas: 'kelas',
+    nama_ibu_kandung: 'siswa_nama_ibu_kandung',
+    status_daftar: 'status_daftar',
+    status_dukcapil: 'status_dukcapil',
+});
+export const CORE_FIELDS = Object.freeze(Object.keys(CORE_MAP));
+// Field operasional di luar daftar `fields` sumber.
+export const OPERATIONAL_FIELDS = Object.freeze(['status_daftar']);
 export const META_FIELDS = Object.freeze({
     _sources: { column: 'field_sources', type: 'object' },
     _catatan: { column: 'matching_notes', type: 'array' },
@@ -73,15 +83,19 @@ export function sha256(buf) {
 }
 
 // ----------------------------------------------------------------------------- validasi
-export function parseRecords(text) {
+/**
+ * Struktur wajib: object dengan `records` (array) dan `fields` (array string).
+ * Key top-level lain (version, school, schoolYear, labels, summary) diabaikan.
+ */
+export function parseDocument(text) {
     let data;
     try { data = JSON.parse(text); } catch { throw new ImportError('File bukan JSON yang valid.'); }
-    if (Array.isArray(data)) return data;
-    if (data && typeof data === 'object') {
-        const arrays = Object.keys(data).filter((k) => Array.isArray(data[k]));
-        if (arrays.length === 1) return data[arrays[0]];
+    if (typeOf(data) !== 'object') throw new ImportError('Struktur JSON tidak dikenali: top-level harus object.');
+    if (!Array.isArray(data.records)) throw new ImportError('Struktur JSON tidak dikenali: "records" harus array.');
+    if (!Array.isArray(data.fields) || !data.fields.every((f) => typeof f === 'string')) {
+        throw new ImportError('Struktur JSON tidak dikenali: "fields" harus array string.');
     }
-    throw new ImportError('Struktur JSON tidak dikenali: harus array siswa, atau object dengan tepat satu array.');
+    return { fields: data.fields, records: data.records, topLevelKeys: Object.keys(data) };
 }
 
 /**
@@ -89,9 +103,26 @@ export function parseRecords(text) {
  * Tidak mengubah nilai sumber: nilai disalin apa adanya.
  * Melempar ImportError berisi daftar masalah (tanpa nilai pribadi).
  */
-export function validateAndBuild(records, expected = EXPECTED) {
-    const issues = [];
+export function validateAndBuild({ fields, records }, expected = EXPECTED) {
+    const issues = [];      // per record, dibatasi 200 baris
+    const structural = [];  // struktur & agregat, selalu dilaporkan
     const add = (msg) => { if (issues.length < 200) issues.push(msg); };
+    const addS = (msg) => structural.push(msg);
+
+    // ---- struktur: fields & mapping
+    if (!Array.isArray(fields) || !fields.every((f) => typeof f === 'string')) throw new ImportError('"fields" harus array string.');
+    const fieldSet = new Set(fields);
+    const dupFields = fields.filter((f, i) => fields.indexOf(f) !== i);
+    if (fields.length !== expected.fields) addS(`"fields" berisi ${fields.length} nama, seharusnya ${expected.fields}`);
+    if (dupFields.length) addS(`"fields" memuat nama ganda: ${[...new Set(dupFields)].join(', ')}`);
+    for (const k of Object.keys(META_FIELDS)) if (fieldSet.has(k)) addS(`"fields" tidak boleh memuat metadata ${k}`);
+    const operational = OPERATIONAL_FIELDS.filter((f) => !fieldSet.has(f));
+    const allowed = new Set([...fields, ...operational]);
+    for (const [col, src] of Object.entries(CORE_MAP)) {
+        if (!allowed.has(src)) addS(`mapping kolom inti ${col} <- "${src}" tidak ada di "fields" maupun field operasional`);
+    }
+    const missingCount = new Map();
+    const extraCount = new Map();
     const rows = [];
     const nikSeen = new Map();
     const fieldKeys = new Set();
@@ -108,6 +139,12 @@ export function validateAndBuild(records, expected = EXPECTED) {
 
         const payload = {};
         const row = { field_sources: null, matching_notes: null, source_names: null };
+
+        for (const f of allowed) if (!(f in rec)) missingCount.set(f, (missingCount.get(f) || 0) + 1);
+        for (const k of Object.keys(rec)) {
+            if (!(k in META_FIELDS) && !allowed.has(k)) extraCount.set(k, (extraCount.get(k) || 0) + 1);
+        }
+        for (const k of Object.keys(META_FIELDS)) if (!(k in rec)) missingCount.set(k, (missingCount.get(k) || 0) + 1);
 
         for (const [key, value] of Object.entries(rec)) {
             if (key in META_FIELDS) {
@@ -128,15 +165,16 @@ export function validateAndBuild(records, expected = EXPECTED) {
             }
         }
 
-        // Kolom inti: salin apa adanya; harus teks atau null.
-        for (const col of CORE_FIELDS) {
-            const v = rec[col];
+        // Kolom inti dari key sumber (mapping); salin apa adanya; harus teks atau null.
+        for (const [col, src] of Object.entries(CORE_MAP)) {
+            const v = rec[src];
             if (v === undefined || v === null) { row[col] = null; continue; }
-            if (typeof v !== 'string') { add(`record #${n}: kolom "${col}" harus teks`); row[col] = null; continue; }
+            if (typeof v !== 'string') { add(`record #${n}: field "${src}" (kolom ${col}) harus teks`); row[col] = null; continue; }
             row[col] = v;
         }
 
-        if (typeof row.nik !== 'string' || !/^[0-9]{16}$/.test(row.nik)) add(`record #${n}: NIK kosong atau bukan 16 digit`);
+
+        if (typeof row.nik !== 'string' || !/^[0-9]{16}$/.test(row.nik)) add(`record #${n}: NIK (${CORE_MAP.nik}) kosong atau bukan 16 digit`);
         else if (nikSeen.has(row.nik)) add(`record #${n}: NIK sama dengan record #${nikSeen.get(row.nik)}`);
         else nikSeen.set(row.nik, n);
 
@@ -148,6 +186,8 @@ export function validateAndBuild(records, expected = EXPECTED) {
             else rombel.set(row.kelas, (rombel.get(row.kelas) || 0) + 1);
         } else if (row.status_daftar === STATUS_REVIEW) {
             review += 1;
+        } else if (row.status_daftar === null) {
+            if (CORE_MAP.status_daftar in rec) add(`record #${n}: status_daftar kosong`);
         } else {
             add(`record #${n}: status_daftar tidak dikenal`);
         }
@@ -157,24 +197,32 @@ export function validateAndBuild(records, expected = EXPECTED) {
         rows.push(row);
     });
 
+    for (const [f, c] of missingCount) addS(`field "${f}" tidak ada pada ${c} record`);
+    for (const [f, c] of extraCount) addS(`key tak dikenal "${f}" (bukan field sumber/operasional/metadata) pada ${c} record`);
+
     const total = records.length;
-    if (total !== expected.total) add(`Total siswa ${total}, seharusnya ${expected.total}`);
-    if (listed !== expected.listed) add(`"${STATUS_LISTED}" ${listed}, seharusnya ${expected.listed}`);
-    if (review !== expected.review) add(`"${STATUS_REVIEW}" ${review}, seharusnya ${expected.review}`);
-    if (rombel.size !== expected.rombel) add(`Rombel ${rombel.size}, seharusnya ${expected.rombel}`);
+    if (total !== expected.total) addS(`Total siswa ${total}, seharusnya ${expected.total}`);
+    if (listed !== expected.listed) addS(`"${STATUS_LISTED}" ${listed}, seharusnya ${expected.listed}`);
+    if (review !== expected.review) addS(`"${STATUS_REVIEW}" ${review}, seharusnya ${expected.review}`);
+    if (rombel.size !== expected.rombel) addS(`Rombel ${rombel.size}, seharusnya ${expected.rombel}`);
 
     const report = {
         total, listed, review,
         rombel: rombel.size,
         siswa_per_rombel: Object.fromEntries([...rombel.entries()].sort(([a], [b]) => a.localeCompare(b, 'id', { numeric: true }))),
         nik_unik: nikSeen.size,
-        jumlah_field_payload: fieldKeys.size,
+        field_sumber: fields.length,
+        field_operasional: operational,
+        key_payload: allowed.size,
         field_identifier_teks: [...fieldKeys].filter(isIdentifierKey).sort(),
         field_angka_non_identifier: [...numericNonIdentifierKeys].sort(),
         record_dengan_metadata: metaPresent,
-        kolom_inti_hadir: Object.fromEntries(CORE_FIELDS.map((c) => [c, fieldKeys.has(c)])),
+        mapping_inti: Object.fromEntries(Object.entries(CORE_MAP).map(([c, src]) => [c, src])),
     };
-    if (issues.length) throw new ImportError(`Validasi gagal (${issues.length}${issues.length >= 200 ? '+' : ''} masalah).`, issues);
+    if (structural.length || issues.length) {
+        const all = [...structural, ...issues];
+        throw new ImportError(`Validasi gagal (${all.length}${issues.length >= 200 ? '+' : ''} masalah).`, all);
+    }
     return { rows, report };
 }
 
@@ -183,8 +231,9 @@ export function loadAndValidate(filePath, { expected = EXPECTED, enforceLocation
     if (enforceLocation && loc.issues.length) throw new ImportError('Lokasi/izin file tidak aman.', loc.issues);
     const buf = readFileSync(loc.real);
     const hash = sha256(buf);
-    const records = parseRecords(buf.toString('utf8'));
-    const { rows, report } = validateAndBuild(records, expected);
+    const doc = parseDocument(buf.toString('utf8'));
+    const { rows, report } = validateAndBuild(doc, expected);
+    report.top_level_keys = doc.topLevelKeys;
     return { rows, report, hash, bytes: buf.length, sourceName: basename(loc.real), location: loc };
 }
 
@@ -388,8 +437,11 @@ function printDryRun(r) {
     console.log(`Rombel          : ${rep.rombel} (target ${EXPECTED.rombel})`);
     console.log(`NIK unik 16 digit: ${rep.nik_unik}`);
     console.log(`Siswa per rombel: ${JSON.stringify(rep.siswa_per_rombel)}`);
-    console.log(`Field payload   : ${rep.jumlah_field_payload}`);
-    console.log(`Kolom inti hadir: ${JSON.stringify(rep.kolom_inti_hadir)}`);
+    console.log(`Key top-level   : ${rep.top_level_keys.join(', ')}`);
+    console.log(`Field sumber    : ${rep.field_sumber} (dari "fields", nama unik, ada di setiap record)`);
+    console.log(`Field operasional: ${rep.field_operasional.length} (${rep.field_operasional.join(', ') || '-'}), bukan duplikasi`);
+    console.log(`Key payload     : ${rep.key_payload} (= ${rep.field_sumber} sumber + ${rep.field_operasional.length} operasional; nama key asli dipertahankan)`);
+    console.log(`Mapping inti    : ${Object.entries(rep.mapping_inti).map(([c, s]) => `${c}<-${s}`).join(', ')}`);
     console.log(`Field identifier (wajib teks, lulus): ${rep.field_identifier_teks.join(', ') || '-'}`);
     console.log(`Field bernilai angka (bukan identifier): ${rep.field_angka_non_identifier.join(', ') || '-'}`);
     console.log(`Record dengan metadata: ${JSON.stringify(rep.record_dengan_metadata)}`);
