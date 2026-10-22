@@ -440,6 +440,108 @@
             .toast-container { left: 1rem; right: 1rem; bottom: 1rem; }
             .toast { max-width: none; }
         }
+
+        /* ── Logo ── */
+        .brand-logo { width: 40px; height: 40px; object-fit: contain; border-radius: 10px; background: #fff; padding: 3px; flex-shrink: 0; }
+        .login-decor-logo { width: 96px; height: 96px; object-fit: contain; border-radius: 20px; background: #fff; padding: 8px; margin-bottom: 1.5rem; }
+
+        /* ── Data Siswa ── */
+        .main-area { min-width: 0; } /* tabel lebar tidak boleh melebarkan halaman */
+        .stu-muted { color: #6c757d; font-size: 0.85rem; }
+        .stu-head p { margin-top: 0.25rem; }
+        .stu-dash-head { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; margin-top: -0.5rem; }
+        .stu-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+        .stu-toolbar { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 0.75rem; }
+        .stu-search-wrap { display: flex; gap: 0.6rem; }
+        .stu-search-wrap .stu-search { margin-bottom: 0; flex: 1; min-width: 0; }
+        .stu-filters { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+        .stu-select {
+            padding: 0.6rem 2rem 0.6rem 0.8rem; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #f8f9fa;
+            font-family: 'Inter', sans-serif; font-size: 0.88rem; color: #1a1a2e; outline: none; cursor: pointer; min-width: 0;
+        }
+        .stu-select:focus { border-color: #c0392b; background: #fff; box-shadow: 0 0 0 3px rgba(192,57,43,0.08); }
+        .stu-btn { border: none; border-radius: 10px; padding: 0.62rem 1rem; font-weight: 600; font-size: 0.86rem; cursor: pointer; transition: 0.15s; font-family: 'Inter', sans-serif; white-space: nowrap; }
+        .stu-btn:disabled { opacity: 0.6; cursor: wait; }
+        .stu-btn-primary { background: #c0392b; color: #fff; margin-left: auto; }
+        .stu-btn-primary:hover:not(:disabled) { background: #a93226; }
+        .stu-btn-ghost { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+        .stu-btn-ghost:hover { background: #e2e8f0; }
+        .stu-btn-view { background: #eff6ff; color: #1d4ed8; padding: 0.4rem 0.75rem; font-size: 0.78rem; border-radius: 8px; }
+        .stu-btn-view:hover { background: #dbeafe; }
+        .stu-info-row { margin-bottom: 0.6rem; min-height: 1.2rem; }
+        .stu-table { min-width: 860px; }
+        .stu-table th, .stu-table td { padding-left: 0.7rem; padding-right: 0.7rem; }
+        .stu-col-ibu { max-width: 170px; overflow-wrap: break-word; }
+        .stu-col-action { width: 1%; white-space: nowrap; }
+        .stu-table td { vertical-align: top; }
+        .stu-col-name { min-width: 170px; }
+        .stu-name { font-weight: 600; color: #1a1a2e; word-break: normal; overflow-wrap: break-word; }
+        .stu-ids { display: flex; flex-direction: column; gap: 2px; font-size: 0.8rem; color: #475569; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .stu-mono { font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .stu-col-status { min-width: 150px; }
+        .stu-badge { display: inline-block; padding: 0.22rem 0.6rem; border-radius: 99px; font-size: 0.74rem; font-weight: 700; line-height: 1.35; }
+        .stu-badge-ok { background: #dcfce7; color: #166534; white-space: nowrap; }
+        .stu-badge-review { background: #fef3c7; color: #92400e; }
+        .stu-state { display: flex; align-items: center; justify-content: center; gap: 0.75rem; padding: 2rem 1rem; color: #6c757d; flex-wrap: wrap; text-align: center; }
+        .stu-state-error { color: #991b1b; }
+        .stu-state-row:hover td { background: transparent; }
+        .stu-pagination { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.35rem; margin-top: 1rem; }
+        .stu-page { min-width: 38px; height: 38px; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; color: #1a1a2e; font-weight: 600; cursor: pointer; padding: 0 0.6rem; }
+        .stu-page:hover:not(:disabled) { border-color: #c0392b; color: #c0392b; }
+        .stu-page.active { background: #c0392b; border-color: #c0392b; color: #fff; }
+        .stu-page:disabled { opacity: 0.4; cursor: not-allowed; }
+        .stu-page-gap { align-self: center; color: #94a3b8; padding: 0 0.2rem; }
+
+        .stu-modal { display: none; position: fixed; inset: 0; z-index: 10001; background: rgba(15,23,42,0.55); backdrop-filter: blur(3px); padding: 2rem 1rem; overflow-y: auto; }
+        .stu-modal.active { display: flex; align-items: flex-start; justify-content: center; }
+        body.stu-modal-open { overflow: hidden; }
+        .stu-modal-box { background: #fff; border-radius: 16px; width: 100%; max-width: 980px; box-shadow: 0 24px 60px rgba(0,0,0,0.25); animation: modalIn 0.2s ease; overflow: hidden; }
+        .stu-modal-head { display: flex; justify-content: space-between; gap: 1rem; padding: 1.4rem 1.5rem 1rem; border-bottom: 1px solid #f0f0f0; }
+        .stu-modal-head h3 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.3rem; font-weight: 800; color: #1a1a2e; }
+        .stu-detail-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+        .stu-chip { background: #f1f5f9; color: #475569; border-radius: 99px; padding: 0.22rem 0.65rem; font-size: 0.76rem; font-weight: 600; }
+        .stu-close { display: grid; place-items: center; background: #f1f5f9; border: none; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 1rem; color: #475569; flex-shrink: 0; }
+        .stu-close:hover { background: #fee2e2; color: #c0392b; }
+        .stu-banner { margin: 1rem 1.5rem 0; background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: 10px; padding: 0.7rem 0.9rem; font-size: 0.86rem; font-weight: 600; }
+        .stu-tabs { display: flex; gap: 0.35rem; padding: 1rem 1.5rem 0; overflow-x: auto; border-bottom: 1px solid #f0f0f0; scrollbar-width: thin; }
+        .stu-tab { background: none; border: none; border-bottom: 3px solid transparent; padding: 0.55rem 0.8rem; font-weight: 600; font-size: 0.86rem; color: #6c757d; cursor: pointer; white-space: nowrap; font-family: 'Inter', sans-serif; }
+        .stu-tab:hover { color: #1a1a2e; }
+        .stu-tab.active { color: #c0392b; border-bottom-color: #c0392b; }
+        .stu-modal-body { padding: 1.25rem 1.5rem 1.5rem; max-height: calc(100vh - 16rem); overflow-y: auto; }
+        .stu-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem 1.5rem; }
+        .stu-detail-item { padding: 0.6rem 0; border-bottom: 1px dashed #eef0f3; min-width: 0; }
+        .stu-detail-wide { grid-column: 1 / -1; }
+        .stu-detail-item dt { font-size: 0.74rem; font-weight: 700; color: #6c757d; text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+        .stu-detail-item dd { margin-top: 0.2rem; font-size: 0.92rem; color: #1a1a2e; overflow-wrap: anywhere; }
+        .stu-detail-item dd.stu-empty { color: #94a3b8; }
+        .stu-src { background: #eef2ff; color: #3730a3; border-radius: 6px; padding: 0.05rem 0.4rem; font-size: 0.66rem; letter-spacing: 0.02em; text-transform: none; }
+        .stu-notes { padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.25rem; }
+        .stu-group-empty { color: #94a3b8; font-size: 0.86rem; margin-bottom: 0.5rem; }
+
+        @media (max-width: 1024px) {
+            .stu-btn-primary { margin-left: 0; }
+        }
+        @media (max-width: 640px) {
+            .stu-search-wrap { flex-direction: column; }
+            .stu-filters > .stu-select { flex: 1 1 45%; }
+            .stu-filters > .stu-btn { flex: 1 1 45%; }
+            .stu-table { min-width: 0; }
+            .stu-table thead { display: none; }
+            .stu-table, .stu-table tbody, .stu-table tr, .stu-table td { display: block; width: 100%; }
+            .stu-table tr { border-bottom: 1px solid #eef0f3; padding: 0.6rem 0.2rem; }
+            .stu-table td { border: none; padding: 0.25rem 0.4rem; display: flex; gap: 0.75rem; justify-content: space-between; align-items: flex-start; }
+            .stu-table td::before { content: attr(data-label); font-size: 0.7rem; font-weight: 700; color: #6c757d; text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; padding-top: 0.15rem; }
+            .stu-table td > * { text-align: right; }
+            .stu-table .stu-state-row td::before { content: none; }
+            .stu-col-name, .stu-col-status { min-width: 0; }
+            .stu-col-ibu { max-width: none; }
+            .stu-col-action { width: 100%; }
+            .stu-ids { align-items: flex-end; }
+            .stu-modal { padding: 0; }
+            .stu-modal-box { border-radius: 0; min-height: 100vh; }
+            .stu-modal-body { max-height: none; }
+            .stu-detail-grid { grid-template-columns: 1fr; }
+        }
     </style>
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" href="/favicon.png">
@@ -451,7 +553,7 @@
     <div class="login-overlay" id="loginOverlay">
         <div class="login-decor">
             <div class="login-decor-content">
-                <span class="login-decor-emoji">🏫</span>
+                <img class="login-decor-logo" src="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png" alt="Logo SDN Kalibaru 05 Pagi" width="96" height="96">
                 <h1>SDN Kalibaru 05 Pagi</h1>
                 <p>Sistem Manajemen Konten Sekolah — kelola informasi, berita, dan galeri sekolah dalam satu dashboard.</p>
                 <div class="login-features">
@@ -487,7 +589,7 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-brand">
-                <span class="brand-icon">🏫</span>
+                <img class="brand-logo" src="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png" alt="Logo SDN Kalibaru 05 Pagi" width="40" height="40">
                 <div>
                     <span class="brand-name">SDN Kalibaru 05</span>
                     <span class="brand-sub">Panel Admin</span>
@@ -499,6 +601,10 @@
                 <a class="nav-item active" data-tab="tabDashboard" onclick="showTab('tabDashboard', this)">
                     <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
                     Dashboard
+                </a>
+                <a class="nav-item" data-tab="tabStudents" onclick="showTab('tabStudents', this)">
+                    <svg viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5"/><path d="M22 10v6"/></svg>
+                    Data Siswa
                 </a>
                 <a class="nav-item" data-tab="tabStaff" onclick="showTab('tabStaff', this)">
                     <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -579,6 +685,25 @@
                             <div><span class="stat-number" id="statEkskul">-</span><span class="stat-label">Ekstrakurikuler</span></div>
                         </div>
                     </div>
+                    <div class="section-header stu-dash-head"><h2>Data Siswa</h2><span class="stu-muted">Tahun ajaran 2026/2027</span></div>
+                    <div class="stat-grid">
+                        <div class="stat-card" onclick="showTab('tabStudents')">
+                            <div class="stat-icon" style="background:#fadbd8;color:#c0392b;">🎓</div>
+                            <div><span class="stat-number" id="dashStuTotal">-</span><span class="stat-label">Data Siswa</span></div>
+                        </div>
+                        <div class="stat-card" onclick="showTab('tabStudents')">
+                            <div class="stat-icon" style="background:#d5f5e3;color:#27ae60;">✅</div>
+                            <div><span class="stat-number" id="dashStuListed">-</span><span class="stat-label">Dalam Daftar Kelas</span></div>
+                        </div>
+                        <div class="stat-card" onclick="showTab('tabStudents')">
+                            <div class="stat-icon" style="background:#fdebd0;color:#e67e22;">⚠️</div>
+                            <div><span class="stat-number" id="dashStuReview">-</span><span class="stat-label">Perlu Verifikasi</span></div>
+                        </div>
+                        <div class="stat-card" onclick="showTab('tabStudents')">
+                            <div class="stat-icon" style="background:#d6eaf8;color:#2980b9;">🏷️</div>
+                            <div><span class="stat-number" id="dashStuRombel">-</span><span class="stat-label">Rombongan Belajar</span></div>
+                        </div>
+                    </div>
                     <div class="quick-actions">
                         <h3>Aksi Cepat</h3>
                         <div class="quick-action-grid">
@@ -589,6 +714,66 @@
                             <a class="quick-action-btn" onclick="showTab('tabAIMemory')"><span>🧠</span> Tambah Memori AI</a>
                             <a class="quick-action-btn" onclick="showTab('tabAISettings')"><span>⚙️</span> Pengaturan AI</a>
                         </div>
+                    </div>
+                </div>
+
+
+                <!-- ═══ TAB DATA SISWA (read-only) ═══ -->
+                <div id="tabStudents" class="tab-content">
+                    <div class="section-header stu-head">
+                        <div>
+                            <h2>Data Siswa</h2>
+                            <p class="stu-muted">Tahun ajaran <span id="stuSchoolYear">2026/2027</span> · hanya baca · data privat, khusus admin</p>
+                        </div>
+                    </div>
+                    <div class="stat-grid">
+                        <div class="stat-card"><div class="stat-icon" style="background:#fadbd8;color:#c0392b;">🎓</div><div><span class="stat-number" id="stuTotal">-</span><span class="stat-label">Data Siswa</span></div></div>
+                        <div class="stat-card"><div class="stat-icon" style="background:#d5f5e3;color:#27ae60;">✅</div><div><span class="stat-number" id="stuListed">-</span><span class="stat-label">Dalam Daftar Kelas</span></div></div>
+                        <div class="stat-card"><div class="stat-icon" style="background:#fdebd0;color:#e67e22;">⚠️</div><div><span class="stat-number" id="stuReview">-</span><span class="stat-label">Perlu Verifikasi</span></div></div>
+                        <div class="stat-card"><div class="stat-icon" style="background:#d6eaf8;color:#2980b9;">🏷️</div><div><span class="stat-number" id="stuRombel">-</span><span class="stat-label">Rombongan Belajar</span></div></div>
+                    </div>
+                    <div class="admin-card">
+                        <div class="stu-toolbar">
+                            <div class="stu-search-wrap">
+                                <label class="stu-sr" for="stuSearch">Cari siswa</label>
+                                <input type="search" class="table-search stu-search" id="stuSearch" placeholder="Cari nama, NIK, NISN, NIPD, atau nama ibu…" autocomplete="off">
+                                <label class="stu-sr" for="stuSearchField">Cari berdasarkan</label>
+                                <select id="stuSearchField" class="stu-select">
+                                    <option value="all">Semua kolom</option>
+                                    <option value="nama_siswa">Nama siswa</option>
+                                    <option value="nik">NIK</option>
+                                    <option value="nisn">NISN</option>
+                                    <option value="nipd">NIPD</option>
+                                    <option value="nama_ibu_kandung">Nama ibu kandung</option>
+                                </select>
+                            </div>
+                            <div class="stu-filters">
+                                <label class="stu-sr" for="stuKelas">Filter kelas</label>
+                                <select id="stuKelas" class="stu-select"><option value="">Semua kelas</option></select>
+                                <label class="stu-sr" for="stuStatus">Filter status</label>
+                                <select id="stuStatus" class="stu-select">
+                                    <option value="">Semua status</option>
+                                    <option value="Tercantum di daftar kelas">Tercantum di daftar kelas</option>
+                                    <option value="Perlu verifikasi lebih lanjut">Perlu verifikasi lebih lanjut</option>
+                                </select>
+                                <label class="stu-sr" for="stuPageSize">Jumlah per halaman</label>
+                                <select id="stuPageSize" class="stu-select">
+                                    <option value="10">10 siswa</option>
+                                    <option value="50">50 siswa</option>
+                                    <option value="all">Semua siswa</option>
+                                </select>
+                                <button type="button" class="stu-btn stu-btn-ghost" id="stuReset">Reset</button>
+                                <button type="button" class="stu-btn stu-btn-primary" id="stuExport">Ekspor CSV</button>
+                            </div>
+                        </div>
+                        <div class="stu-info-row"><span id="stuInfo" class="stu-muted" aria-live="polite"></span></div>
+                        <div class="table-responsive stu-table-wrap">
+                            <table class="stu-table">
+                                <thead><tr><th>Nama siswa</th><th>NIPD / NISN</th><th>NIK</th><th>Kelas</th><th>Nama ibu kandung</th><th>Status</th><th>Aksi</th></tr></thead>
+                                <tbody id="stuTableBody"><tr><td colspan="7">Memuat data siswa…</td></tr></tbody>
+                            </table>
+                        </div>
+                        <nav class="stu-pagination" id="stuPagination" aria-label="Halaman data siswa"></nav>
                     </div>
                 </div>
 
@@ -897,6 +1082,22 @@
         </main>
     </div>
 
+    <!-- Detail Siswa (read-only) -->
+    <div class="stu-modal" id="stuDetail" aria-hidden="true">
+        <div class="stu-modal-box" role="dialog" aria-modal="true" aria-labelledby="stuDetailName">
+            <div class="stu-modal-head">
+                <div>
+                    <h3 id="stuDetailName">Detail Siswa</h3>
+                    <div class="stu-detail-meta" id="stuDetailMeta"></div>
+                </div>
+                <button type="button" class="stu-close" id="stuDetailClose" aria-label="Tutup detail"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+            </div>
+            <div class="stu-banner" id="stuDetailBanner" hidden>Perlu verifikasi lebih lanjut — siswa ini tidak tercantum di daftar kelas terbaru atau datanya belum lengkap.</div>
+            <div class="stu-tabs" id="stuDetailTabs" role="tablist"></div>
+            <div class="stu-modal-body" id="stuDetailBody"></div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
@@ -925,7 +1126,9 @@
 
     <!-- Custom Scripts -->
     <script src="ai-service.js?v=2"></script>
-    <script src="admin.js?v=3"></script>
+    <script src="student-fields.js?v=1"></script>
+    <script src="admin-students.js?v=1"></script>
+    <script src="admin.js?v=4"></script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>

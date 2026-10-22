@@ -118,6 +118,7 @@ function showTab(tabId, navEl = null) {
     // Update topbar title
     const titles = {
         tabDashboard: 'Dashboard',
+        tabStudents: 'Data Siswa',
         tabStaff: 'Manajemen Guru & Staf',
         tabNews: 'Manajemen Berita',
         tabGallery: 'Galeri Kegiatan',
@@ -137,6 +138,7 @@ function showTab(tabId, navEl = null) {
     }
 
     // Lazy load data
+    if (tabId === 'tabStudents' && typeof loadStudentsModule === 'function') loadStudentsModule();
     if (tabId === 'tabAIMemory' && typeof loadAIMemory === 'function') loadAIMemory();
     if (tabId === 'tabAISettings' && typeof loadAISettingsIntoForm === 'function') loadAISettingsIntoForm();
 }
@@ -1451,6 +1453,7 @@ async function loadDashboardStats() {
         el('statNews', newsRes.count ?? 0);
         el('statGallery', galleryRes.count ?? 0);
         el('statEkskul', ekskulRes.count ?? 0);
+        if (typeof loadStudentSummary === 'function') loadStudentSummary();
     } catch (err) {
         console.error('Error loading dashboard stats:', err);
     }
