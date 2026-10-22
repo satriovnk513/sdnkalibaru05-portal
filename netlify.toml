@@ -1,0 +1,11 @@
+# The live site is hosted on Vercel (sdnkalibaru05.sch.id). This repo is still connected to an old
+# Netlify site, which served a duplicate copy with a broken KaliBot (/api/chat only exists on Vercel).
+# Send every Netlify URL permanently to the real site instead.
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/*"
+  to = "https://sdnkalibaru05.sch.id/:splat"
+  status = 301
+  force = true
