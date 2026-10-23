@@ -207,6 +207,22 @@ async function runUi() {
         ok(!buka.xssJalan && !buka.captionHtmlPunyaImg && buka.namaTeks === NAMA_JAHAT,
             `${label}: nama dirender sebagai teks, markup tidak dieksekusi`);
 
+        // Widget KaliBot tidak boleh menutupi foto (z-index-nya sama dengan modal)
+        const botSaatBuka = await page.evaluate(() => {
+            const w = document.getElementById('kalibot-widget-container');
+            if (!w) return { ada: false };
+            const r = w.getBoundingClientRect();
+            return {
+                ada: true,
+                display: getComputedStyle(w).display,
+                punyaKelas: w.classList.contains('kalibot-hidden-by-modal'),
+                luas: r.width * r.height,
+            };
+        });
+        ok(botSaatBuka.ada, `${label}: widget KaliBot ada di halaman`);
+        ok(botSaatBuka.display === 'none' && botSaatBuka.punyaKelas && botSaatBuka.luas === 0,
+            `${label}: KaliBot disembunyikan saat foto dibuka`);
+
         if (OUT) await page.screenshot({ path: join(OUT, `lightbox-${vp.width}x${vp.height}.png`) });
 
         // --- klik foto tidak boleh menutup
@@ -228,6 +244,18 @@ async function runUi() {
         ok(tutup.ariaHidden === 'true', `${label}: aria-hidden=true setelah ditutup`);
         ok(tutup.scrollPulih, `${label}: scroll halaman pulih setelah ditutup`);
         ok(tutup.masihDiHalaman, `${label}: tetap berada di halaman guru-staff`);
+
+        const botSaatTutup = await page.evaluate(() => {
+            const w = document.getElementById('kalibot-widget-container');
+            const r = w.getBoundingClientRect();
+            return {
+                display: getComputedStyle(w).display,
+                punyaKelas: w.classList.contains('kalibot-hidden-by-modal'),
+                terlihat: r.width > 0 && r.height > 0,
+            };
+        });
+        ok(botSaatTutup.display !== 'none' && !botSaatTutup.punyaKelas && botSaatTutup.terlihat,
+            `${label}: KaliBot muncul kembali setelah foto ditutup`);
 
         // --- tutup lewat Escape
         await page.locator('.staff-img-wrapper').first().click();

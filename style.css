@@ -2558,6 +2558,11 @@ img {
     font-family: 'Poppins', system-ui, -apple-system, sans-serif;
 }
 
+/* Disembunyikan saat lightbox/modal foto terbuka (lihat kalibot.js) */
+.kalibot-wrapper.kalibot-hidden-by-modal {
+    display: none;
+}
+
 .kalibot-launcher-btn {
     display: flex;
     align-items: center;
