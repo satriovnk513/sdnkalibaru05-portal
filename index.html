@@ -205,7 +205,7 @@
             </div>
             <div class="ekskul-modal-body" id="ekskulModalBody">
                 <button class="ekskul-modal-nav ekskul-modal-prev" id="ekskulModalPrev" aria-label="Sebelumnya"><i class="fas fa-chevron-left"></i></button>
-                <img id="ekskulModalImg" class="ekskul-modal-img" src="" alt="Foto Ekstrakurikuler">
+                <img id="ekskulModalImg" class="ekskul-modal-img" alt="Foto Ekstrakurikuler">
                 <button class="ekskul-modal-nav ekskul-modal-next" id="ekskulModalNext" aria-label="Berikutnya"><i class="fas fa-chevron-right"></i></button>
             </div>
             <div class="ekskul-modal-footer" id="ekskulModalFooter">
@@ -610,11 +610,15 @@
 
             if (isVideo) {
                 modalImg.style.display = 'none';
-                modalImg.src = '';
+                // Atribut dihapus, bukan dikosongkan: src="" membuat peramban
+                // meminta ulang URL halaman dan memicu event error pada <img>.
+                modalImg.removeAttribute('src');
                 modalVideo.style.display = '';
                 modalVideo.src = sanitizeURL(item.image_url);
             } else {
-                modalVideo.pause(); modalVideo.src = '';
+                modalVideo.pause();
+                modalVideo.removeAttribute('src');
+                modalVideo.load();
                 modalVideo.style.display = 'none';
                 modalImg.style.display = '';
                 modalImg.src = sanitizeURL(item.image_url);
@@ -640,7 +644,9 @@
             modal.style.display = 'none';
             document.body.style.overflow = 'auto';
             const vid = document.getElementById('modalVideo');
-            vid.pause(); vid.src = '';
+            vid.pause();
+            vid.removeAttribute('src');
+            vid.load();
             vid.style.display = 'none';
             document.getElementById('modalImg').style.display = '';
             currentLightboxIndex = -1;

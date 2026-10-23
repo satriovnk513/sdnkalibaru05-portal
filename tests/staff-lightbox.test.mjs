@@ -143,6 +143,24 @@ async function runUi() {
         });
         const page = await context.newPage();
 
+        // Lacak event error pada <img> dan pesan error konsol.
+        // src="" membuat peramban meminta ulang URL halaman dan memicu event error.
+        await page.addInitScript(() => {
+            window.__imgErrors = [];
+            window.__konsolErrors = [];
+            addEventListener('error', (e) => {
+                const t = e.target;
+                if (t && t.tagName === 'IMG') {
+                    window.__imgErrors.push(t.id || t.className || 'img');
+                }
+            }, true);
+        });
+        page.on('console', (m) => {
+            if (m.type() === 'error') {
+                page.evaluate((t) => window.__konsolErrors.push(t), m.text()).catch(() => {});
+            }
+        });
+
         // Supabase tiruan: shim CDN, tidak ada request keluar.
         await page.route('**/cdn.jsdelivr.net/**', (route) => route.fulfill({
             status: 200,
@@ -170,7 +188,6 @@ async function runUi() {
         await page.waitForSelector('.staff-img-wrapper', { timeout: 10000 });
 
         const label = vp.nama;
-
         // --- awal: modal tertutup
         ok(await page.evaluate(() => !document.getElementById('staffModal').classList.contains('is-open')),
             `${label}: modal tertutup saat halaman dimuat`);
@@ -222,6 +239,21 @@ async function runUi() {
         ok(botSaatBuka.ada, `${label}: widget KaliBot ada di halaman`);
         ok(botSaatBuka.display === 'none' && botSaatBuka.punyaKelas && botSaatBuka.luas === 0,
             `${label}: KaliBot disembunyikan saat foto dibuka`);
+
+        // Fokus tidak boleh mendarat di tombol tutup, agar tidak ada cincin fokus
+        // saat foto dibuka dengan sentuhan; Tab tetap mengarah ke tombol tutup.
+        const fokus = await page.evaluate(() => ({
+            aktifModal: document.activeElement === document.getElementById('staffModal'),
+            aktifTombol: document.activeElement === document.getElementById('closeStaffModalBtn'),
+            outlineModal: getComputedStyle(document.getElementById('staffModal')).outlineStyle,
+        }));
+        ok(fokus.aktifModal && !fokus.aktifTombol,
+            `${label}: fokus di wadah modal, bukan di tombol tutup (tanpa cincin fokus)`);
+        ok(fokus.outlineModal === 'none', `${label}: wadah modal tidak menampilkan cincin fokus`);
+
+        await page.keyboard.press('Tab');
+        ok(await page.evaluate(() => document.activeElement === document.getElementById('closeStaffModalBtn')),
+            `${label}: Tab memindahkan fokus ke tombol tutup`);
 
         if (OUT) await page.screenshot({ path: join(OUT, `lightbox-${vp.width}x${vp.height}.png`) });
 
@@ -297,10 +329,15 @@ async function runUi() {
         const sesudah = await page.evaluate(() => ({
             tertutup: !document.getElementById('staffModal').classList.contains('is-open'),
             scrollPulih: document.body.style.overflow === '',
-            srcKosong: document.getElementById('staffModalImg').getAttribute('src') === '',
+            srcDihapus: !document.getElementById('staffModalImg').hasAttribute('src'),
         }));
-        ok(sesudah.tertutup && sesudah.scrollPulih && sesudah.srcKosong,
+        ok(sesudah.tertutup && sesudah.scrollPulih && sesudah.srcDihapus,
             `${label}: tiga siklus buka-tutup tidak meninggalkan sisa state`);
+
+        // src="" memicu permintaan ulang URL halaman dan event error pada <img>
+        const errorImg = await page.evaluate(() => window.__imgErrors || []);
+        ok(errorImg.length === 0,
+            `${label}: tidak ada event error pada <img> (${errorImg.join(', ') || 'bersih'})`);
 
         await context.close();
     }
