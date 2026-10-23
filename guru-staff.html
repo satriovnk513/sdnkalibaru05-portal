@@ -121,52 +121,125 @@
     </footer>
 
     <!-- Lightbox Modal for Staff Photos -->
-    <div id="staffModal" class="gallery-modal">
-        <span class="close-modal" onclick="closeStaffLightbox()">&times;</span>
-        <img class="modal-content" id="staffModalImg">
-        <div id="modalCaption"></div>
+    <div id="staffModal" class="gallery-modal" role="dialog" aria-modal="true"
+         aria-labelledby="modalCaption" aria-hidden="true">
+        <div class="modal-controls modal-controls-end">
+            <button type="button" class="close-modal" id="closeStaffModalBtn" aria-label="Tutup foto">&times;</button>
+        </div>
+        <div class="modal-body" id="staffModalBody">
+            <div class="modal-scroll">
+                <img class="modal-content" id="staffModalImg" alt="">
+                <div id="modalCaption"></div>
+            </div>
+        </div>
     </div>
 
     <script>
-        function openStaffLightbox(src, name, role) {
+        (function () {
             const modal = document.getElementById('staffModal');
             const modalImg = document.getElementById('staffModalImg');
+            const modalBody = document.getElementById('staffModalBody');
             const modalCaption = document.getElementById('modalCaption');
-            
-            modal.style.display = "flex";
-            modal.style.alignItems = "center";
-            modal.style.justifyContent = "center";
-            modal.style.flexDirection = "column";
-            
-            modalImg.src = src;
-            modalCaption.innerHTML = `
-                <div style="font-weight: 700; font-size: 1.4rem; margin-bottom: 5px; font-family: var(--font-heading);"></div>
-                <div style="color: #f43f5e; font-weight: 600; font-size: 1.1rem; margin-bottom: 5px;"></div>
-            `;
-            modalCaption.children[0].textContent = name || '';
-            modalCaption.children[1].textContent = role || '';
-            document.body.style.overflow = 'hidden'; // Disable scroll
-        }
+            const closeBtn = document.getElementById('closeStaffModalBtn');
 
-        function closeStaffLightbox() {
-            document.getElementById('staffModal').style.display = "none";
-            document.body.style.overflow = 'auto'; // Enable scroll
-        }
+            // Element yang perlu difokuskan kembali setelah modal ditutup
+            let lastFocused = null;
+            // Menandai bahwa kita menambahkan satu entri history untuk modal ini,
+            // supaya tombol "kembali" di ponsel menutup foto, bukan meninggalkan halaman.
+            let historyEntryPushed = false;
 
-        // Close modal when clicking outside the image
-        window.onclick = function(event) {
-            const modal = document.getElementById('staffModal');
-            if (event.target == modal) {
-                closeStaffLightbox();
+            function isOpen() {
+                return modal.classList.contains('is-open');
             }
-        }
 
-        // Close modal with Escape key
-        document.addEventListener('keydown', function(event) {
-            if (event.key === "Escape") {
-                closeStaffLightbox();
+            window.openStaffLightbox = function (src, name, role) {
+                if (isOpen()) return;
+
+                lastFocused = document.activeElement;
+
+                modalImg.src = src || '';
+                modalImg.alt = name ? ('Foto ' + name) : '';
+
+                modalCaption.textContent = '';
+                const nameEl = document.createElement('div');
+                nameEl.className = 'staff-modal-name';
+                nameEl.textContent = name || '';
+                const roleEl = document.createElement('div');
+                roleEl.className = 'staff-modal-role';
+                roleEl.textContent = role || '';
+                modalCaption.appendChild(nameEl);
+                modalCaption.appendChild(roleEl);
+
+                modal.classList.add('is-open');
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden'; // Kunci scroll halaman
+                if (modalBody) modalBody.scrollTop = 0;
+
+                // Tombol kembali perangkat menutup foto dan tetap di halaman guru-staff
+                try {
+                    history.pushState({ staffLightbox: true }, '');
+                    historyEntryPushed = true;
+                } catch (e) {
+                    historyEntryPushed = false;
+                }
+
+                closeBtn.focus();
+            };
+
+            // Menutup modal tanpa menyentuh history (dipakai oleh handler popstate)
+            function dismiss() {
+                modal.classList.remove('is-open');
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.style.overflow = '';
+                modalImg.src = '';
+                if (lastFocused && typeof lastFocused.focus === 'function') {
+                    lastFocused.focus();
+                }
+                lastFocused = null;
             }
-        });
+
+            window.closeStaffLightbox = function () {
+                if (!isOpen()) return;
+                if (historyEntryPushed) {
+                    // popstate yang akan memanggil dismiss(), supaya history tetap bersih
+                    historyEntryPushed = false;
+                    history.back();
+                    return;
+                }
+                dismiss();
+            };
+
+            closeBtn.addEventListener('click', window.closeStaffLightbox);
+
+            // Klik area gelap di luar foto juga menutup modal
+            modal.addEventListener('click', function (event) {
+                if (event.target === modal || event.target === modalBody ||
+                    (event.target.classList && event.target.classList.contains('modal-scroll'))) {
+                    window.closeStaffLightbox();
+                }
+            });
+
+            // Tombol Escape pada keyboard
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && isOpen()) {
+                    window.closeStaffLightbox();
+                }
+            });
+
+            // Fokus tidak boleh keluar dari modal selama terbuka
+            modal.addEventListener('keydown', function (event) {
+                if (event.key === 'Tab' && isOpen()) {
+                    event.preventDefault();
+                    closeBtn.focus();
+                }
+            });
+
+            // Tombol kembali perangkat / browser
+            window.addEventListener('popstate', function () {
+                historyEntryPushed = false;
+                if (isOpen()) dismiss();
+            });
+        })();
     </script>
 
     <!-- Supabase JS -->
