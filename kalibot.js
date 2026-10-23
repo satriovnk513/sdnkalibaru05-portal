@@ -114,6 +114,26 @@ function initKaliBotUI() {
             window.speechSynthesis.cancel();
         }
     });
+
+    // Sembunyikan widget selama ada lightbox/modal terbuka.
+    // Tombol KaliBot dan .gallery-modal sama-sama z-index 9999, sehingga tombol
+    // chat menutupi foto dan bersaing dengan tombol tutup di layar ponsel.
+    // Semua lightbox di situs ini mengunci scroll halaman saat terbuka, jadi
+    // penanda itu dipakai sebagai sinyal tunggal tanpa perlu diubah per halaman.
+    const syncVisibility = () => {
+        const modalTerbuka = document.body.style.overflow === 'hidden';
+        container.classList.toggle('kalibot-hidden-by-modal', modalTerbuka);
+        // Jendela chat yang sedang terbuka ikut ditutup agar tidak tersembunyi
+        // dalam keadaan terbuka saat modal ditutup kembali.
+        if (modalTerbuka) chatWindow.classList.add('hidden');
+    };
+    syncVisibility();
+    if (typeof MutationObserver === 'function') {
+        new MutationObserver(syncVisibility).observe(document.body, {
+            attributes: true,
+            attributeFilter: ['style'],
+        });
+    }
 }
 
 async function sendKaliBotMessage() {

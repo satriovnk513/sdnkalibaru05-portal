@@ -2273,6 +2273,12 @@ img {
     background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 100%);
 }
 
+/* Baris kontrol yang hanya berisi tombol tutup */
+.modal-controls-end {
+    justify-content: flex-end;
+    padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+}
+
 .modal-counter {
     color: rgba(255, 255, 255, 0.7);
     font-size: 0.95rem;
@@ -2296,6 +2302,20 @@ img {
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.08);
     line-height: 1;
+    /* Reset agar elemen <button> tampil sama dengan <span> */
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
+}
+
+.close-modal:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
 }
 
 .close-modal:hover {
@@ -2361,6 +2381,31 @@ img {
 
 #modalCaption:empty {
     display: none;
+}
+
+/* Keterangan nama & jabatan pada lightbox guru-staf */
+.staff-modal-name {
+    font-weight: 700;
+    font-size: 1.4rem;
+    margin-bottom: 5px;
+    font-family: var(--font-heading);
+}
+
+.staff-modal-role {
+    color: #f43f5e;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 5px;
+}
+
+/* Lightbox guru-staf ditampilkan lewat class, bukan style inline */
+.gallery-modal.is-open {
+    display: flex;
+}
+
+/* Wadah modal hanya difokuskan secara terprogram; cincin fokus tidak perlu */
+.gallery-modal:focus {
+    outline: none;
 }
 
 .modal-nav {
@@ -2516,6 +2561,11 @@ img {
     right: 24px;
     z-index: 9999;
     font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+}
+
+/* Disembunyikan saat lightbox/modal foto terbuka (lihat kalibot.js) */
+.kalibot-wrapper.kalibot-hidden-by-modal {
+    display: none;
 }
 
 .kalibot-launcher-btn {
