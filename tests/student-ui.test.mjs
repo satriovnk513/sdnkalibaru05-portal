@@ -29,7 +29,9 @@ if (!skipReason) {
     try {
         await runUi();
     } catch (e) {
-        results.push([false, `alur UI berhenti: ${String(e.message).split('\n')[0]}`]);
+        const lines = String(e.message).split('\n');
+        const where = lines.find((l) => /waiting for (locator|selector|function)/.test(l)) || '';
+        results.push([false, `alur UI berhenti: ${lines[0]} ${where.trim().slice(0, 120)}`]);
     } finally {
         for (const fn of cleanup.reverse()) await Promise.resolve().then(fn).catch(() => {});
     }
@@ -48,7 +50,10 @@ const { validateAndBuild } = await import('../scripts/import-students.mjs');
 const doc = makeFakeFile();
 doc.records[0].siswa_alamat = '=HYPERLINK("http://contoh.invalid")'; // uji formula injection
 const { rows } = validateAndBuild(doc);
-const DB = rows.map((r, i) => ({ id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`, ...r }));
+const DB = rows.map((r, i) => ({ id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`, ...r,
+    archived_at: null, updated_at: '2026-10-22T03:00:00.000001+00:00' }));
+const CHANGES = [];   // riwayat tiruan (meniru trigger audit)
+const writes = [];    // body PATCH/POST yang dikirim UI
 const PII = [...new Set(DB.flatMap((r) => [r.nik, r.nama_siswa, r.nama_ibu_kandung]).filter(Boolean))];
 
 // ---------- static server
@@ -80,6 +85,8 @@ function filterRows(params) {
     for (const [k, v] of params) {
         if (['select', 'or', 'order', 'offset', 'limit'].includes(k)) continue;
         if (v.startsWith('eq.')) out = out.filter((r) => String(r[k] ?? '') === v.slice(3));
+        else if (v === 'is.null') out = out.filter((r) => r[k] === null || r[k] === undefined);
+        else if (v === 'not.is.null') out = out.filter((r) => r[k] !== null && r[k] !== undefined);
     }
     out = [...out].sort((a, b) => b.status_daftar.localeCompare(a.status_daftar) || (a.kelas || '~').localeCompare(b.kelas || '~') || a.nama_siswa.localeCompare(b.nama_siswa));
     return out;
@@ -105,9 +112,64 @@ async function supa(route) {
     if (p === '/rest/v1/user_roles') return role === 'admin' ? json(single ? { role: 'admin' } : [{ role: 'admin' }]) : (single ? json({ code: 'PGRST116', message: 'no rows' }, 406) : json([]));
     if (p === '/rest/v1/rpc/student_summary') {
         if (role !== 'admin') return json([{ total_siswa: 0, tercantum: 0, perlu_verifikasi: 0, jumlah_rombel: 0, daftar_kelas: [] }]);
-        const listed = DB.filter((r) => r.status_daftar === 'Tercantum di daftar kelas');
+        const active = DB.filter((r) => !r.archived_at);
+        const listed = active.filter((r) => r.status_daftar === 'Tercantum di daftar kelas');
         const kelas = [...new Set(listed.map((r) => r.kelas))].sort();
-        return json([{ total_siswa: DB.length, tercantum: listed.length, perlu_verifikasi: DB.length - listed.length, jumlah_rombel: kelas.length, daftar_kelas: kelas }]);
+        return json([{ total_siswa: active.length, tercantum: listed.length, perlu_verifikasi: active.length - listed.length,
+            jumlah_rombel: kelas.length, daftar_kelas: kelas, diarsipkan: DB.length - active.length }]);
+    }
+    if (p === '/rest/v1/student_record_changes') {
+        if (role !== 'admin') return json([]);
+        const sid = (url.searchParams.get('student_id') || '').replace(/^eq\./, '');
+        return json(CHANGES.filter((c) => c.student_id === sid).slice().reverse());
+    }
+    if (p === '/rest/v1/student_records' && ['POST', 'PATCH', 'DELETE'].includes(req.method())) {
+        if (req.method() === 'DELETE' || role !== 'admin') return json({ code: '42501', message: 'permission denied' }, 403);
+        const body = JSON.parse(req.postData() || '{}');
+        writes.push({ method: req.method(), body });
+        const derive = (row, payload) => Object.assign(row, {
+            payload, nik: payload.nik_siswa ?? null, nama_siswa: payload.nama_siswa ?? null, nipd: payload.siswa_nipd ?? null,
+            nisn: payload.siswa_nisn ?? null, kelas: payload.kelas ?? null, nama_ibu_kandung: payload.siswa_nama_ibu_kandung ?? null,
+            status_daftar: payload.status_daftar ?? null, status_dukcapil: payload.status_dukcapil ?? null });
+        const invalid = (row, selfId) => {
+            if (!/^\d{16}$/.test(row.nik || '')) return [400, { code: '23514', message: 'violates check constraint "student_records_nik_format"' }];
+            if (DB.some((r) => r.nik === row.nik && r.id !== selfId)) return [409, { code: '23505', message: 'duplicate key value violates unique constraint "student_records_nik_key"' }];
+            if (row.status_daftar === 'Tercantum di daftar kelas' && !(row.kelas || '').trim()) return [400, { code: '23514', message: 'violates check constraint "student_records_listed_has_kelas"' }];
+            return null;
+        };
+        const stamp = () => new Date().toISOString().replace('Z', '123+00:00');
+        if (req.method() === 'POST') {
+            const row = derive({ id: `00000000-0000-4000-9000-${String(DB.length + 1).padStart(12, '0')}`, archived_at: null,
+                field_sources: {}, source_names: ['Input admin'], matching_notes: null, updated_at: stamp() }, body.payload);
+            const bad = invalid(row, null);
+            if (bad) return json(bad[1], bad[0]);
+            DB.push(row);
+            CHANGES.push({ id: CHANGES.length + 1, student_id: row.id, action: 'create', changed_at: new Date().toISOString(),
+                changed_by_email: 'admin@fiktif.test', changes: Object.fromEntries(Object.entries(body.payload).map(([k, v]) => [k, { lama: null, baru: v }])) });
+            return json([{ id: row.id }], 201);
+        }
+        const targets = filterRows(url.searchParams);
+        const out = [];
+        for (const r of targets) {
+            if ('archived_at' in body) {
+                const action = body.archived_at ? 'archive' : 'restore';
+                r.archived_at = body.archived_at ? new Date().toISOString() : null;
+                r.updated_at = stamp();
+                CHANGES.push({ id: CHANGES.length + 1, student_id: r.id, action, changed_at: new Date().toISOString(), changed_by_email: 'admin@fiktif.test', changes: {} });
+            } else if (body.payload) {
+                const trial = derive({ ...r }, body.payload);
+                const bad = invalid(trial, r.id);
+                if (bad) return json(bad[1], bad[0]);
+                const keys = new Set([...Object.keys(r.payload), ...Object.keys(body.payload)]);
+                const diff = {};
+                keys.forEach((k) => { if (JSON.stringify(r.payload[k]) !== JSON.stringify(body.payload[k])) diff[k] = { lama: r.payload[k] ?? null, baru: body.payload[k] ?? null }; });
+                derive(r, body.payload);
+                r.updated_at = stamp();
+                CHANGES.push({ id: CHANGES.length + 1, student_id: r.id, action: 'update', changed_at: new Date().toISOString(), changed_by_email: 'admin@fiktif.test', changes: diff });
+            }
+            out.push({ id: r.id });
+        }
+        return json(out);
     }
     if (p === '/rest/v1/student_records') {
         if (role !== 'admin') return json([], 200, { 'Content-Range': '*/0' });
@@ -250,27 +312,136 @@ await page.click('#stuReset'); await waitInfo(page, /1–10 dari 559/);
 // detail
 await page.selectOption('#stuStatus', 'Perlu verifikasi lebih lanjut'); await waitInfo(page, /dari 24 siswa/);
 await page.click('#stuTableBody tr:first-child .stu-btn-view');
-await page.waitForFunction(() => document.querySelectorAll('.stu-tab').length === 7);
-const tabs = await page.$$eval('.stu-tab', (t) => t.map((x) => x.textContent));
+await page.waitForFunction(() => document.querySelectorAll('#stuDetailTabs .stu-tab').length === 8);
+const tabs = (await page.$$eval('#stuDetailTabs .stu-tab', (t) => t.map((x) => x.textContent))).filter((t) => t !== 'Riwayat Perubahan');
 check(tabs.join('|') === 'Data Siswa|Ayah|Ibu|Wali|Kontak Darurat|Anggota Keluarga|Keterangan Lain', `tab detail: ${tabs.join(', ')}`);
 check(await page.isVisible('#stuDetailBanner') && /Perlu verifikasi lebih lanjut/.test(await page.textContent('#stuDetailBanner')), 'banner perlu verifikasi');
 await page.waitForTimeout(400);
 await shot(page, `4-detail-desktop.png`);
 let bad = [];
 for (const t of tabs) {
-    await page.click(`.stu-tab:has-text("${t}")`);
+    await page.click(`#stuDetailTabs .stu-tab:has-text("${t}")`);
     const txt = await page.textContent('#stuDetailBody');
     const labels = (await page.$$eval('.stu-detail-item dt', (d) => d.map((x) => x.firstChild.textContent))).join('|');
     if (/undefined|\bnull\b|\[object|\{"/.test(txt) || /_/.test(labels)) bad.push(t);
 }
 check(!bad.length, `detail tanpa undefined/null/nama field teknis/JSON mentah${bad.length ? ' — ' + bad.join(',') : ''}`);
 check((await page.textContent('#stuDetailBody')).includes('Sumber Data'), 'Keterangan Lain memuat sumber data');
-await page.click('.stu-tab:has-text("Wali")');
+await page.click('#stuDetailTabs .stu-tab:has-text("Wali")');
 check((await page.$$eval('.stu-detail-item dd', (d) => d.map((x) => x.textContent))).includes('—'), 'nilai kosong tampil —');
 await shot(page, `5-detail-wali.png`);
 await page.keyboard.press('Escape');
 check(!(await page.isVisible('#stuDetail')), 'detail tertutup dengan Esc');
 await page.click('#stuReset'); await waitInfo(page, /1–10 dari 559/);
+
+// ---------- CRUD
+const stuTotal = () => page.textContent('#stuTotal');
+const waitTotal = (n) => page.waitForFunction((v) => document.getElementById('stuTotal').textContent === v, String(n), { timeout: 5000 });
+const toastText = async () => (await page.$$eval('#toastContainer *', (t) => t.map((x) => x.textContent).join(' | ')));
+const fill = (k, v) => page.fill(`#stuF_${k}`, v);
+const formTab = (title) => page.click(`#stuFormTabs .stu-tab:has-text("${title}")`);
+
+// Tambah: validasi klien
+await page.click('#stuAdd');
+await page.waitForSelector('#stuForm.active');
+check((await page.$$eval('#stuFormTabs .stu-tab', (t) => t.length)) === 7, 'tambah: form punya 7 tab kelompok');
+await fill('nik_siswa', '12345');
+await fill('nama_siswa', 'Siswa Fiktif Baru');
+await page.click('#stuFormSave');
+await page.waitForSelector('#stuFormError:not([hidden])');
+const errs = await page.$$eval('.stu-form-item.invalid', (n) => n.map((x) => x.dataset.key));
+check(errs.includes('nik_siswa') && errs.includes('kelas') && !writes.length, `tambah: NIK salah & kelas kosong ditolak di form tanpa request (${errs.join(',')})`);
+await shot(page, '7-form-tambah-validasi.png');
+
+// Tambah: NIK ganda ditolak server
+await fill('nik_siswa', DB[5].nik);
+await fill('kelas', '1A');
+await page.click('#stuFormSave');
+await page.waitForFunction(() => /sudah terdaftar/.test(document.getElementById('stuFormError').textContent));
+check(DB.length === 559, 'tambah: NIK ganda ditolak dengan pesan jelas, data tidak bertambah');
+
+// Tambah: berhasil
+const NEW_NIK = '9977000000000001';
+await fill('nik_siswa', NEW_NIK);
+await fill('siswa_nisn', '0012345678');
+await formTab('Ayah');
+await fill('ayah_nama', 'Ayah Fiktif Baru');
+await page.click('#stuFormSave');
+await page.waitForSelector('#stuForm', { state: 'hidden' });
+await waitTotal(560);
+const created = DB.find((r) => r.nik === NEW_NIK);
+const postBody = writes.find((w) => w.method === 'POST' && w.body.payload.nik_siswa === NEW_NIK);
+check(created && created.kelas === '1A' && created.nisn === '0012345678' && created.payload.ayah_nama === 'Ayah Fiktif Baru',
+    'tambah: siswa baru tersimpan, total menjadi 560');
+check(postBody && Object.keys(postBody.body).join() === 'payload' && Object.keys(postBody.body.payload).length === 6
+    && Object.values(postBody.body.payload).every((v) => typeof v === 'string'),
+    'tambah: hanya payload terisi yang dikirim (tanpa key kosong, semua teks)');
+check(/berhasil ditambahkan/.test(await toastText()), 'tambah: notifikasi berhasil');
+
+// Ubah dari baris tabel
+const target2 = DB.find((r) => r.status_daftar === 'Tercantum di daftar kelas' && r.payload.siswa_nisn && typeof r.payload.lain_berat_badan === 'number');
+const before = structuredClone(target2.payload);
+await page.fill('#stuSearch', target2.nama_siswa); await page.waitForTimeout(450); await waitInfo(page, /dari 1 siswa/);
+await page.click('#stuTableBody tr:first-child .stu-btn-edit');
+await page.waitForSelector('#stuForm.active');
+check((await page.inputValue('#stuF_nik_siswa')) === target2.nik && (await page.inputValue('#stuF_siswa_nisn')) === target2.nisn,
+    'ubah: form terisi nilai tersimpan (NIK/NISN utuh)');
+await fill('kelas', '6C');
+await formTab('Keterangan Lain');
+await fill('lain_berat_badan', '31');
+await formTab('Data Siswa');
+await fill('siswa_nisn', '12');
+await page.click('#stuFormSave');
+await page.waitForSelector('.stu-form-item.invalid[data-key="siswa_nisn"]');
+check(true, 'ubah: NISN bukan 10 digit ditolak di form');
+await fill('siswa_nisn', target2.nisn);
+const nWrites = writes.length;
+await page.click('#stuFormSave');
+await page.waitForSelector('#stuForm', { state: 'hidden' });
+const patch = writes[nWrites];
+const changedKeys = Object.keys(patch.body.payload).filter((k) => JSON.stringify(patch.body.payload[k]) !== JSON.stringify(before[k]));
+check(patch.method === 'PATCH' && changedKeys.sort().join() === 'kelas,lain_berat_badan'
+    && Object.keys(patch.body.payload).length === Object.keys(before).length,
+    `ubah: hanya field yang diubah berbeda, key lain dipertahankan (${changedKeys.join(',')})`);
+check(patch.body.payload.lain_berat_badan === 31 && target2.kelas === '6C', 'ubah: tipe angka dipertahankan, kolom kelas ikut berubah');
+
+// Ubah: konflik (data diubah admin lain)
+await page.click('#stuTableBody tr:first-child .stu-btn-edit');
+await page.waitForSelector('#stuForm.active');
+target2.updated_at = '2026-10-23T00:00:00.000001+00:00';
+await fill('kelas', '6B');
+await page.click('#stuFormSave');
+await page.waitForFunction(() => /baru saja diubah/.test(document.getElementById('stuFormError').textContent));
+check(target2.kelas === '6C', 'ubah: konflik versi terdeteksi, perubahan tidak menimpa');
+await page.click('#stuFormCancel');
+
+// Detail: riwayat, arsip, pulihkan
+await page.click('#stuTableBody tr:first-child .stu-btn-view');
+await page.waitForFunction(() => document.querySelectorAll('#stuDetailTabs .stu-tab').length === 8);
+await page.click('#stuDetailTabs .stu-tab:has-text("Riwayat")');
+await page.waitForSelector('.stu-history-item');
+const hist = await page.textContent('#stuDetailBody');
+check(/Diubah/.test(hist) && /Kelas/.test(hist) && /6C/.test(hist) && !/lain_berat_badan|undefined/.test(hist), 'riwayat: perubahan tampil dengan label & nilai lama → baru');
+await shot(page, '8-riwayat.png');
+await page.click('#stuDetailActions .stu-btn-danger-ghost');
+await page.waitForSelector('#stuConfirm.active');
+check(/bisa dipulihkan/.test(await page.textContent('#stuConfirmText')), 'arsip: konfirmasi menjelaskan data tidak dihapus');
+await shot(page, '9-konfirmasi-arsip.png');
+await page.click('#stuConfirmYes');
+await waitTotal(559);
+check(target2.archived_at && (await page.isVisible('#stuDetailArchived')), 'arsip: siswa diarsipkan, total aktif kembali 559, banner arsip tampil');
+check(!(await page.$('#stuDetailActions .stu-btn-primary')), 'arsip: tombol ubah disembunyikan untuk siswa terarsip');
+await page.keyboard.press('Escape');
+await page.click('#stuReset'); await waitInfo(page, /dari 559 siswa/);
+await page.selectOption('#stuArchive', 'archived'); await waitInfo(page, /dari 1 siswa/);
+check(/Diarsipkan/.test(await page.textContent('#stuTableBody')) && /1 siswa diarsipkan/.test(await page.textContent('#stuArchivedCount')), 'filter Arsip menampilkan siswa terarsip');
+await page.click('#stuTableBody tr:first-child .stu-btn-restore');
+await page.click('#stuConfirmYes');
+await waitTotal(560);
+check(!target2.archived_at, 'pulihkan: siswa kembali aktif');
+check(!requests.some((r) => r.startsWith('DELETE')), 'tidak ada request DELETE (tanpa hapus permanen)');
+await page.selectOption('#stuArchive', 'active');
+await page.click('#stuReset'); await waitInfo(page, /1–10 dari 560/);
 
 // modul lain tetap jalan
 for (const t of ['tabStaff', 'tabNews', 'tabGallery', 'tabEkskul', 'tabAIMemory', 'tabAISettings', 'tabDashboard']) {
@@ -285,7 +456,7 @@ for (const [name, vp] of [['tablet', { width: 820, height: 1100 }], ['mobile', {
     await page.setViewportSize(vp);
     await page.click('#tabDashboard') .catch(() => {});
     await page.evaluate(() => showTab('tabStudents'));
-    await waitInfo(page, /dari 559/);
+    await waitInfo(page, /dari 560/);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
     check(!overflow, `${name}: tidak ada scroll horizontal halaman`);
     const nb = await page.$eval('.stu-name', (n) => n.getBoundingClientRect().width);
@@ -293,7 +464,7 @@ for (const [name, vp] of [['tablet', { width: 820, height: 1100 }], ['mobile', {
     await shot(page, `3-data-siswa-${name}.png`, { fullPage: name === 'mobile' ? false : true });
     if (name === 'mobile') {
         await page.click('#stuTableBody tr:first-child .stu-btn-view');
-        await page.waitForFunction(() => document.querySelectorAll('.stu-tab').length === 7);
+        await page.waitForFunction(() => document.querySelectorAll('#stuDetailTabs .stu-tab').length === 8);
         await page.waitForTimeout(400);
         await shot(page, `6-detail-mobile.png`);
         await page.keyboard.press('Escape');

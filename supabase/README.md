@@ -10,12 +10,44 @@ Supabase CLI, jadi semua langkah dijalankan manual lewat **Supabase SQL Editor**
 | File | Isi |
 |---|---|
 | `migrations/20261022000001_student_information_system.sql` | Tabel `student_records` dan `student_import_batches`, constraint, indeks, trigger `updated_at`, grant, RLS, RPC `student_summary()` |
-| `tests/student_rls_test.sql` | 40 tes: struktur, anon, non-admin, admin, constraint, kebersihan. Data uji dibersihkan otomatis |
+| `tests/student_rls_test.sql` | 40 tes untuk kondisi **setelah migration 001 saja** (admin read-only) |
+| `migrations/20261023000001_student_crud.sql` | CRUD admin: tambah/ubah, arsip (soft delete), riwayat perubahan, trigger penjaga |
+| `tests/student_crud_precheck.sql` | Pemeriksaan sebelum migration CRUD (angka saja) |
+| `tests/student_crud_test.sql` | 36 tes untuk kondisi **setelah migration CRUD** |
 
-**Model akses:** dashboard admin **read-only**. Admin hanya bisa `SELECT` kedua tabel.
-**Semua penulisan** data siswa dan riwayat impor **hanya melalui importer server-side**
-(`scripts/import-students.mjs`, memakai `service_role`). Browser tidak punya grant
-maupun policy `INSERT`/`UPDATE`/`DELETE`.
+**Model akses (setelah migration CRUD):** admin dashboard bisa **melihat, menambah,
+mengubah, mengarsipkan, dan memulihkan** siswa. **Tidak ada hapus permanen** dari
+browser: "hapus" = arsip (`archived_at`), bisa dipulihkan. Hapus permanen hanya lewat
+SQL Editor (riwayat siswa itu ikut terhapus). Riwayat impor tetap hanya ditulis importer.
+
+## Migration CRUD (20261023000001) — urutan menjalankan
+
+Jalankan **sebelum** merge UI CRUD ke `main`, karena UI baru memakai kolom `archived_at`
+dan tabel riwayat.
+
+1. Buka **SQL Editor**, jalankan `tests/student_crud_precheck.sql`.
+   Semua kolom kecuali `total_siswa` harus **0**. Jika tidak, berhenti dan laporkan angkanya.
+2. Jalankan seluruh isi `migrations/20261023000001_student_crud.sql`.
+   Hasil: `Success. No rows returned`.
+3. Jalankan `tests/student_crud_test.sql`. Hasil: **36 baris, semuanya `LULUS`**.
+4. Jalankan lagi query **Cek kebersihan** di bawah; angka harus sama seperti sebelumnya.
+5. Jalankan `select * from public.student_summary();` → 559 / 535 / 24 / 17, `diarsipkan` 0.
+
+Yang dilakukan migration ini:
+
+- Kolom baru `created_by`, `updated_by`, `archived_at`, `archived_by` (tabel lama tidak disentuh).
+- Tabel `student_record_changes` (riwayat: siapa, kapan, field, nilai lama → baru).
+  Admin hanya bisa **membaca**; ditulis otomatis oleh trigger. Tidak bisa dipalsukan/dihapus dari browser.
+- Grant `INSERT`, `UPDATE` untuk `authenticated` + policy admin. **Tanpa `DELETE`.**
+- Trigger penjaga untuk penulisan dari browser: kolom inti selalu diturunkan dari
+  `payload`; `id`, `created_at`, `created_by`, `import_batch_id`, `matching_notes`,
+  `source_names` tidak bisa diubah; identitas (NIK, KK, HP, …) wajib teks; siswa
+  terarsip tidak bisa diubah sebelum dipulihkan.
+- `student_summary()` hanya menghitung siswa aktif dan menambah kolom `diarsipkan`.
+- Penulisan importer (`service_role`) tidak diubah dan tidak dicatat.
+
+Rollback darurat (jika perlu, setelah persetujuan): UI lama tetap aman dipakai dengan
+skema baru, jadi cukup revert commit UI. Skema tidak perlu di-rollback.
 
 ## Syarat sebelum menjalankan di produksi
 
@@ -120,11 +152,11 @@ Diharapkan:
 |---|---|---|---|
 | **anon** (pengunjung, tanpa login) | Semua operasi ditolak: `permission denied` (tidak punya grant) | Ditolak | Ditolak (`EXECUTE` dicabut) |
 | **Login non-admin** (mis. akun guru aplikasi lain) | SELECT 0 baris; INSERT/UPDATE/DELETE ditolak | SELECT 0 baris; tulis ditolak | Semua angka 0, `daftar_kelas` kosong |
-| **Admin** (`user_roles.role = 'admin'`) | **SELECT saja**; INSERT/UPDATE/DELETE ditolak | **SELECT saja** | Angka dihitung dari tabel |
+| **Admin** (`user_roles.role = 'admin'`) | Setelah migration CRUD: SELECT, INSERT, UPDATE (dijaga trigger, tercatat di riwayat); **DELETE ditolak** | **SELECT saja** | Angka siswa aktif |
 | **service_role** (importer server-side) | Penuh, melewati RLS | Penuh | Penuh |
 
-Semua penulisan hanya melalui importer server-side dengan `service_role`. Kunci
-`service_role` tidak pernah dipakai di browser.
+Kunci `service_role` tidak pernah dipakai di browser. Riwayat perubahan
+(`student_record_changes`): admin SELECT saja; anon dan non-admin ditolak/0 baris.
 
 ## Riwayat migration (jika nanti memakai Supabase CLI)
 
@@ -134,6 +166,7 @@ dijalankan. Jangan dijalankan ulang lewat `db push`.
 
 ```bash
 supabase migration repair 20261022000001 --status applied
+supabase migration repair 20261023000001 --status applied
 ```
 
 ## Catatan

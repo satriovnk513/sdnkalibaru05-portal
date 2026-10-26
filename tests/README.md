@@ -8,7 +8,7 @@ tidak ikut terdeploy (`.vercelignore`).
 |---|---|---|
 | `student-import.test.mjs` | Importer: validasi, data sparse, manifest, dry-run tanpa PII, impor atomik dan cleanup | Node.js; opsional PGlite |
 | `student-ui.test.mjs` | Dashboard admin end-to-end di Chromium dengan Supabase tiruan | `playwright-core` + Chromium |
-| `../supabase/tests/student_rls_test.sql` | RLS di database sungguhan (anon, non-admin, admin) | Supabase SQL Editor |
+| `../supabase/tests/student_crud_test.sql` | RLS + CRUD di database sungguhan (anon, non-admin, admin, trigger, riwayat) | Supabase SQL Editor |
 
 ## Menjalankan
 
@@ -46,6 +46,10 @@ npx playwright-core install chromium   # atau pakai Chrome yang sudah ada
 - Detail: 7 tab, banner `Perlu verifikasi lebih lanjut`, `—` untuk kosong,
   tanpa `undefined`/`null`/nama field teknis/JSON mentah, tutup dengan Esc.
 - Responsif: desktop 1366, tablet 820, ponsel 390 tanpa scroll horizontal; nama tidak menyempit.
+- CRUD: tambah (validasi form, NIK ganda ditolak, hanya isian terisi dikirim), ubah
+  (form terisi nilai asli, hanya field yang diubah berbeda, tipe angka dipertahankan,
+  konflik versi terdeteksi), riwayat perubahan, arsip dengan konfirmasi, filter Arsip,
+  pulihkan, dan tidak ada request `DELETE`.
 - Modul Guru, Berita, Galeri, Ekstrakurikuler, Memori KaliBot, Pengaturan AI tetap terbuka tanpa error JS.
 - Console tanpa biodata; tidak ada request ke `/api/chat`; logout kembali ke login.
 
