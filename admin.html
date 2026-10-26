@@ -542,6 +542,70 @@
             .stu-modal-body { max-height: none; }
             .stu-detail-grid { grid-template-columns: 1fr; }
         }
+
+        /* ── Data Siswa: CRUD ── */
+        .stu-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+        .stu-add { white-space: nowrap; }
+        .stu-actions { display: flex; flex-direction: column; align-items: stretch; gap: 0.35rem; }
+        .stu-actions .stu-btn { text-align: center; }
+        .stu-btn-edit { background: #fef3c7; color: #92400e; padding: 0.4rem 0.75rem; font-size: 0.78rem; border-radius: 8px; }
+        .stu-btn-edit:hover { background: #fde68a; }
+        .stu-btn-restore { background: #dcfce7; color: #166534; padding: 0.4rem 0.75rem; font-size: 0.78rem; border-radius: 8px; }
+        .stu-btn-restore:hover { background: #bbf7d0; }
+        .stu-btn-danger { background: #c0392b; color: #fff; }
+        .stu-btn-danger:hover:not(:disabled) { background: #a93226; }
+        .stu-btn-danger-ghost { background: #fff; color: #c0392b; border: 1px solid #f5c6c0; }
+        .stu-btn-danger-ghost:hover { background: #fdecea; }
+        .stu-detail-actions { display: flex; gap: 0.5rem; padding: 0.9rem 1.5rem 0; flex-wrap: wrap; }
+        .stu-detail-actions:empty { display: none; }
+        .stu-detail-actions .stu-btn-primary { margin-left: 0; }
+        .stu-banner-archived { background: #f1f5f9; border-color: #cbd5e1; color: #334155; }
+        .stu-badge-archived { background: #e2e8f0; color: #334155; white-space: nowrap; }
+        .stu-badge-create { background: #dcfce7; color: #166534; }
+        .stu-badge-update { background: #dbeafe; color: #1e40af; }
+        .stu-badge-archive { background: #e2e8f0; color: #334155; }
+        .stu-badge-restore { background: #fef3c7; color: #92400e; }
+        .stu-history { list-style: none; display: flex; flex-direction: column; gap: 0.9rem; }
+        .stu-history-item { border: 1px solid #eef0f3; border-radius: 12px; padding: 0.8rem 1rem; }
+        .stu-history-head { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+        .stu-history-meta { color: #6c757d; font-size: 0.8rem; }
+        .stu-history-note { color: #475569; font-size: 0.85rem; margin-top: 0.5rem; }
+        .stu-history-table { margin-top: 0.6rem; width: 100%; }
+        .stu-history-table th, .stu-history-table td { padding: 0.4rem 0.5rem; font-size: 0.82rem; text-align: left; overflow-wrap: anywhere; }
+        .stu-history-table th { text-transform: none; letter-spacing: 0; font-size: 0.74rem; }
+        .stu-old { color: #94a3b8; text-decoration: line-through; }
+        .stu-new { color: #1a1a2e; font-weight: 600; }
+        .stu-form-modal { z-index: 10002; }
+        .stu-form-modal .stu-modal-body { max-height: calc(100vh - 19rem); }
+        .stu-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem 1.25rem; }
+        .stu-form-item { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+        .stu-form-item label { font-size: 0.78rem; font-weight: 700; color: #475569; }
+        .stu-req { color: #c0392b; }
+        .stu-input {
+            width: 100%; padding: 0.6rem 0.8rem; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #f8f9fa;
+            font-family: 'Inter', sans-serif; font-size: 0.9rem; color: #1a1a2e; outline: none; resize: vertical;
+        }
+        .stu-input:focus { border-color: #c0392b; background: #fff; box-shadow: 0 0 0 3px rgba(192,57,43,0.08); }
+        .stu-form-item.invalid .stu-input { border-color: #dc2626; background: #fef2f2; }
+        .stu-field-error { color: #dc2626; font-size: 0.76rem; min-height: 0; }
+        .stu-field-error:empty { display: none; }
+        .stu-modal-foot { display: flex; gap: 0.6rem; justify-content: flex-end; align-items: center; padding: 1rem 1.5rem; border-top: 1px solid #f0f0f0; flex-wrap: wrap; }
+        .stu-modal-foot .stu-btn-primary { margin-left: 0; }
+        .stu-form-error { flex: 1 1 100%; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 10px; padding: 0.6rem 0.8rem; font-size: 0.85rem; }
+        .stu-confirm { z-index: 10003; align-items: center !important; }
+        .stu-confirm.active { display: flex; }
+        .stu-confirm-box { background: #fff; border-radius: 16px; padding: 1.5rem; max-width: 420px; width: 100%; margin: auto; box-shadow: 0 24px 60px rgba(0,0,0,0.25); }
+        .stu-confirm-box h3 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.15rem; color: #1a1a2e; }
+        .stu-confirm-box p { color: #475569; font-size: 0.92rem; line-height: 1.5; margin-top: 0.6rem; }
+        .stu-confirm-actions { display: flex; gap: 0.6rem; margin-top: 1.25rem; }
+        .stu-confirm-actions .stu-btn { flex: 1; margin-left: 0; }
+        @media (max-width: 640px) {
+            .stu-form-grid { grid-template-columns: 1fr; }
+            .stu-form-modal .stu-modal-body { max-height: none; }
+            .stu-modal-foot { position: sticky; bottom: 0; background: #fff; }
+            .stu-actions { flex-direction: row; justify-content: flex-end; }
+            .stu-add { width: 100%; }
+        }
     </style>
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" type="image/png" href="/favicon.png">
@@ -723,8 +787,9 @@
                     <div class="section-header stu-head">
                         <div>
                             <h2>Data Siswa</h2>
-                            <p class="stu-muted">Tahun ajaran <span id="stuSchoolYear">2026/2027</span> · hanya baca · data privat, khusus admin</p>
+                            <p class="stu-muted">Tahun ajaran <span id="stuSchoolYear">2026/2027</span> · data privat, khusus admin<span id="stuArchivedCount"></span></p>
                         </div>
+                        <button type="button" class="stu-btn stu-btn-primary stu-add" id="stuAdd">+ Tambah Siswa</button>
                     </div>
                     <div class="stat-grid">
                         <div class="stat-card"><div class="stat-icon" style="background:#fadbd8;color:#c0392b;">🎓</div><div><span class="stat-number" id="stuTotal">-</span><span class="stat-label">Data Siswa</span></div></div>
@@ -756,6 +821,11 @@
                                     <option value="Tercantum di daftar kelas">Tercantum di daftar kelas</option>
                                     <option value="Perlu verifikasi lebih lanjut">Perlu verifikasi lebih lanjut</option>
                                 </select>
+                                <label class="stu-sr" for="stuArchive">Tampilkan</label>
+                                <select id="stuArchive" class="stu-select">
+                                    <option value="active">Siswa aktif</option>
+                                    <option value="archived">Arsip</option>
+                                </select>
                                 <label class="stu-sr" for="stuPageSize">Jumlah per halaman</label>
                                 <select id="stuPageSize" class="stu-select">
                                     <option value="10">10 siswa</option>
@@ -774,6 +844,7 @@
                             </table>
                         </div>
                         <nav class="stu-pagination" id="stuPagination" aria-label="Halaman data siswa"></nav>
+                        <datalist id="stuKelasList"></datalist>
                     </div>
                 </div>
 
@@ -1092,9 +1163,43 @@
                 </div>
                 <button type="button" class="stu-close" id="stuDetailClose" aria-label="Tutup detail"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
             </div>
+            <div class="stu-detail-actions" id="stuDetailActions"></div>
+            <div class="stu-banner stu-banner-archived" id="stuDetailArchived" hidden>Siswa ini diarsipkan — tidak tampil di daftar aktif dan ringkasan. Pulihkan untuk mengubah datanya.</div>
             <div class="stu-banner" id="stuDetailBanner" hidden>Perlu verifikasi lebih lanjut — siswa ini tidak tercantum di daftar kelas terbaru atau datanya belum lengkap.</div>
             <div class="stu-tabs" id="stuDetailTabs" role="tablist"></div>
             <div class="stu-modal-body" id="stuDetailBody"></div>
+        </div>
+    </div>
+
+    <!-- Form Tambah/Ubah Siswa -->
+    <div class="stu-modal stu-form-modal" id="stuForm" aria-hidden="true">
+        <div class="stu-modal-box" role="dialog" aria-modal="true" aria-labelledby="stuFormTitle">
+            <div class="stu-modal-head">
+                <div>
+                    <h3 id="stuFormTitle">Tambah Siswa</h3>
+                    <p class="stu-muted" id="stuFormSubtitle"></p>
+                </div>
+                <button type="button" class="stu-close" id="stuFormClose" aria-label="Tutup form"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+            </div>
+            <div class="stu-tabs" id="stuFormTabs" role="tablist"></div>
+            <div class="stu-modal-body" id="stuFormBody"></div>
+            <div class="stu-modal-foot">
+                <div class="stu-form-error" id="stuFormError" role="alert" hidden></div>
+                <button type="button" class="stu-btn stu-btn-ghost" id="stuFormCancel">Batal</button>
+                <button type="button" class="stu-btn stu-btn-primary" id="stuFormSave">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Konfirmasi Arsip/Pulihkan -->
+    <div class="stu-modal stu-confirm" id="stuConfirm" aria-hidden="true">
+        <div class="stu-confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="stuConfirmTitle">
+            <h3 id="stuConfirmTitle">Arsipkan siswa?</h3>
+            <p id="stuConfirmText"></p>
+            <div class="stu-confirm-actions">
+                <button type="button" class="stu-btn stu-btn-ghost" id="stuConfirmNo">Batal</button>
+                <button type="button" class="stu-btn stu-btn-danger" id="stuConfirmYes">Ya</button>
+            </div>
         </div>
     </div>
 
@@ -1127,7 +1232,7 @@
     <!-- Custom Scripts -->
     <script src="ai-service.js?v=2"></script>
     <script src="student-fields.js?v=1"></script>
-    <script src="admin-students.js?v=1"></script>
+    <script src="admin-students.js?v=2"></script>
     <script src="admin.js?v=4"></script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
