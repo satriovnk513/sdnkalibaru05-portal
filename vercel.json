@@ -11,12 +11,37 @@
       "source": "/index.html",
       "destination": "/",
       "permanent": true
+    },
+    {
+      "source": "/berita-list",
+      "destination": "/berita",
+      "permanent": true
+    },
+    {
+      "source": "/berita-detail",
+      "has": [
+        {
+          "type": "query",
+          "key": "slug",
+          "value": "(?<slug>.+)"
+        }
+      ],
+      "destination": "/berita/:slug",
+      "permanent": true
     }
   ],
   "rewrites": [
     {
+      "source": "/berita",
+      "destination": "/api/berita"
+    },
+    {
       "source": "/berita/:slug",
-      "destination": "/berita-detail?slug=:slug"
+      "destination": "/api/berita?slug=:slug"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
     }
   ],
   "headers": [
@@ -67,6 +92,13 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/berita.js": {
+      "includeFiles": "{berita-detail.html,berita-list.html,supabase-config.js}"
+    },
+    "api/sitemap.js": {
+      "includeFiles": "supabase-config.js"
+    }
+  }
 }
-
