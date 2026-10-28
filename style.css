@@ -1429,6 +1429,25 @@ img {
     word-break: break-word;
 }
 
+.contact-item a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.contact-person {
+    margin-bottom: 0.35rem;
+}
+
+.contact-person a {
+    white-space: nowrap;
+}
+
+.contact-item a.contact-wa {
+    color: #4ade80;
+    font-weight: 600;
+}
+
 .form-group {
     margin-bottom: 1.5rem;
 }

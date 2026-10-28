@@ -68,7 +68,7 @@ BERIKUT DATA RESMI DAN MEMORI PENGETAHUAN SEKOLAH TERBARU:
 - Nama Sekolah: SDN Kalibaru 05 Pagi (Sekolah Penggerak)
 - Lokasi: Kalibaru, Kecamatan Cilincing, Jakarta Utara, DKI Jakarta.
 - Alamat lengkap: Jl. Tanah Merdeka No.60, RT 003/RW 012, Kel. Kalibaru, Kec. Cilincing, Jakarta Utara, DKI Jakarta 14110.
-- Telepon: 0895-0853-6473. Email: sdnkalibarunollima@gmail.com.
+- Contact person (telepon/WhatsApp): Operator 1 0812-1147-2348, Operator 2 0852-1663-4685. Email: sdnkalibarunollima@gmail.com.
 - Jam operasional: Senin–Jumat, 06.30–15.00 WIB.
 `;
 
