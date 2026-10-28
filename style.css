@@ -335,6 +335,19 @@ img {
     font-size: 0.9rem;
 }
 
+/* Current page = Kontak: keep the outlined button, mark it with the same red dot as other links */
+.nav-links a.btn-primary-outline.active::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    bottom: -9px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--primary-color);
+}
+
 /* 2026 Partner Logos in Navbar */
 .nav-logos {
     display: flex;
