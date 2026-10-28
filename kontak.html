@@ -104,8 +104,10 @@
                     <div class="form-group">
                         <textarea name="message" rows="5" placeholder="Tuliskan pesan atau pertanyaan Anda di sini..." aria-label="Pesan" maxlength="1500" required></textarea>
                     </div>
-                    <button type="submit" class="btn-primary">Kirim Pesan <i class="fas fa-paper-plane" style="margin-left: 0.5rem;"></i></button>
-                    <p id="contactFormNote" role="status" style="margin-top: 0.75rem; font-size: 0.9rem; color: #64748b;">Pesan akan dibuka di aplikasi email Anda dan dikirim ke sdnkalibarunollima@gmail.com.</p>
+                    <!-- Spam trap: hidden from people, bots fill it in -->
+                    <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" aria-hidden="true" style="display: none;">
+                    <button type="submit" class="btn-primary" id="contactSubmit">Kirim Pesan <i class="fas fa-paper-plane" style="margin-left: 0.5rem;"></i></button>
+                    <p id="contactFormNote" role="status" aria-live="polite" style="margin-top: 0.75rem; font-size: 0.9rem; color: #64748b;">Pesan akan dikirim ke email sekolah (sdnkalibarunollima@gmail.com).</p>
                 </form>
             </div>
         </div>
@@ -176,19 +178,83 @@
     <script src="kalibot.js"></script>
     <script src="main.js"></script>
     <script>
-        // No backend for messages yet: open the visitor's email app with the message pre-filled
-        document.getElementById('contactForm').addEventListener('submit', (event) => {
-            event.preventDefault();
-            const form = event.currentTarget;
+        // Contact form -> school inbox via Web3Forms (browser-side API; the access key is public by design,
+        // it only lets people send a message to the school address). Without a key, or if sending fails,
+        // fall back to opening the visitor's email app.
+        const WEB3FORMS_ACCESS_KEY = '';
+        const SCHOOL_EMAIL = 'sdnkalibarunollima@gmail.com';
+        const FALLBACK_TEXT = 'Jika tetap gagal, kirim langsung ke ' + SCHOOL_EMAIL
+            + ' atau hubungi Operator 1 (0812-1147-2348) / Operator 2 (0852-1663-4685).';
+
+        (function () {
+            const form = document.getElementById('contactForm');
+            const note = document.getElementById('contactFormNote');
+            const button = document.getElementById('contactSubmit');
+            const buttonHtml = button.innerHTML;
             const value = (name) => form.elements[name].value.trim();
-            const body = `Nama: ${value('name')}\nEmail: ${value('email')}\n\n${value('message')}`;
-            const mailto = 'mailto:sdnkalibarunollima@gmail.com'
-                + '?subject=' + encodeURIComponent('[Website] ' + value('subject'))
-                + '&body=' + encodeURIComponent(body);
-            window.location.href = mailto;
-            document.getElementById('contactFormNote').textContent =
-                'Aplikasi email Anda sedang dibuka. Pesan baru terkirim setelah Anda menekan "Kirim" di aplikasi email. Jika tidak terbuka, kirim langsung ke sdnkalibarunollima@gmail.com atau hubungi Operator 1 (0812-1147-2348) / Operator 2 (0852-1663-4685).';
-        });
+            let lastSent = 0;
+
+            function setNote(text, color) {
+                note.textContent = text;
+                note.style.color = color || '#64748b';
+            }
+
+            function openMailApp() {
+                const body = `Nama: ${value('name')}\nEmail: ${value('email')}\n\n${value('message')}`;
+                window.location.href = 'mailto:' + SCHOOL_EMAIL
+                    + '?subject=' + encodeURIComponent('[Website] ' + value('subject'))
+                    + '&body=' + encodeURIComponent(body);
+            }
+
+            if (!WEB3FORMS_ACCESS_KEY) {
+                setNote('Pesan akan dibuka di aplikasi email Anda dan dikirim ke ' + SCHOOL_EMAIL + '.');
+            }
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                if (!WEB3FORMS_ACCESS_KEY) {
+                    openMailApp();
+                    setNote('Aplikasi email Anda sedang dibuka. Pesan baru terkirim setelah Anda menekan "Kirim" di aplikasi email. ' + FALLBACK_TEXT);
+                    return;
+                }
+                if (form.elements.botcheck.checked) return; // bot
+                if (Date.now() - lastSent < 30000) {
+                    setNote('Pesan Anda baru saja terkirim. Tunggu sebentar sebelum mengirim pesan lain.', '#b45309');
+                    return;
+                }
+
+                button.disabled = true;
+                button.textContent = 'Mengirim...';
+                setNote('Sedang mengirim pesan...');
+                try {
+                    const response = await fetch('https://api.web3forms.com/submit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                        body: JSON.stringify({
+                            access_key: WEB3FORMS_ACCESS_KEY,
+                            subject: '[Website] ' + value('subject'),
+                            from_name: 'Website SDN Kalibaru 05',
+                            name: value('name'),
+                            email: value('email'),          // used as Reply-To, so the school can reply directly
+                            message: value('message'),
+                            halaman: location.href
+                        })
+                    });
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok || !result.success) throw new Error(result.message || 'HTTP ' + response.status);
+                    lastSent = Date.now();
+                    form.reset();
+                    setNote('Terima kasih! Pesan Anda sudah terkirim ke email sekolah. Kami akan membalas ke alamat email Anda.', '#15803d');
+                } catch (err) {
+                    console.error('Contact form error:', err);
+                    setNote('Maaf, pesan gagal terkirim. Silakan coba lagi beberapa saat lagi. ' + FALLBACK_TEXT, '#b91c1c');
+                } finally {
+                    button.disabled = false;
+                    button.innerHTML = buttonHtml;
+                }
+            });
+        })();
     </script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
