@@ -182,3 +182,58 @@ supabase migration repair 20261023000001 --status applied
   hilang saat session ditutup.
 - Tidak ada skrip *down*/hapus tabel. Menghapus tabel siswa harus lewat persetujuan
   terpisah.
+
+---
+
+# Modul Absensi Siswa — Fase 0 (fondasi data)
+
+Acuan: PRD Absensi Siswa. Fase 0 hanya menyiapkan database dan akun; belum ada
+halaman yang terlihat guru.
+
+| File | Isi |
+|---|---|
+| `migrations/20261112000001_attendance_foundation.sql` | Tabel akun guru, tahun ajaran, rombel, keanggotaan rombel, wali kelas (maks. 2), mapel, penugasan mapel, hari libur, absensi + riwayat; fungsi hak akses; RLS; RPC `get_class_roster`, `get_student_profile`, `save_attendance`, `archive_attendance_session`, `restore_attendance_session` |
+| `seed/20261112_penugasan_2026_2027.sql` | Tahun ajaran 2026/2027, 17 rombel, PAI & PJOK, keanggotaan rombel dari Data Siswa, 17 wali kelas, 34 penugasan mapel |
+| `tests/local/run.sh` | Menjalankan migration lama + baru + seed + 53 tes hak akses di Postgres lokal sementara |
+| `../scripts/create-teacher-accounts.mjs` | Membuat akun guru/admin dari file di `data-private/` (tidak di-commit) |
+
+**Keputusan keamanan penting**
+
+- Email dan NIP login disimpan di `teacher_accounts`, **bukan** di `staff`, karena
+  `staff` dibaca publik oleh halaman Guru & Staf.
+- Guru tidak pernah mendapat akses ke `student_records`. Daftar siswa dan profil
+  diambil lewat RPC yang hanya mengembalikan field aman (tanpa NIK, KK,
+  penghasilan, anggota keluarga, akta, koordinat, PPDB/Dukcapil).
+- Absensi hanya ditulis lewat `save_attendance`; tidak ada grant tulis langsung.
+- Repo ini publik: daftar email/NIP guru dan file password awal **wajib** di
+  `data-private/` (di-ignore Git).
+
+## Tes lokal (tanpa menyentuh Supabase)
+
+```bash
+# Butuh PostgreSQL 15+ (initdb, pg_ctl, psql). Jangan dijalankan sebagai root.
+bash supabase/tests/local/run.sh
+# Diharapkan: "SEMUA LULUS: 53 tes"
+```
+
+## Menerapkan ke produksi — urutan
+
+Jalankan hanya setelah disetujui, dengan backup tersedia (lihat syarat di atas).
+
+1. **SQL Editor → New query:** tempel seluruh isi
+   `migrations/20261112000001_attendance_foundation.sql` → Run.
+   Diharapkan `Success. No rows returned`.
+2. **New query:** tempel `seed/20261112_penugasan_2026_2027.sql` → Run.
+   Diharapkan baris hasil: `rombel 17`, `wali_kelas 17`, `penugasan_mapel 34`,
+   dan `siswa_terdaftar` = `siswa_tercantum` (535).
+3. Siapkan `data-private/akun-guru.json` (format: `scripts/teacher-accounts.example.json`).
+4. Dry-run: `node scripts/create-teacher-accounts.mjs --file data-private/akun-guru.json`
+5. Eksekusi:
+   ```bash
+   SUPABASE_SERVICE_ROLE_KEY="$SB_KEY" node scripts/create-teacher-accounts.mjs \
+     --execute --file data-private/akun-guru.json --out data-private/password-awal.csv
+   ```
+   Password awal hanya ada di file `--out`. Bagikan langsung ke tiap guru, lalu hapus file itu.
+
+Rollback darurat: semua objek di migration ini baru dan tidak dipakai halaman
+mana pun sampai Fase 1, jadi data lama tidak terpengaruh.
