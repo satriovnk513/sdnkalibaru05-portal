@@ -190,6 +190,12 @@ supabase migration repair 20261023000001 --status applied
 Acuan: PRD Absensi Siswa. Fase 0 hanya menyiapkan database dan akun; belum ada
 halaman yang terlihat guru.
 
+> **Status produksi (12 Nov 2026):** migration dan seed SUDAH diterapkan
+> (migration `attendance_foundation` dan `seed_penugasan_2026_2027`). Isi fungsi
+> dicocokkan dengan versi yang lolos tes lokal (md5 `prosrc`, komentar diabaikan).
+> Hasil seed: 17 rombel, 17 wali kelas, 34 penugasan mapel, 535 siswa terdaftar.
+> Akun guru BELUM dibuat.
+
 | File | Isi |
 |---|---|
 | `migrations/20261112000001_attendance_foundation.sql` | Tabel akun guru, tahun ajaran, rombel, keanggotaan rombel, wali kelas (maks. 2), mapel, penugasan mapel, hari libur, absensi + riwayat; fungsi hak akses; RLS; RPC `get_class_roster`, `get_student_profile`, `save_attendance`, `archive_attendance_session`, `restore_attendance_session` |
