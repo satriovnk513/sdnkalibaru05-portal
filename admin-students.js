@@ -184,6 +184,10 @@
                 eb.type = 'button';
                 eb.addEventListener('click', () => openForm(r.id));
                 actions.appendChild(eb);
+                const db = el('button', 'stu-btn stu-btn-delete', 'Hapus');
+                db.type = 'button';
+                db.addEventListener('click', () => confirmArchive(r, true));
+                actions.appendChild(db);
             }
             tr.appendChild(cell('Aksi', actions, 'stu-col-action'));
             tbody.appendChild(tr);
@@ -354,7 +358,7 @@
             const eb = el('button', 'stu-btn stu-btn-primary', 'Ubah Data');
             eb.type = 'button';
             eb.addEventListener('click', () => openForm(data.id));
-            const ab = el('button', 'stu-btn stu-btn-danger-ghost', 'Arsipkan');
+            const ab = el('button', 'stu-btn stu-btn-danger-ghost', 'Hapus');
             ab.type = 'button';
             ab.addEventListener('click', () => confirmArchive(data, true));
             acts.append(eb, ab);
@@ -712,12 +716,12 @@
 
     function confirmArchive(student, archive) {
         const m = $('stuConfirm');
-        $('stuConfirmTitle').textContent = archive ? 'Arsipkan siswa?' : 'Pulihkan siswa?';
+        $('stuConfirmTitle').textContent = archive ? 'Hapus siswa?' : 'Pulihkan siswa?';
         $('stuConfirmText').textContent = archive
-            ? `${display(student.nama_siswa)} akan disembunyikan dari daftar siswa aktif dan ringkasan. Data tidak dihapus dan bisa dipulihkan dari filter "Arsip".`
+            ? `${display(student.nama_siswa)} akan dihapus dari daftar siswa aktif dan ringkasan. Data disimpan di Arsip (bukan dihapus permanen) dan bisa dipulihkan dari filter "Arsip".`
             : `${display(student.nama_siswa)} akan kembali tampil di daftar siswa aktif.`;
         const yes = $('stuConfirmYes');
-        yes.textContent = archive ? 'Ya, Arsipkan' : 'Ya, Pulihkan';
+        yes.textContent = archive ? 'Ya, Hapus' : 'Ya, Pulihkan';
         yes.className = archive ? 'stu-btn stu-btn-danger' : 'stu-btn stu-btn-primary';
         yes.disabled = false;
         yes.onclick = async () => {
@@ -732,7 +736,7 @@
                 await refreshAfterWrite(null);
                 return;
             }
-            if (typeof showToast === 'function') showToast(archive ? 'Siswa diarsipkan.' : 'Siswa dipulihkan.', 'success');
+            if (typeof showToast === 'function') showToast(archive ? 'Siswa dihapus (dipindahkan ke Arsip).' : 'Siswa dipulihkan.', 'success');
             await refreshAfterWrite(student.id);
         };
         m.classList.add('active');
