@@ -110,7 +110,7 @@ async function runUi() {
         const path = join(dlDir, `${Date.now()}-${Math.random().toString(36).slice(2)}.xlsx`);
         await download.saveAs(path);
         if (!hasOpenpyxl) return null;
-        const r = spawnSync('python3', ['-c', 'import sys,openpyxl\nws=openpyxl.load_workbook(sys.argv[1]).active\nprint("|".join(str(ws[c].value) for c in sys.argv[2:]))', path, ...cells], { encoding: 'utf8' });
+        const r = spawnSync('python3', ['-c', 'import sys,openpyxl\nws=openpyxl.load_workbook(sys.argv[1]).active\nprint("|".join([str(ws[c].value) for c in sys.argv[2:]] + ["logo" if "xl/media/image1.png" in __import__("zipfile").ZipFile(sys.argv[1]).namelist() else "tanpa-logo"]))', path, ...cells], { encoding: 'utf8' });
         return r.status === 0 ? r.stdout.trim().split('|') : [`ERROR ${r.stderr.slice(0, 120)}`];
     }
     async function popupFrom(page, click) {
@@ -127,6 +127,10 @@ async function runUi() {
         check(await overflow(page) <= 0, 'login guru tidak bergeser ke samping di 360 px');
         check((await page.getAttribute('#gId', 'autocomplete')) === 'username', 'kolom login memakai autocomplete username');
         await shot(page, 'guru-01-login-360.png');
+        {
+            const gap = await page.evaluate(() => document.querySelector('label[for="gPw"]').getBoundingClientRect().top - document.getElementById('gId').getBoundingClientRect().bottom);
+            check(gap > 8 && gap < 40, `login: jarak kolom email → password wajar (${Math.round(gap)} px)`);
+        }
 
         await page.fill('#gId', '990000000000000001');
         await page.fill('#gPw', 'salah');
@@ -152,6 +156,28 @@ async function runUi() {
         check(await page.isHidden('.g-nav'), 'navigasi bawah disembunyikan agar tombol Simpan terlihat');
         check(await page.$$eval('.att-status button[aria-pressed="true"]', (b) => b.length) === 0, 'status awal kosong (tidak otomatis Hadir)');
         check(/3<\/b> dari 3 siswa belum diabsen/.test(await page.innerHTML('.att-progress')), 'penanda "3 dari 3 belum diabsen" tampil');
+        // Panel ringkasan menempel di atas saat digulir; tombol panah melepasnya.
+        check(await page.$eval('#gFloat', (el) => el.classList.contains('is-floating') && getComputedStyle(el).position === 'sticky'), 'panel tanggal + ringkasan menempel di atas (floating)');
+        await page.evaluate(() => window.scrollTo(0, 400));
+        const stuck = await page.evaluate(() => ({ top: document.getElementById('gFloat').getBoundingClientRect().top, head: document.querySelector('.g-top').getBoundingClientRect().bottom }));
+        check(Math.abs(stuck.top - stuck.head) <= 1, `saat digulir panel tetap tepat di bawah header (${Math.round(stuck.top)} vs ${Math.round(stuck.head)})`);
+        if (OUT) await page.screenshot({ path: join(OUT, 'guru-03a-absen-floating-360.png') });
+        await page.click('#gFloat .att-float-toggle');
+        check(await page.$eval('#gFloat', (el) => !el.classList.contains('is-floating') && getComputedStyle(el).position !== 'sticky'), 'tombol panah melepas panel (tidak menempel lagi)');
+        check(await page.evaluate(() => localStorage.getItem('att-float')) === '0', 'pilihan lepas/tempel diingat');
+        await page.evaluate(() => window.scrollTo(0, 0));
+        check(/Dispensasi<\/b> pada absensi siswa berlaku hanya untuk/.test(await page.innerHTML('#gSheet')) && /tetap dihitung hadir/.test(await page.innerHTML('#gSheet')), 'keterangan Dispensasi tampil di lembar absensi');
+        check(!/Non-Muslim/.test(await page.innerHTML('#gSheet')), 'keterangan Non-Muslim tidak tampil di absensi harian');
+        check(await page.$eval('.att-btn-hadir', (b) => getComputedStyle(b).backgroundColor) === 'rgb(220, 252, 231)', 'tombol Tandai semua Hadir berwarna hijau');
+        check(await page.$eval('.att-btn-reset', (b) => b.getBoundingClientRect().left > document.querySelector('.att-btn-hadir').getBoundingClientRect().right - 1 && getComputedStyle(b).backgroundColor === 'rgb(226, 232, 240)'), 'tombol Reset abu-abu di kanan Tandai semua Hadir');
+        check(await page.$eval('#gSheet .att-back', (a) => a.textContent.trim() === 'Kembali ke Menu Utama' && a.getAttribute('href') === '#/'
+            && a.getBoundingClientRect().top >= document.querySelector('#attSave').getBoundingClientRect().top), 'tombol Kembali ke Menu Utama ada di bawah tombol Simpan');
+        // Reset mengosongkan semua
+        await page.click('[data-all="H"]');
+        check(await page.$$eval('.att-status button[aria-pressed="true"]', (b) => b.length) === 3, 'Tandai semua Hadir mengisi 3 siswa');
+        await page.click('[data-reset]');
+        await page.click('.att-sheet [data-act="yes"]');
+        check(await page.$$eval('.att-status button[aria-pressed="true"]', (b) => b.length) === 0 && /3<\/b> dari 3/.test(await page.innerHTML('.att-progress')), 'Reset mengosongkan semua status lagi');
         await page.click('.att-item[data-i="1"] [data-st="S"]');
         check(/^1/.test(await page.textContent('.att-count.S b')), 'penghitung Sakit bertambah');
         // Ketuk lagi = kosong
@@ -184,7 +210,7 @@ async function runUi() {
         const saved = await page.evaluate(() => window.__fake.calls.find((c) => c.fn === 'save_attendance').args);
         check(saved.p_entries.length === 3 && saved.p_entries.find((e) => e.status === 'S')?.note === 'Demam', 'RPC menerima 3 status + catatan');
         await page.waitForSelector('.att-badge.ok');
-        check(/Tersimpan/.test(await page.textContent('#gSheet')), 'lembar menampilkan status tersimpan');
+        check(/Tersimpan/.test(await page.textContent('#gSheetHead')), 'lembar menampilkan status tersimpan');
 
         // Gagal kirim → draf tetap ada
         await page.evaluate(() => { window.__fake.failRpc.save_attendance = 'Failed to fetch'; });
@@ -195,7 +221,7 @@ async function runUi() {
         check(true, 'gagal kirim memberi pesan koneksi');
         await page.reload();
         await page.waitForSelector('.att-list');
-        check(/belum terkirim/i.test(await page.textContent('#gSheet')), 'isian yang belum terkirim dipulihkan setelah muat ulang');
+        check(/belum terkirim/i.test(await page.textContent('#gSheetHead')), 'isian yang belum terkirim dipulihkan setelah muat ulang');
         await page.evaluate(() => { delete window.__fake.failRpc.save_attendance; });
 
         // Kembali ke beranda lewat tombol kembali, lalu Siswa + profil
@@ -207,6 +233,11 @@ async function runUi() {
         check(/Menampilkan 1–3 dari 3 data/.test(await page.textContent('[data-info]')), 'daftar siswa memakai keterangan "Menampilkan x–y dari z data"');
         check(await page.$('select[data-size] option[value="100"]') !== null, 'pilihan Tampilkan 10/25/50/100 tersedia');
         check(await overflow(page) <= 0, 'daftar siswa (kartu) tidak bergeser ke samping');
+        check(await page.$('#gFloat.att-float [data-q]') !== null && await page.$('#gFloat.att-float select[data-size]') !== null && await page.$('#gFloat #gKelas') !== null,
+            'data siswa: Kelas, Cari, Tampilkan ada di panel yang bisa menempel');
+        await page.fill('#gFloat [data-q]', 'Dua');
+        check(/Menampilkan 1–1 dari 1 data/.test(await page.textContent('[data-info]')), 'data siswa: kolom Cari di panel tetap berfungsi');
+        await page.fill('#gFloat [data-q]', '');
         await shot(page, 'guru-05-siswa-360.png');
         await page.click('.att-table tbody tr a');
         await page.waitForSelector('.g-prof');
@@ -219,6 +250,7 @@ async function runUi() {
         await page.click('.g-nav a[data-nav="rekap"]');
         await page.waitForSelector('.att-student-card');
         check(await overflow(page) <= 0, 'rekap (kartu) tidak bergeser ke samping');
+        check(await page.$('#gFloat.att-float #gRkKelas') !== null && /absensi diisi/.test(await page.textContent('#gFloat #gRkInfo')), 'rekap: Kelas, Bulan, dan ringkasan ada di panel yang bisa menempel');
         await shot(page, 'guru-07-rekap-360.png');
         {
             const pop = await popupFrom(page, () => page.click('#gRkPrint'));
@@ -230,8 +262,8 @@ async function runUi() {
             await pop.close();
             const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#gRkXlsx')]);
             check(/^Daftar_Hadir_I\.A_.*\.xlsx$/.test(dl.suggestedFilename()), `guru: nama file Excel (${dl.suggestedFilename()})`);
-            const v = await xlsxCells(dl, ['A1', 'A4']);
-            check(!v || (v[0] === 'DAFTAR HADIR SISWA' && v[1] === 'KELAS : I.A'), `guru: file Excel valid (${v})`);
+            const v = await xlsxCells(dl, ['D1', 'D4']);
+            check(!v || (v[0] === 'DAFTAR HADIR SISWA' && v[1] === 'KELAS : I.A' && v[2] === 'logo'), `guru: file Excel valid + logo tertanam (${v})`);
             const pop2 = await popupFrom(page, () => page.click('#gRkSemPrint'));
             check(/REKAP ABSENSI SEMESTER/.test(await pop2.textContent('body')), 'guru: cetak rekap semester');
             await pop2.close();
@@ -260,6 +292,15 @@ async function runUi() {
         await page.click('.btn-login');
         await page.waitForSelector('#mainContent', { state: 'visible' });
         if (vp.tag === '1366') check(/Portal Guru/.test(await page.textContent('.login-box')), 'login admin menautkan ke Portal Guru');
+        if (vp.tag === '390') {
+            // Tombol Logout harus terlihat di HP walau menu sidebar panjang.
+            await page.evaluate(() => toggleSidebar());
+            await page.waitForTimeout(400);
+            const lo = await page.evaluate(() => { const r = document.querySelector('.logout-item').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, vh: window.innerHeight }; });
+            check(lo.top >= 0 && lo.bottom <= lo.vh, `[390] tombol Logout terlihat di sidebar HP (bawah ${Math.round(lo.bottom)} ≤ ${lo.vh})`);
+            if (OUT) await page.screenshot({ path: join(OUT, 'admin-00-sidebar-390.png') });
+            await page.evaluate(() => toggleSidebar());
+        }
 
         await page.evaluate(() => showTab('tabTeacherAccounts'));
         await page.waitForSelector('#accTable .att-table');
@@ -466,8 +507,8 @@ async function runUi() {
         await popB.close();
         await page.uncheck('#lpBlnBlank');
         const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#lpBlnXlsx')]);
-        const v = await xlsxCells(dl, ['A1', 'A4', 'D8']);
-        check(!v || (v[0] === 'DAFTAR HADIR SISWA' && v[1] === 'KELAS : I.A' && v[2] === 'SISWA FIKTIF DUA'), `${T} Excel bulanan valid (${v})`);
+        const v = await xlsxCells(dl, ['D1', 'D4', 'D8']);
+        check(!v || (v[0] === 'DAFTAR HADIR SISWA' && v[1] === 'KELAS : I.A' && v[2] === 'SISWA FIKTIF DUA' && v[3] === 'logo'), `${T} Excel bulanan valid + logo (${v})`);
 
         await page.evaluate(() => showTab('tabRekapSemester'));
         await page.waitForSelector('#lpSemTable .att-table');
@@ -485,7 +526,7 @@ async function runUi() {
         }
         await popS.close();
         const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('#lpSemXlsx')]);
-        const v2 = await xlsxCells(dl2, ['A1', 'D7']);
+        const v2 = await xlsxCells(dl2, ['D1', 'D7']);
         check(!v2 || (/REKAP ABSENSI SEMESTER/.test(v2[0]) && v2[1] === 'SISWA FIKTIF DUA'), `${T} Excel semester valid (${v2})`);
         check(errors.length === 0, `${T} tidak ada error JavaScript di Laporan (${errors.join(' | ').slice(0, 160)})`);
         await ctx.close();

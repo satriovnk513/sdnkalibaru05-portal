@@ -12,7 +12,8 @@
 
     const SCHOOL = 'SDN KALIBARU 05 PAGI';
     const CITY = 'Jakarta';
-    const LOGO = 'https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png';
+    // Logo kecil di pojok kiri atas dokumen cetak & Excel (file di situs sendiri).
+    const LOGO = (root.location && /^https?:/.test(root.location.origin || '') ? root.location.origin : '') + '/logo-cetak.png';
     const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
     function esc(v) {
@@ -47,9 +48,23 @@
         return t;
     }
 
+    /** % kehadiran. Dispensasi (kegiatan resmi sekolah) dihitung hadir. */
     function pct(t) {
-        const base = t.H + t.S + t.I + t.A;
-        return base ? Math.round((t.H / base) * 1000) / 10 : null;
+        const hadir = (t.H || 0) + (t.D || 0);
+        const base = hadir + (t.S || 0) + (t.I || 0) + (t.A || 0);
+        return base ? Math.round((hadir / base) * 1000) / 10 : null;
+    }
+
+    /**
+     * Tinggi baris & ukuran huruf supaya kop + tabel + tanda tangan muat di SATU
+     * halaman A4 landscape (tinggi isi 194 mm), berapa pun jumlah siswanya.
+     * budget = ruang (mm) untuk seluruh baris tabel. Di atas ±55 siswa dibiarkan
+     * pindah halaman daripada hurufnya tidak terbaca.
+     */
+    function fit(rowCount, budget, maxH) {
+        const h = Math.max(2.7, Math.min(maxH, budget / Math.max(rowCount, 1) - 0.3));
+        const fs = Math.max(5, Math.min(8, h * 1.85));
+        return `--rh:${h.toFixed(2)}mm;--fs:${fs.toFixed(2)}pt`;
     }
 
     function pickWali(header, posisi) {
@@ -69,26 +84,27 @@
         @page { size: A4 landscape; margin: 8mm; }
         * { box-sizing: border-box; }
         body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 8pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .kop { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
-        .kop img { width: 64px; height: 64px; object-fit: contain; }
-        .kop .t { flex: 1; }
-        .kop .t div:nth-child(1), .kop .t div:nth-child(2) { font-size: 14pt; letter-spacing: .5px; }
-        .kop .t div:nth-child(3) { font-size: 9pt; font-weight: bold; margin-top: 2px; }
-        .kop .k { font-size: 13pt; font-weight: bold; align-self: center; white-space: nowrap; }
+        .kop { display: flex; align-items: center; gap: 3mm; margin-bottom: 1.5mm; height: 13mm; }
+        .kop img { width: 12mm; height: 12mm; object-fit: contain; flex: none; }
+        .kop .t { flex: 1; line-height: 1.15; }
+        .kop .t div:nth-child(1), .kop .t div:nth-child(2) { font-size: 11pt; letter-spacing: .4px; }
+        .kop .t div:nth-child(3) { font-size: 8pt; font-weight: bold; }
+        .kop .k { font-size: 12pt; font-weight: bold; align-self: center; white-space: nowrap; }
+        .sub { margin: 0 0 1mm; height: 3.5mm; line-height: 3.5mm; font-size: 7.5pt; }
         table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-        th, td { border: 1px solid #000; padding: 1px 2px; height: 4.3mm; text-align: center; overflow: hidden; white-space: nowrap; }
-        th { font-weight: bold; font-size: 7.5pt; }
-        td.nm { text-align: left; text-overflow: ellipsis; font-size: 7.5pt; }
+        th, td { border: 1px solid #000; padding: 0 2px; height: var(--rh, 4.3mm); font-size: var(--fs, 8pt); line-height: 1; text-align: center; overflow: hidden; white-space: nowrap; }
+        th { font-weight: bold; }
+        td.nm { text-align: left; text-overflow: ellipsis; }
         .libur { background: #ff0000 !important; }
-        .foot { display: flex; justify-content: space-between; margin-top: 4px; font-size: 8pt; }
-        .ttd { width: 46mm; }
-        .ttd .sp { height: 14mm; }
+        .ket { font-size: 6.5pt; line-height: 3mm; height: 3mm; margin-top: 0.5mm; overflow: hidden; white-space: nowrap; }
+        .foot { display: flex; justify-content: space-between; margin-top: 1mm; font-size: 8pt; line-height: 3.4mm; break-inside: avoid; page-break-inside: avoid; }
+        .ttd { width: 52mm; white-space: nowrap; }
+        .ttd .sp { height: 11mm; }
         .ttd b { text-decoration: underline; }
-        .ket { font-size: 7pt; margin-top: 2px; }
         .tbar { position: fixed; top: 8px; right: 8px; display: flex; gap: 8px; }
         .tbar button { font: 600 13px Arial; padding: 8px 14px; border-radius: 8px; border: 1px solid #999; background: #fff; cursor: pointer; }
-        @media screen { body { padding: 16px; background: #f1f5f9; } .page { background: #fff; padding: 8mm; box-shadow: 0 2px 12px rgba(0,0,0,.15); max-width: 297mm; margin: 0 auto; } }
-        @media print { .tbar { display: none; } }
+        @media screen { body { padding: 56px 16px 16px; background: #f1f5f9; overflow-x: auto; } .page { background: #fff; padding: 8mm; box-shadow: 0 2px 12px rgba(0,0,0,.15); width: 297mm; margin: 0 auto; } }
+        @media print { .tbar { display: none; } html, body { width: auto; } }
     `;
 
     function kopHtml(title, header, right) {
@@ -109,11 +125,11 @@
                 <b>${esc(namaTtd(wali.nama) || '........................')}</b>${nip(wali.nip)}</div>`;
     }
 
-    function wrapDoc(title, body) {
-        return `<!doctype html><html lang="id"><head><meta charset="utf-8"><title>${esc(title)}</title>
+    function wrapDoc(title, body, vars = '') {
+        return `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=1123"><title>${esc(title)}</title>
             <style>${PRINT_CSS}</style></head><body>
             <div class="tbar"><button onclick="window.print()">Cetak / Simpan PDF</button><button onclick="window.close()">Tutup</button></div>
-            <div class="page">${body}</div>
+            <div class="page" style="${vars}">${body}</div>
             </body></html>`;
     }
 
@@ -148,7 +164,7 @@
             </table>
             <div class="ket">${blank ? 'Kolom merah = Sabtu, Minggu, atau hari libur.' : '• = hadir, S = sakit, I = izin, A = alpa, D = dispensasi. Kolom merah = Sabtu, Minggu, atau hari libur. Kolom kosong = absensi belum diisi.'}</div>
             <div class="foot"><div>Laki-laki = ${g.L}<br>Perempuan = ${g.P}</div>${ttdHtml(header, opts, last)}</div>`;
-        return wrapDoc(`Daftar Hadir ${romawi(header.kelas || recap.kelas)} ${BULAN[recap.bulan - 1]} ${recap.tahun}`, body);
+        return wrapDoc(`Daftar Hadir ${romawi(header.kelas || recap.kelas)} ${BULAN[recap.bulan - 1]} ${recap.tahun}`, body, fit(Math.max(siswa.length, 1) + 2, 144, 4.6));
     }
 
     function semesterHtml(recap, header, opts = {}) {
@@ -162,15 +178,15 @@
         }).join('');
         const tanggal = recap.sampai_hari_ini < recap.selesai ? recap.sampai_hari_ini : recap.selesai;
         const body = `${kopHtml(`REKAP ABSENSI SEMESTER ${nama}`, header, `KELAS : ${romawi(header.kelas)}`)}
-            <div style="margin:0 0 4px">Periode ${esc(tglPanjang(recap.mulai))} s.d. ${esc(tglPanjang(recap.selesai))} · Hari efektif s.d. ${esc(tglPanjang(recap.sampai_hari_ini))}: <b>${esc(recap.hari_efektif)}</b> hari · Absensi terisi: <b>${esc(recap.hari_terisi)}</b> hari</div>
+            <div class="sub">Periode ${esc(tglPanjang(recap.mulai))} s.d. ${esc(tglPanjang(recap.selesai))} · Hari efektif s.d. ${esc(tglPanjang(recap.sampai_hari_ini))}: <b>${esc(recap.hari_efektif)}</b> hari · Absensi terisi: <b>${esc(recap.hari_terisi)}</b> hari</div>
             <table>
                 <colgroup><col style="width:9mm"><col style="width:16mm"><col style="width:22mm"><col><col style="width:9mm"><col style="width:15mm"><col style="width:15mm"><col style="width:15mm"><col style="width:15mm"><col style="width:20mm"><col style="width:20mm"><col style="width:40mm"></colgroup>
                 <thead><tr><th>NO</th><th>NIS</th><th>NISN</th><th>NAMA</th><th>L/P</th><th>HADIR</th><th>SAKIT</th><th>IZIN</th><th>ALPA</th><th>DISPENSASI</th><th>% KEHADIRAN</th><th>KETERANGAN</th></tr></thead>
                 <tbody>${rows || '<tr><td colspan="12">Belum ada siswa.</td></tr>'}</tbody>
             </table>
-            <div class="ket">% kehadiran = hadir ÷ (hadir + sakit + izin + alpa). Dispensasi tidak dihitung. Sumber: absensi harian wali kelas.</div>
+            <div class="ket">% kehadiran = (hadir + dispensasi) ÷ hari yang terisi. Dispensasi (kegiatan resmi sekolah) dihitung hadir. Sumber: absensi harian wali kelas.</div>
             <div class="foot"><div>Laki-laki = ${g.L}<br>Perempuan = ${g.P}</div>${ttdHtml(header, opts, tanggal)}</div>`;
-        return wrapDoc(`Rekap Semester ${nama} ${romawi(header.kelas)} ${header.tahun_ajaran}`, body);
+        return wrapDoc(`Rekap Semester ${nama} ${romawi(header.kelas)} ${header.tahun_ajaran}`, body, fit(Math.max(siswa.length, 1) + 1, 139, 5.2));
     }
 
     // ------------------------------------------------------------------ XLSX
@@ -260,7 +276,9 @@
      * rows: array baris; tiap sel = nilai (string/number/null) atau { v, s } (s = indeks gaya).
      * merges: ['A1:F1', ...]; widths: [lebar kolom ...]; landscape: true
      */
-    function buildXlsx({ sheet = 'Rekap', rows, merges = [], widths = [], landscape = true }) {
+    function buildXlsx({ sheet = 'Rekap', rows, merges = [], widths = [], landscape = true, logoPng = null, logoPx = 64 }) {
+        const hasLogo = logoPng && logoPng.length > 8 && logoPng[0] === 0x89 && logoPng[1] === 0x50;
+        const emu = Math.round(logoPx * 9525);
         const sheetRows = rows.map((r, ri) => {
             const cells = r.map((cell, ci) => {
                 if (cell === null || cell === undefined || cell === '') return '';
@@ -277,12 +295,12 @@
         const mergeXml = merges.length ? `<mergeCells count="${merges.length}">${merges.map((m) => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : '';
         const ws = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" right="0.3" top="0.3" bottom="0.3" header="0" footer="0"/><pageSetup paperSize="9" orientation="${landscape ? 'landscape' : 'portrait'}" fitToWidth="1" fitToHeight="0"/>
+${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" right="0.3" top="0.3" bottom="0.3" header="0" footer="0"/><pageSetup paperSize="9" orientation="${landscape ? 'landscape' : 'portrait'}" fitToWidth="1" fitToHeight="0"/>${hasLogo ? '<drawing r:id="rId1"/>' : ''}
 </worksheet>`;
         const safeSheet = xmlEsc(String(sheet).replace(/[\\/?*[\]:]/g, ' ').slice(0, 31));
         const files = [
             { name: '[Content_Types].xml', data: utf8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`) },
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${hasLogo ? '<Default Extension="png" ContentType="image/png"/><Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>' : ''}<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`) },
             { name: '_rels/.rels', data: utf8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`) },
             { name: 'xl/workbook.xml', data: utf8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -292,6 +310,17 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
             { name: 'xl/worksheets/sheet1.xml', data: utf8(ws) },
             { name: 'xl/styles.xml', data: utf8(STYLES) },
         ];
+        if (hasLogo) {
+            files.push(
+                { name: 'xl/worksheets/_rels/sheet1.xml.rels', data: utf8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>`) },
+                { name: 'xl/drawings/drawing1.xml', data: utf8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>57150</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>28575</xdr:rowOff></xdr:from><xdr:ext cx="${emu}" cy="${emu}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="2" name="Logo"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu}" cy="${emu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>`) },
+                { name: 'xl/drawings/_rels/drawing1.xml.rels', data: utf8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.png"/></Relationships>`) },
+                { name: 'xl/media/image1.png', data: logoPng },
+            );
+        }
         return zipStore(files);
     }
 
@@ -322,10 +351,11 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         const last = colName(width - 1);
         const B = (v) => ({ v, s: 2 });
         const rows = [
-            [{ v: 'DAFTAR HADIR SISWA', s: 1 }],
-            [{ v: `TAHUN PELAJARAN ${tpLabel(header.tahun_ajaran)}`, s: 1 }],
-            [{ v: SCHOOL, s: 1 }],
-            [{ v: `KELAS : ${romawi(header.kelas || recap.kelas)}`, s: 1 }],
+            // Judul mulai kolom D: A1:C4 dipakai logo.
+            [null, null, null, { v: 'DAFTAR HADIR SISWA', s: 1 }],
+            [null, null, null, { v: `TAHUN PELAJARAN ${tpLabel(header.tahun_ajaran)}`, s: 1 }],
+            [null, null, null, { v: SCHOOL, s: 1 }],
+            [null, null, null, { v: `KELAS : ${romawi(header.kelas || recap.kelas)}`, s: 1 }],
             [],
             [B('NO'), B(''), B(''), B('NAMA'), B('L/P'), B(`BULAN : ${BULAN[recap.bulan - 1].toUpperCase()} ${recap.tahun}`), ...days.slice(1).map(() => B('')), B('JUMLAH'), B(''), B('')],
             [B('ABS'), B('NIS'), B('NISN'), B(''), B(''), ...days.map((d) => ({ v: Number(d.tanggal.slice(8)), s: d.libur ? 5 : 2 })), B('S'), B('I'), B('A')],
@@ -349,7 +379,8 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         return buildXlsx({
             sheet: `${romawi(header.kelas || recap.kelas)} ${BULAN[recap.bulan - 1]} ${recap.tahun}`,
             rows,
-            merges: [`A1:${last}1`, `A2:${last}2`, `A3:${last}3`, `A4:${last}4`, 'A6:C6', 'D6:D7', 'E6:E7',
+            logoPng: opts.logoPng,
+            merges: [`D1:${last}1`, `D2:${last}2`, `D3:${last}3`, `D4:${last}4`, 'A6:C6', 'D6:D7', 'E6:E7',
                 `${d0}6:${dN}6`, `${colName(width - 3)}6:${last}6`],
             widths: [5, 8, 12, 32, 5, ...days.map(() => 3.2), 4, 4, 4],
         });
@@ -361,10 +392,10 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         const B = (v) => ({ v, s: 2 });
         const width = 12;
         const rows = [
-            [{ v: `REKAP ABSENSI SEMESTER ${nama}`, s: 1 }],
-            [{ v: `TAHUN PELAJARAN ${tpLabel(header.tahun_ajaran)}`, s: 1 }],
-            [{ v: SCHOOL, s: 1 }],
-            [{ v: `KELAS : ${romawi(header.kelas)}`, s: 1 }],
+            [null, null, null, { v: `REKAP ABSENSI SEMESTER ${nama}`, s: 1 }],
+            [null, null, null, { v: `TAHUN PELAJARAN ${tpLabel(header.tahun_ajaran)}`, s: 1 }],
+            [null, null, null, { v: SCHOOL, s: 1 }],
+            [null, null, null, { v: `KELAS : ${romawi(header.kelas)}`, s: 1 }],
             [`Periode ${tglPanjang(recap.mulai)} s.d. ${tglPanjang(recap.selesai)} · Hari efektif s.d. ${tglPanjang(recap.sampai_hari_ini)}: ${recap.hari_efektif} hari · Absensi terisi: ${recap.hari_terisi} hari`],
             [B('NO'), B('NIS'), B('NISN'), B('NAMA'), B('L/P'), B('HADIR'), B('SAKIT'), B('IZIN'), B('ALPA'), B('DISPENSASI'), B('% KEHADIRAN'), B('KETERANGAN')],
         ];
@@ -373,13 +404,14 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
             rows.push([{ v: s.no, s: 4 }, { v: s.nis || '', s: 4 }, { v: s.nisn || '', s: 4 }, { v: String(s.nama || '').toUpperCase(), s: 3 }, { v: s.jk || '', s: 4 },
                 { v: s.H, s: 4 }, { v: s.S, s: 4 }, { v: s.I, s: 4 }, { v: s.A, s: 4 }, { v: s.D, s: 4 }, { v: p === null ? '–' : p, s: 4 }, { v: '', s: 3 }]);
         }
-        rows.push(['% kehadiran = hadir ÷ (hadir + sakit + izin + alpa). Dispensasi tidak dihitung.']);
+        rows.push(['% kehadiran = (hadir + dispensasi) ÷ hari yang terisi. Dispensasi (kegiatan resmi sekolah) dihitung hadir.']);
         const tanggal = recap.sampai_hari_ini < recap.selesai ? recap.sampai_hari_ini : recap.selesai;
         rows.push(...footerRows(header, opts, tanggal, genderTotals(siswa), width));
         return buildXlsx({
             sheet: `Semester ${nama} ${romawi(header.kelas)}`,
             rows,
-            merges: ['A1:L1', 'A2:L2', 'A3:L3', 'A4:L4', 'A5:L5'],
+            logoPng: opts.logoPng,
+            merges: ['D1:L1', 'D2:L2', 'D3:L3', 'D4:L4', 'A5:L5'],
             widths: [5, 9, 13, 34, 5, 8, 8, 8, 8, 11, 13, 22],
         });
     }
@@ -408,6 +440,18 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         return true;
     }
 
+    /** Logo PNG untuk Excel (diambil sekali, lalu disimpan). null jika gagal — Excel tetap dibuat tanpa logo. */
+    let logoPromise = null;
+    function loadLogo() {
+        if (!logoPromise) {
+            logoPromise = fetch(LOGO)
+                .then((r) => (r.ok ? r.arrayBuffer() : null))
+                .then((b) => (b ? new Uint8Array(b) : null))
+                .catch(() => null);
+        }
+        return logoPromise;
+    }
+
     function download(bytes, filename) {
         const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url = URL.createObjectURL(blob);
@@ -424,7 +468,7 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         return `${kind} ${romawi(header.kelas)} ${extra}`.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_');
     }
 
-    const api = { monthlyHtml, semesterHtml, monthlyXlsx, semesterXlsx, buildXlsx, crc32, print: printDoc, download, fileName, romawi, namaTtd, pct, BULAN };
+    const api = { monthlyHtml, semesterHtml, monthlyXlsx, semesterXlsx, buildXlsx, crc32, print: printDoc, download, loadLogo, fileName, romawi, namaTtd, pct, BULAN };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.RekapPrint = Object.freeze(api);
 })(typeof window !== 'undefined' ? window : globalThis);

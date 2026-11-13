@@ -160,8 +160,13 @@ begin
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'D Wali 1A', 'u', 'Tanggal besok ditolak', 'ok', v_r = '22023');
     v_no := v_no + 1; v_r := public.t_try(format('select public.save_attendance(%L, %L, %L, null, %L)', c1a, v_sat, 'harian', e_1a));
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'D Wali 1A', 'u', 'Hari Sabtu ditolak', 'ok', v_r = '22023');
-    v_no := v_no + 1; v_r := public.t_try(format('select public.save_attendance(%L, %L, %L, null, %L)', c1a, v_old, 'harian', e_1a));
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'D Wali 1A', 'u', 'Lebih dari 3 hari sekolah lalu ditolak', 'ok', v_r = '42501');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'D Wali 1A', 'u', 'Tanggal lama (lebih dari 3 hari sekolah lalu) boleh diisi wali kelas',
+        'ok', (public.get_attendance_sheet(c1a, v_old, 'harian') ->> 'bisa_ubah')::boolean
+              and public.earliest_backfill_date() = (select min(start_date) from public.academic_years where is_active));
+    v_no := v_no + 1; v_r := public.t_try(format('select public.save_attendance(%L, %L, %L, null, %L)', c1a,
+        (select min(start_date) - 3 from public.academic_years where is_active), 'harian', e_1a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'D Wali 1A', 'u', 'Tanggal sebelum tahun ajaran ditolak', 'ok', v_r = '22023');
 
     v_sess := public.save_attendance(c1a, v_d, 'harian', null, e_1a);
     v_no := v_no + 1;

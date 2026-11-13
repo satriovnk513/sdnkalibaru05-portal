@@ -159,7 +159,7 @@
         $('lpBlnXlsx')?.addEventListener('click', async () => {
             const d = await ensureMonth();
             if (!d) return;
-            RP.download(RP.monthlyXlsx(d.recap, d.header, opts('lpBln')), `${RP.fileName('Daftar_Hadir', d.header, `${BULAN[d.recap.bulan - 1]}_${d.recap.tahun}`)}.xlsx`);
+            RP.download(RP.monthlyXlsx(d.recap, d.header, { ...opts('lpBln'), logoPng: await RP.loadLogo() }), `${RP.fileName('Daftar_Hadir', d.header, `${BULAN[d.recap.bulan - 1]}_${d.recap.tahun}`)}.xlsx`);
             toast('File Excel diunduh.');
         });
         $('lpSemShow')?.addEventListener('click', showSemester);
@@ -170,7 +170,7 @@
         $('lpSemXlsx')?.addEventListener('click', async () => {
             const d = await ensureSemester();
             if (!d) return;
-            RP.download(RP.semesterXlsx(d.recap, d.header, opts('lpSem')), `${RP.fileName('Rekap_Semester', d.header, `${d.sem === 1 ? 'Ganjil' : 'Genap'}_${d.header.tahun_ajaran}`)}.xlsx`);
+            RP.download(RP.semesterXlsx(d.recap, d.header, { ...opts('lpSem'), logoPng: await RP.loadLogo() }), `${RP.fileName('Rekap_Semester', d.header, `${d.sem === 1 ? 'Ganjil' : 'Genap'}_${d.header.tahun_ajaran}`)}.xlsx`);
             toast('File Excel diunduh.');
         });
     });

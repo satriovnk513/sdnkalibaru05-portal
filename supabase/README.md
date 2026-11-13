@@ -310,3 +310,9 @@ Migration `20261113000001_attendance_akademik.sql` (**sudah diterapkan di produk
 - Hak akses sama dengan rekap bulanan (`can_view_class`). Hanya menambah fungsi.
 - Front-end: `rekap-print.js` membuat dokumen cetak (format kertas "DAFTAR HADIR SISWA", A4 landscape) dan file Excel (.xlsx) tanpa library luar. Admin: menu **Laporan** → Rekap Bulanan / Rekap Semester. Guru: `/guru` → Rekap → *Cetak & unduh*.
 - Tes: `supabase/tests/local/run.sh` bagian K, `node --test tests/rekap-print.test.mjs`.
+
+## Absen tanggal bebas (20261113000003)
+
+- `earliest_backfill_date()` sekarang = awal tahun ajaran aktif, jadi guru bisa mengisi absensi tanggal mana pun yang sudah lewat dalam tahun ajaran (dulu hanya 3 hari sekolah terakhir).
+- Tetap ditolak: tanggal yang akan datang, Sabtu/Minggu/hari libur, dan mengubah absensi yang sudah disimpan di hari sebelumnya (koreksi lewat admin).
+- % kehadiran di rekap: Dispensasi dihitung hadir (`(H + D) ÷ hari terisi`).

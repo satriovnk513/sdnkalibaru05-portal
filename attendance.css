@@ -56,7 +56,7 @@
 
 /* Daftar siswa */
 .att-list { list-style: none; margin: 0; padding: 0; }
-.att-item { padding: 10px 0; border-bottom: 1px solid var(--att-line); }
+.att-item { padding: 10px 0; border-bottom: 1px solid var(--att-line); scroll-margin-top: var(--att-scroll-top, 80px); }
 .att-item:last-child { border-bottom: none; }
 .att-item-top { display: flex; align-items: center; gap: 8px; }
 .att-no { width: 26px; flex: none; color: var(--att-muted); font-size: 0.85rem; text-align: right; }
@@ -205,6 +205,26 @@
     .att-table td.att-actions { justify-content: flex-start; padding-top: 8px; }
     .att-table td.att-actions::before { display: none; }
 }
+
+/* Tombol massal di lembar absensi */
+.att-bulk { margin: 10px 0 0; flex-wrap: nowrap; }
+.att-btn-hadir { background: var(--att-h-bg); color: #166534; border: 1px solid #bbf7d0; flex: 1 1 auto; }
+.att-btn-hadir:hover { background: #bbf7d0; }
+.att-btn-reset { background: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; flex: 0 0 auto; min-width: 84px; }
+.att-btn-reset:hover { background: #cbd5e1; }
+.att-hint { margin: 6px 0 0; }
+.att-keterangan { margin: 0 0 8px; font-size: 0.82rem; line-height: 1.4; padding: 10px 12px; }
+.att-back { margin-top: 12px; }
+
+/* Panel yang menempel di atas saat digulir (bisa dilepas dengan tombol panah) */
+.att-float { position: relative; background: var(--att-bg); padding: 12px 0 6px; margin-bottom: 12px; }
+.att-float.is-floating { position: sticky; top: var(--att-float-top, 0px); z-index: 25; background: #fff; box-shadow: 0 10px 14px -12px rgba(15, 23, 42, 0.45); border-bottom: 1px solid var(--att-line); }
+.att-float > :first-child { margin-top: 0; }
+.att-float .g-date-row, .att-float .att-table-tools { margin-bottom: 8px; }
+.att-float-toggle { display: flex; align-items: center; gap: 4px; margin: 8px auto 0; min-height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--att-line); background: #f1f5f9; color: #475569; font: 600 0.76rem 'Inter', sans-serif; cursor: pointer; }
+.att-float-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+/* Layar pendek (HP miring): panel tidak menempel supaya daftar tetap terlihat */
+@media (max-height: 560px) { .att-float.is-floating { position: relative; top: auto; box-shadow: none; } }
 
 @media print {
     .att-noprint { display: none !important; }

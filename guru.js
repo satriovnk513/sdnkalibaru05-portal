@@ -49,6 +49,9 @@
 
     function loading() { main('<div class="g-loading">Memuat…</div>'); }
 
+    /** Panel filter/ringkasan yang menempel di bawah header saat digulir. */
+    function floatBar(el) { return window.Att.floatBar(el, document.querySelector('.g-top')); }
+
     async function rpc(fn, args) {
         const { data, error } = await sb.rpc(fn, args);
         if (error) throw new Error(error.message);
@@ -195,7 +198,8 @@
             <div class="att-field"><label for="gDate">Tanggal</label>
                 <input type="date" class="att-input" id="gDate" value="${esc(date)}" min="${esc(home.earliest_date)}" max="${esc(home.today)}"></div>
         </div>`;
-        main(`${picker}<div id="gSheet"><div class="g-loading">Memuat daftar siswa…</div></div>`);
+        main(`<div id="gFloat">${picker}<div id="gSheetHead"></div></div><div id="gSheet"><div class="g-loading">Memuat daftar siswa…</div></div>`);
+        floatBar($('gFloat'));
         $('gDate').addEventListener('change', (e) => {
             if (!e.target.value) return;
             const p = new URLSearchParams(params);
@@ -212,6 +216,9 @@
             const draftKey = `att-draft:${classId}:${date}:${kind}:${subjectId || '-'}`;
             window.Att.renderSheet($('gSheet'), sheet, {
                 draftKey,
+                headHost: $('gSheetHead'),
+                notes: subj && /^PAI/i.test(subj.kode || '') ? ['Bagi yang beragama <b>Non-Muslim</b>, mohon diberi status <b>Dispensasi</b>.'] : [],
+                back: { href: '#/', label: 'Kembali ke Menu Utama' },
                 subtitle: `Kelas ${romawi(kelas.kelas)} · ${fmtDate(date)}`,
                 onSave: async (entries) => {
                     await rpc('save_attendance', {
@@ -236,8 +243,9 @@
         const classes = myClasses();
         if (!classes.length) { main('<div class="att-alert info">Belum ada kelas yang ditugaskan kepada Anda.</div>'); return; }
         const classId = params.get('kelas') || classes[0].class_id;
-        main(`<div class="att-field" style="margin-bottom:12px"><label for="gKelas">Kelas</label>${classSelect('gKelas', classId)}</div>
+        main(`<div id="gFloat"><div class="att-field" style="margin-bottom:8px"><label for="gKelas">Kelas</label>${classSelect('gKelas', classId)}</div><div id="gSiswaTools"></div></div>
             <div id="gSiswa"><div class="g-loading">Memuat…</div></div>`);
+        floatBar($('gFloat'));
         $('gKelas').addEventListener('change', (e) => go(`/siswa?kelas=${e.target.value}`));
         try {
             const rows = await rpc('get_class_roster', { p_class_id: classId, p_date: null });
@@ -255,6 +263,9 @@
                     { key: 'aksi', label: 'Aksi', className: 'att-actions', render: (r) => `<a class="att-btn att-btn-ghost att-btn-sm" href="#/siswa/${esc(r.student_id)}">Lihat profil</a>` },
                 ],
             });
+            // Kolom Cari & Tampilkan ikut ke panel yang menempel di atas.
+            const tools = $('gSiswa').querySelector('.att-table-tools');
+            if (tools && $('gSiswaTools')) $('gSiswaTools').appendChild(tools);
         } catch (err) {
             $('gSiswa').innerHTML = `<div class="att-alert err">${esc(errMessage(err))}</div>`;
         }
@@ -308,10 +319,11 @@
         if (!classes.length) { main('<div class="att-alert info">Belum ada kelas yang ditugaskan kepada Anda.</div>'); return; }
         const classId = params.get('kelas') || (home.wali_kelas[0]?.class_id) || classes[0].class_id;
         const bulan = /^\d{4}-\d{2}$/.test(params.get('bulan') || '') ? params.get('bulan') : home.today.slice(0, 7);
-        main(`<div class="g-date-row">
+        main(`<div id="gFloat"><div class="g-date-row">
                 <div class="att-field"><label for="gRkKelas">Kelas</label>${classSelect('gRkKelas', classId)}</div>
                 <div class="att-field"><label for="gRkBulan">Bulan</label><input type="month" class="att-input" id="gRkBulan" value="${esc(bulan)}" max="${esc(home.today.slice(0, 7))}"></div>
-            </div><div id="gRekap"><div class="g-loading">Memuat…</div></div>`);
+            </div><div id="gRkInfo"></div></div><div id="gRekap"><div class="g-loading">Memuat…</div></div>`);
+        floatBar($('gFloat'));
         const reload = () => go(`/rekap?kelas=${$('gRkKelas').value}&bulan=${$('gRkBulan').value || bulan}`);
         $('gRkKelas').addEventListener('change', reload);
         $('gRkBulan').addEventListener('change', reload);
@@ -323,8 +335,8 @@
             const rows = (r.siswa || []).map((s) => {
                 const t = { H: 0, S: 0, I: 0, A: 0, D: 0 };
                 for (const v of Object.values(s.status || {})) t[v] = (t[v] || 0) + 1;
-                const base = t.H + t.S + t.I + t.A;
-                return { ...s, t, pct: base ? Math.round((t.H / base) * 100) : null };
+                const base = t.H + t.S + t.I + t.A + t.D;   // dispensasi dihitung hadir
+                return { ...s, t, pct: base ? Math.round(((t.H + t.D) / base) * 100) : null };
             });
             const cards = rows.map((s) => `<div class="att-student-card">
                 <div><b>${esc(s.no)}. ${esc(s.nama)}</b><div class="att-muted">${s.pct === null ? 'Belum ada data' : `Hadir ${s.pct}%`}</div></div>
@@ -335,8 +347,8 @@
                 const v = s.status[d.tanggal];
                 return `<td class="${d.libur ? 'libur' : ''} ${v ? `c-${v}` : ''}">${v && v !== 'H' ? v : (v ? '•' : '')}</td>`;
             }).join('')}<td>${s.t.S}</td><td>${s.t.I}</td><td>${s.t.A}</td></tr>`).join('');
+            $('gRkInfo').innerHTML = `<div class="att-alert info">Kelas ${esc(romawi(r.kelas))} · ${esc(window.Att.BULAN[m - 1])} ${y}: absensi diisi ${filled} dari ${esc(r.hari_efektif)} hari sekolah.</div>`;
             $('gRekap').innerHTML = `
-                <div class="att-alert info" style="margin-bottom:12px">Kelas ${esc(romawi(r.kelas))} · ${esc(window.Att.BULAN[m - 1])} ${y}: absensi diisi ${filled} dari ${esc(r.hari_efektif)} hari sekolah.</div>
                 <div class="att-student-cards">${cards || '<div class="att-alert info">Belum ada siswa.</div>'}</div>
                 <details style="margin-top:16px"><summary class="att-btn att-btn-ghost att-btn-sm">Lihat tabel per tanggal</summary>
                     <div class="att-recap-wrap" style="margin-top:10px"><table class="att-recap">
@@ -378,7 +390,7 @@
         $('gRkPrint').addEventListener('click', guard(async () => print(RP.monthlyHtml(monthRecap, await getHeader(), { wali: myWali() }))));
         $('gRkXlsx').addEventListener('click', guard(async () => {
             const h = await getHeader();
-            RP.download(RP.monthlyXlsx(monthRecap, h, { wali: myWali() }), `${RP.fileName('Daftar_Hadir', h, `${window.Att.BULAN[monthRecap.bulan - 1]}_${monthRecap.tahun}`)}.xlsx`);
+            RP.download(RP.monthlyXlsx(monthRecap, h, { wali: myWali(), logoPng: await RP.loadLogo() }), `${RP.fileName('Daftar_Hadir', h, `${window.Att.BULAN[monthRecap.bulan - 1]}_${monthRecap.tahun}`)}.xlsx`);
             toast('File Excel diunduh.');
         }));
         const sem = async () => {
@@ -389,7 +401,7 @@
         $('gRkSemPrint').addEventListener('click', guard(async () => { const d = await sem(); print(RP.semesterHtml(d.recap, d.h, { wali: myWali() })); }));
         $('gRkSemXlsx').addEventListener('click', guard(async () => {
             const d = await sem();
-            RP.download(RP.semesterXlsx(d.recap, d.h, { wali: myWali() }), `${RP.fileName('Rekap_Semester', d.h, `${d.s === 1 ? 'Ganjil' : 'Genap'}_${d.h.tahun_ajaran}`)}.xlsx`);
+            RP.download(RP.semesterXlsx(d.recap, d.h, { wali: myWali(), logoPng: await RP.loadLogo() }), `${RP.fileName('Rekap_Semester', d.h, `${d.s === 1 ? 'Ganjil' : 'Genap'}_${d.h.tahun_ajaran}`)}.xlsx`);
             toast('File Excel diunduh.');
         }));
     }
