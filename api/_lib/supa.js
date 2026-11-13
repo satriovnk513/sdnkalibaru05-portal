@@ -9,10 +9,14 @@ export const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY
 
 const PRODUCTION_ORIGINS = ['https://sdnkalibaru05.sch.id', 'https://www.sdnkalibaru05.sch.id'];
 
-export function allowedOrigin(origin) {
+export function allowedOrigin(origin, req) {
     const origins = [...PRODUCTION_ORIGINS];
     if (process.env.VERCEL_URL) origins.push(`https://${process.env.VERCEL_URL}`);
     if (process.env.VERCEL_BRANCH_URL) origins.push(`https://${process.env.VERCEL_BRANCH_URL}`);
+    if (process.env.VERCEL_PROJECT_PRODUCTION_URL) origins.push(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+    // Halaman yang sama dengan API (domain apa pun yang dilayani deployment ini).
+    const host = req?.headers?.['x-forwarded-host'] || req?.headers?.host;
+    if (host) origins.push(`https://${String(host).split(',')[0].trim()}`);
     if (origins.includes(origin)) return true;
     return process.env.VERCEL_ENV !== 'production' && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin || '');
 }
@@ -20,9 +24,13 @@ export function allowedOrigin(origin) {
 /** Header standar + preflight. Mengembalikan true jika request sudah dijawab. */
 export function prepare(req, res, methods) {
     const origin = req.headers.origin;
-    const ok = allowedOrigin(origin);
+    // Browser tidak mengirim header Origin untuk GET ke halaman yang sama, jadi
+    // "tanpa Origin" diperlakukan sebagai same-origin. Keamanan API ini bertumpu
+    // pada token Bearer (bukan cookie), sehingga tidak membuka celah CSRF. Origin
+    // yang ADA tapi asing tetap ditolak.
+    const ok = !origin || allowedOrigin(origin, req);
     res.setHeader('Vary', 'Origin');
-    if (ok) res.setHeader('Access-Control-Allow-Origin', origin);
+    if (origin && ok) res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', `${methods.join(', ')}, OPTIONS`);
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Cache-Control', 'no-store');
