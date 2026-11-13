@@ -11,6 +11,7 @@
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
+    <link rel="stylesheet" href="attendance.css?v=1">
     <style>
         /* ── Reset & Base ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -644,6 +645,7 @@
                     <input type="password" id="adminPassword" placeholder="••••••••" onkeypress="if(event.key === 'Enter') checkLogin()">
                 </div>
                 <button class="btn-login" onclick="checkLogin()">Masuk</button>
+                <p style="margin-top:1rem;text-align:center;font-size:0.85rem;color:#6c757d;">Guru? Masuk lewat <a href="/guru" style="color:#c0392b;font-weight:600;">Portal Guru</a></p>
                 <a href="/" class="back-link">← Kembali ke Beranda</a>
                 <p id="loginError">Email atau password salah!</p>
             </div>
@@ -687,6 +689,16 @@
                 <a class="nav-item" data-tab="tabEkskul" onclick="showTab('tabEkskul', this)">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
                     Ekstrakurikuler
+                </a>
+
+                <div class="nav-section-label">ABSENSI</div>
+                <a class="nav-item" data-tab="tabAttendance" onclick="showTab('tabAttendance', this)">
+                    <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    Kelola Absensi
+                </a>
+                <a class="nav-item" data-tab="tabTeacherAccounts" onclick="showTab('tabTeacherAccounts', this)">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Akun Guru
                 </a>
 
                 <div class="nav-section-label">AI &amp; SISTEM</div>
@@ -847,6 +859,33 @@
                         </div>
                         <nav class="stu-pagination" id="stuPagination" aria-label="Halaman data siswa"></nav>
                         <datalist id="stuKelasList"></datalist>
+                    </div>
+                </div>
+
+                <!-- ═══ TAB KELOLA ABSENSI ═══ -->
+                <div id="tabAttendance" class="tab-content">
+                    <div class="section-header"><h2>Kelola Absensi</h2></div>
+                    <div class="admin-card">
+                        <p class="att-muted" style="margin:0 0 12px">Admin bisa mengisi atau mengoreksi absensi rombel mana pun. Koreksi wajib menyertakan alasan dan tercatat di riwayat.</p>
+                        <div class="att-table-tools">
+                            <div class="att-field"><label for="attTanggal">Tanggal</label><input type="date" class="att-input" id="attTanggal"></div>
+                            <div class="att-field"><label for="attKelas">Kelas</label><select class="att-select" id="attKelas"></select></div>
+                            <div class="att-field"><label for="attJenis">Jenis</label><select class="att-select" id="attJenis"></select></div>
+                            <button type="button" class="att-btn att-btn-primary" id="attShow">Tampilkan</button>
+                        </div>
+                        <div id="attSheet"></div>
+                        <div id="attHistory"></div>
+                    </div>
+                </div>
+
+                <!-- ═══ TAB AKUN GURU ═══ -->
+                <div id="tabTeacherAccounts" class="tab-content">
+                    <div class="section-header"><h2>Akun Guru</h2></div>
+                    <div class="admin-card">
+                        <p class="att-muted" style="margin:0 0 12px">Guru login di <b>/guru</b> memakai email atau NIP/NUPTK. Akun dibuat tanpa email undangan; password awal tampil sekali untuk dibagikan.</p>
+                        <div id="accSummary"></div>
+                        <div id="accTable" style="margin-top:12px"><div class="att-muted">Memuat…</div></div>
+                        <button type="button" class="att-btn att-btn-ghost att-btn-sm" id="accReload" style="margin-top:8px">Muat ulang</button>
                     </div>
                 </div>
 
@@ -1236,6 +1275,8 @@
     <script src="student-fields.js?v=1"></script>
     <script src="admin-students.js?v=2"></script>
     <script src="admin.js?v=4"></script>
+    <script src="attendance-sheet.js?v=1"></script>
+    <script src="admin-attendance.js?v=1"></script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>

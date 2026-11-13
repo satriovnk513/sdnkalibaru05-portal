@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             await supabaseClient.auth.signOut();
             const errorMsg = document.getElementById('loginError');
             if (errorMsg) {
-                errorMsg.textContent = 'Akses ditolak: Akun tidak memiliki hak akses administrator!';
+                errorMsg.textContent = 'Akses ditolak: akun ini bukan admin. Guru silakan login di Portal Guru (tautan di bawah).';
                 errorMsg.style.display = 'block';
             }
         }
@@ -88,7 +88,7 @@ async function checkLogin() {
             loadDashboardStats();
         } else {
             await supabaseClient.auth.signOut();
-            errorMsg.textContent = 'Akses ditolak: Akun tidak memiliki hak akses administrator!';
+            errorMsg.textContent = 'Akses ditolak: akun ini bukan admin. Guru silakan login di Portal Guru (tautan di bawah).';
             errorMsg.style.display = 'block';
         }
     }

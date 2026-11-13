@@ -243,3 +243,37 @@ Jalankan hanya setelah disetujui, dengan backup tersedia (lihat syarat di atas).
 
 Rollback darurat: semua objek di migration ini baru dan tidak dipakai halaman
 mana pun sampai Fase 1, jadi data lama tidak terpengaruh.
+
+---
+
+# Modul Absensi Siswa — Fase 1 (portal guru + admin)
+
+| File | Isi |
+|---|---|
+| `guru.html`, `guru.js` | Portal Guru (`/guru`), mobile-first: login email/NIP, beranda, absensi harian & mapel, data siswa (lihat saja), rekap bulanan, ganti password |
+| `attendance-sheet.js`, `attendance.css` | Komponen bersama: lembar absensi H/S/I/A/D, tabel standar (cari, urut, Tampilkan 10/25/50/100), konfirmasi, draf offline |
+| `admin-attendance.js` | Tab admin **Kelola Absensi** (isi/koreksi dengan alasan, arsip, riwayat) dan **Akun Guru** |
+| `api/guru-login.js` | Login dengan email atau NIP/NUPTK (NIP dicocokkan ke email di server) |
+| `api/admin/teacher-accounts.js` | Buat akun, reset password, aktif/nonaktif. Hanya admin |
+| `migrations/20261112000003_attendance_phase1.sql` | `teacher_account_requests` + RPC `get_guru_home`, `get_attendance_sheet`, `get_class_month_recap` |
+
+> **Status produksi (13 Nov 2026):** migration Fase 1 SUDAH diterapkan, dan
+> `teacher_account_requests` sudah berisi 24 baris (22 guru + 2 operator).
+> Akun login BELUM dibuat: admin menekan **Buat semua akun** di tab Akun Guru.
+
+## Syarat sebelum dipakai
+
+Vercel → Settings → Environment Variables, target Production + Preview:
+
+- `SUPABASE_SERVICE_ROLE_KEY` — dari Supabase → Project Settings → API. Tanpa ini
+  login guru dan tab Akun Guru menampilkan pesan "belum dikonfigurasi".
+
+Key ini hanya dibaca di server (`api/_lib/supa.js`), tidak pernah dikirim ke browser.
+
+## Tes
+
+```bash
+node --test tests/attendance-api.test.mjs          # 14 tes API (offline)
+bash supabase/tests/local/run.sh                   # 63 tes hak akses database
+PLAYWRIGHT_MODULE_DIR=... CHROMIUM_PATH=... node --test tests/attendance-ui.test.mjs   # 45 tes UI (360, 390, 1366 px)
+```

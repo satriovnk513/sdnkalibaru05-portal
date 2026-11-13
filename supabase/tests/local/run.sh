@@ -34,6 +34,8 @@ run "Migration CRUD Data Siswa"      "$ROOT/supabase/migrations/20261023000001_s
 run "Data fiktif"                    "$HERE/fixtures.sql"
 run "Migration Absensi Fase 0"       "$ROOT/supabase/migrations/20261112000001_attendance_foundation.sql"
 run "Migration Absensi (ulang, idempotent)" "$ROOT/supabase/migrations/20261112000001_attendance_foundation.sql"
+run "Migration tutup fungsi internal" "$ROOT/supabase/migrations/20261112000002_revoke_internal_functions.sql"
+run "Migration Absensi Fase 1"       "$ROOT/supabase/migrations/20261112000003_attendance_phase1.sql"
 run "Seed penugasan 2026/2027"       "$ROOT/supabase/seed/20261112_penugasan_2026_2027.sql"
 run "Seed (ulang, idempotent)"       "$ROOT/supabase/seed/20261112_penugasan_2026_2027.sql"
 
