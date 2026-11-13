@@ -131,8 +131,28 @@ async function runUi() {
         const btnH = await page.$eval('.att-status button', (b) => b.getBoundingClientRect().height);
         check(btnH >= 44, `tombol status minimal 44 px (${Math.round(btnH)} px)`);
         check(await page.isHidden('.g-nav'), 'navigasi bawah disembunyikan agar tombol Simpan terlihat');
+        check(await page.$$eval('.att-status button[aria-pressed="true"]', (b) => b.length) === 0, 'status awal kosong (tidak otomatis Hadir)');
+        check(/3<\/b> dari 3 siswa belum diabsen/.test(await page.innerHTML('.att-progress')), 'penanda "3 dari 3 belum diabsen" tampil');
         await page.click('.att-item[data-i="1"] [data-st="S"]');
         check(/^1/.test(await page.textContent('.att-count.S b')), 'penghitung Sakit bertambah');
+        // Ketuk lagi = kosong
+        await page.click('.att-item[data-i="1"] [data-st="S"]');
+        check(/^0/.test(await page.textContent('.att-count.S b'))
+            && (await page.getAttribute('.att-item[data-i="1"] [data-st="S"]', 'aria-pressed')) === 'false', 'ketuk status yang sama mengosongkan lagi');
+        await page.click('.att-item[data-i="1"] [data-st="S"]');
+        await page.click('.att-item[data-i="0"] [data-st="H"]');
+        // Simpan dengan 1 siswa kosong → ditolak, nama ditandai
+        await page.click('#attSave');
+        await page.waitForSelector('.att-item.att-missing');
+        check(await page.$('.att-sheet') === null, 'simpan ditahan saat masih ada siswa kosong (tidak ada konfirmasi)');
+        check(/Siswa Fiktif Tiga/.test(await page.textContent('#attMissing'))
+            && (await page.$$('.att-item.att-missing')).length === 1, 'siswa yang kosong disebut namanya dan ditandai merah');
+        check(!(await page.evaluate(() => window.__fake.calls.some((c) => c.fn === 'save_attendance'))), 'tidak ada data terkirim saat masih kosong');
+        await shot(page, 'guru-03b-belum-lengkap-360.png');
+        await page.click('.att-item[data-i="2"] [data-st="H"]');
+        check((await page.$$('.att-item.att-missing')).length === 0, 'tanda merah hilang setelah status dipilih');
+        check(/Semua siswa sudah diabsen/.test(await page.textContent('#attMissing')), 'kotak peringatan berubah jadi hijau setelah lengkap');
+        check(/Semua 3 siswa sudah diabsen/.test(await page.textContent('.att-progress')), 'penanda berubah jadi "semua sudah diabsen"');
         await page.click('.att-item[data-i="1"] [data-note]');
         await page.fill('[data-note-input="1"]', 'Demam');
         await shot(page, 'guru-03-absen-360.png');
@@ -152,8 +172,8 @@ async function runUi() {
         await page.click('.att-item[data-i="0"] [data-st="A"]');
         await page.click('#attSave');
         await page.click('.att-sheet [data-act="yes"]');
-        await page.waitForSelector('#attToastHost .att-alert.err');
-        check(/Koneksi terputus/.test(await page.textContent('#attToastHost')), 'gagal kirim memberi pesan koneksi');
+        await page.waitForFunction(() => /Koneksi terputus/.test(document.getElementById('attToastHost')?.textContent || ''));
+        check(true, 'gagal kirim memberi pesan koneksi');
         await page.reload();
         await page.waitForSelector('.att-list');
         check(/belum terkirim/i.test(await page.textContent('#gSheet')), 'isian yang belum terkirim dipulihkan setelah muat ulang');
@@ -225,6 +245,9 @@ async function runUi() {
         await page.evaluate(() => showTab('tabAttendance'));
         await page.waitForSelector('#attSheet .att-list');
         check(await overflow(page) <= 0, `[${vp.tag}] tab Kelola Absensi tidak bergeser ke samping`);
+        await page.click('[data-all="H"]');
+        check(await page.$('.att-sheet') === null && /Semua 3 siswa sudah diabsen/.test(await page.textContent('.att-progress')),
+            `[${vp.tag}] Tandai semua Hadir langsung mengisi semua tanpa konfirmasi`);
         await page.click('#attSave');
         await page.click('.att-sheet [data-act="yes"]');
         await page.waitForFunction(() => window.__fake.calls.some((c) => c.fn === 'save_attendance'));
