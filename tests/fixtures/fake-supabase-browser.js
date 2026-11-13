@@ -158,6 +158,8 @@
             T.subject_assignments = T.subject_assignments.filter((a) => !(a.subject_id === args.p_subject_id && a.staff_id === args.p_staff_id));
             for (const c of [...new Set(args.p_class_ids || [])]) T.subject_assignments.push({ subject_id: args.p_subject_id, class_id: c, staff_id: args.p_staff_id });
             return Promise.resolve(ok(new Set(args.p_class_ids || []).size));
+        case 'get_my_recovery_pin':
+            return Promise.resolve(ok(F.pin ? { ada: true, dibuat: '13/11/2026 15.30', terkunci: false } : { ada: false, dibuat: null, terkunci: false }));
         case 'student_summary':
             return Promise.resolve(ok([{ total_siswa: 4, tercantum: 4, perlu_verifikasi: 0, jumlah_rombel: 2, daftar_kelas: ['1 A', '3 A'], diarsipkan: 0 }]));
         case 'archive_attendance_session':

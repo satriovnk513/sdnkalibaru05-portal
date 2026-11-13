@@ -32,6 +32,9 @@
         .g-pass .att-input { padding-right: 76px; }
         .g-pass button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); min-height: 36px; border: none; background: none; color: var(--att-muted); font-weight: 600; cursor: pointer; padding: 0 10px; }
         .g-login-foot { margin-top: 20px; text-align: center; line-height: 1.6; }
+        .g-link { border: none; background: none; padding: 6px 4px; color: var(--att-brand); font: 600 0.9rem 'Inter', sans-serif; text-decoration: underline; cursor: pointer; min-height: 36px; }
+        .g-pin { letter-spacing: 0.5em; font-variant-numeric: tabular-nums; }
+        .g-pin-card .att-row { justify-content: space-between; }
         .g-main > .att-float { margin: -16px -16px 12px; padding: 12px 16px 8px; }
 
         /* Shell */
@@ -125,6 +128,7 @@
             <img src="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png" alt="Logo SDN Kalibaru 05 Pagi" onerror="this.style.visibility='hidden'">
             <div><b>SDN Kalibaru 05 Pagi</b><span class="att-muted">Portal Guru</span></div>
         </div>
+        <div id="gLoginBox">
         <h1 id="gLoginTitle">Masuk</h1>
         <p class="att-muted" style="margin:0">Pakai email atau NIP/NUPTK dan password dari admin sekolah.</p>
         <form id="gLoginForm" novalidate>
@@ -142,7 +146,36 @@
             <div class="att-alert err g-hidden" id="gLoginErr" role="alert"></div>
             <button type="submit" class="att-btn att-btn-primary att-btn-block" id="gLoginBtn">Masuk</button>
         </form>
-        <p class="att-muted g-login-foot">Lupa password? Hubungi admin sekolah untuk mengatur ulang.<br><a href="/">Kembali ke website sekolah</a></p>
+        <p class="att-muted g-login-foot"><button type="button" class="g-link" id="gForgot">Lupa password?</button><br><a href="/">Kembali ke website sekolah</a></p>
+        </div>
+
+        <!-- Lupa password: email/NIP + PIN pemulihan + password baru -->
+        <div id="gResetBox" class="g-hidden">
+            <h1 id="gResetTitle">Lupa password</h1>
+            <p class="att-muted" style="margin:0">Masukkan PIN pemulihan 6 angka yang pernah Anda buat di menu Akun, lalu buat password baru.</p>
+            <form id="gResetForm" novalidate>
+                <div class="att-field">
+                    <label for="gRId">Email atau NIP/NUPTK</label>
+                    <input class="att-input" id="gRId" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+                </div>
+                <div class="att-field">
+                    <label for="gRPin">PIN pemulihan (6 angka)</label>
+                    <input class="att-input g-pin" id="gRPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" required>
+                </div>
+                <div class="att-field">
+                    <label for="gRPw1">Password baru</label>
+                    <input class="att-input" id="gRPw1" type="password" autocomplete="new-password" minlength="8" required>
+                </div>
+                <div class="att-field">
+                    <label for="gRPw2">Ulangi password baru</label>
+                    <input class="att-input" id="gRPw2" type="password" autocomplete="new-password" minlength="8" required>
+                </div>
+                <div class="att-alert err g-hidden" id="gResetErr" role="alert"></div>
+                <button type="submit" class="att-btn att-btn-primary att-btn-block" id="gResetBtn">Ganti password</button>
+            </form>
+            <p class="att-muted g-login-foot">Belum pernah membuat PIN, atau lupa PIN juga? Hubungi admin sekolah untuk reset password.<br>
+                <button type="button" class="g-link" id="gResetBack">Kembali ke halaman masuk</button></p>
+        </div>
         </div>
     </section>
 
@@ -167,6 +200,6 @@
     <script src="supabase-config.js"></script>
     <script src="attendance-sheet.js?v=5"></script>
     <script src="rekap-print.js?v=2"></script>
-    <script src="guru.js?v=5"></script>
+    <script src="guru.js?v=6"></script>
 </body>
 </html>

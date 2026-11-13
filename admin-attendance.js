@@ -124,6 +124,7 @@
         }
         if (r.status === 'aktif') {
             b.push(`<button type="button" class="att-btn att-btn-ghost att-btn-sm" data-acc="reset" data-id="${esc(r.staff_id)}">Reset password</button>`);
+            if (r.pin) b.push(`<button type="button" class="att-btn att-btn-ghost att-btn-sm" data-acc="clearpin" data-id="${esc(r.staff_id)}">Hapus PIN</button>`);
             b.push(`<button type="button" class="att-btn att-btn-danger att-btn-sm" data-acc="off" data-id="${esc(r.staff_id)}">Nonaktifkan</button>`);
         }
         if (r.status === 'nonaktif') b.push(`<button type="button" class="att-btn att-btn-ghost att-btn-sm" data-acc="on" data-id="${esc(r.staff_id)}">Aktifkan</button>`);
@@ -159,6 +160,8 @@
                         { key: 'email', label: 'Email', sort: true },
                         { key: 'login_id', label: 'NIP / NUPTK' },
                         { key: 'status', label: 'Status', sort: true, render: (r) => STATUS_BADGE[r.status] || esc(r.status) },
+                        { key: 'pin', label: 'PIN pemulihan', render: (r) => (r.status === 'aktif' || r.status === 'nonaktif'
+                            ? (r.pin ? '<span class="att-badge ok">Sudah dibuat</span>' : '<span class="att-badge mute">Belum</span>') : '–') },
                         { key: 'aksi', label: 'Aksi', className: 'att-actions', render: accActions },
                     ],
                 });
@@ -203,6 +206,10 @@
                 if (!await window.Att.confirm({ title: `Reset password ${row.nama}?`, html: '<p class="att-muted">Password lama langsung tidak berlaku.</p>', confirmText: 'Reset' })) return;
                 const r = await api('POST', { action: 'reset_password', staff_id: row.staff_id });
                 showPasswords([{ ...r, ok: true }], `Password baru ${row.nama}`);
+            } else if (b.dataset.acc === 'clearpin') {
+                if (!await window.Att.confirm({ title: `Hapus PIN pemulihan ${row.nama}?`, html: '<p class="att-muted">Pakai ini kalau guru lupa PIN. Setelah dihapus, guru bisa membuat PIN baru di menu Akun (perlu login dulu; reset password-nya bila perlu).</p>', confirmText: 'Hapus PIN', danger: true })) return;
+                await api('POST', { action: 'clear_pin', staff_id: row.staff_id });
+                toast('PIN pemulihan dihapus.');
             } else if (b.dataset.acc === 'off' || b.dataset.acc === 'on') {
                 const on = b.dataset.acc === 'on';
                 if (!on && !await window.Att.confirm({ title: `Nonaktifkan akun ${row.nama}?`, html: '<p class="att-muted">Guru tidak bisa login sampai diaktifkan lagi. Data absensinya tetap aman.</p>', confirmText: 'Nonaktifkan', danger: true })) return;

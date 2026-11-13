@@ -468,6 +468,71 @@ begin
     execute 'reset role';
     perform set_config('request.jwt.claims', '', true);
 
+    -- ======================================================== L. PIN pemulihan
+    -- Guru (authenticated) tidak bisa menyentuh tabel / fungsi tulis PIN.
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1; v_r := public.t_try('select 1 from public.teacher_recovery_pins limit 1');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'Guru tidak bisa membaca tabel PIN', 'ok', v_r = '42501');
+    v_no := v_no + 1; v_r := public.t_try(format('select public.set_recovery_pin(%L, %L)', u_wali1a, '483920'));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'Guru tidak bisa memanggil set_recovery_pin langsung', 'ok', v_r = '42501');
+    v_no := v_no + 1; v_r := public.t_try(format('select public.verify_recovery_pin(%L, %L)', u_wali1a, '483920'));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'Guru tidak bisa memanggil verify_recovery_pin langsung', 'ok', v_r = '42501');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'Status awal: belum punya PIN',
+        'ok', (public.get_my_recovery_pin() ->> 'ada')::boolean = false);
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    v_no := v_no + 1; v_r := public.t_try(format('select public.verify_recovery_pin(%L, %L)', u_wali1a, '483920'));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'Anon tidak bisa memanggil verify_recovery_pin', 'ok', v_r = '42501');
+    execute 'reset role';
+
+    -- service_role (API server)
+    execute 'set local role service_role';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'PIN lemah ditolak (123456, 111111, 121212, 987654, 12345)',
+        'ok', public.recovery_pin_is_weak('123456') and public.recovery_pin_is_weak('111111') and public.recovery_pin_is_weak('121212')
+          and public.recovery_pin_is_weak('987654') and public.recovery_pin_is_weak('12345') and public.recovery_pin_is_weak('12a456')
+          and not public.recovery_pin_is_weak('483920'));
+    v_no := v_no + 1; v_r := public.t_try(format('select public.set_recovery_pin(%L, %L)', u_wali1a, '123456'));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'set_recovery_pin menolak PIN lemah', 'ok', v_r = '22023');
+    v_no := v_no + 1; v_r := public.t_try(format('select public.set_recovery_pin(%L, %L)', gen_random_uuid(), '483920'));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'set_recovery_pin menolak user yang bukan akun guru', 'ok', v_r = 'P0002');
+    perform public.set_recovery_pin(u_wali1a, '483920');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'PIN tersimpan sebagai hash bcrypt (bukan angka asli)',
+        'ok', (select pin_hash like '$2a$10$%' and pin_hash not like '%483920%' from public.teacher_recovery_pins where user_id = u_wali1a));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'PIN benar → ok; user tanpa PIN → tidak_ada',
+        'ok', public.verify_recovery_pin(u_wali1a, '483920') = 'ok' and public.verify_recovery_pin(u_susy, '483920') = 'tidak_ada');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'Salah 4x → salah, salah ke-5 → terkunci, PIN benar pun ditolak saat terkunci',
+        'ok', public.verify_recovery_pin(u_wali1a, '000001') = 'salah'
+          and public.verify_recovery_pin(u_wali1a, '000002') = 'salah'
+          and public.verify_recovery_pin(u_wali1a, '000003') = 'salah'
+          and public.verify_recovery_pin(u_wali1a, '000004') = 'salah'
+          and public.verify_recovery_pin(u_wali1a, '000005') = 'terkunci'
+          and public.verify_recovery_pin(u_wali1a, '483920') = 'terkunci');
+    update public.teacher_recovery_pins set locked_until = now() - interval '1 minute' where user_id = u_wali1a;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'Setelah masa kunci habis PIN benar bisa dipakai lagi',
+        'ok', public.verify_recovery_pin(u_wali1a, '483920') = 'ok');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_my_recovery_pin();
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'Guru melihat status PIN sendiri (ada, tanggal dibuat), tanpa hash',
+        'ok', (v_j ->> 'ada')::boolean and v_j ->> 'dibuat' is not null and not (v_j ? 'pin_hash'));
+    execute 'reset role';
+    execute 'set local role service_role';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'Admin (lewat server) menghapus PIN guru',
+        'ok', public.clear_recovery_pin(u_wali1a) and public.verify_recovery_pin(u_wali1a, '483920') = 'tidak_ada');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end

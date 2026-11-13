@@ -316,3 +316,14 @@ Migration `20261113000001_attendance_akademik.sql` (**sudah diterapkan di produk
 - `earliest_backfill_date()` sekarang = awal tahun ajaran aktif, jadi guru bisa mengisi absensi tanggal mana pun yang sudah lewat dalam tahun ajaran (dulu hanya 3 hari sekolah terakhir).
 - Tetap ditolak: tanggal yang akan datang, Sabtu/Minggu/hari libur, dan mengubah absensi yang sudah disimpan di hari sebelumnya (koreksi lewat admin).
 - % kehadiran di rekap: Dispensasi dihitung hadir (`(H + D) ÷ hari terisi`).
+
+## PIN pemulihan (20261113000004)
+
+Lupa password tanpa email: guru membuat PIN 6 angka di menu **Akun** (wajib password saat ini), lalu di halaman masuk klik **Lupa password?** → email/NIP + PIN + password baru.
+
+- Tabel `teacher_recovery_pins`: hash bcrypt (pgcrypto), RLS FORCE, tertutup untuk anon/authenticated.
+- `set_recovery_pin`, `verify_recovery_pin`, `clear_recovery_pin`: hanya service_role (dipanggil `api/guru-pin.js`, `api/guru-reset-password.js`, `api/admin/teacher-accounts.js`).
+- `get_my_recovery_pin()`: guru melihat status PIN sendiri (ada / tanggal dibuat).
+- PIN lemah ditolak (111111, 123456, 121212, dst). Salah 5 kali → terkunci 30 menit. Pesan gagal tidak membedakan akun tak dikenal / PIN salah / belum punya PIN.
+- Guru lupa PIN: admin → Akun Guru → **Hapus PIN** (dan Reset password bila perlu).
+- Tes: `run.sh` bagian L, `tests/attendance-api.test.mjs`.
