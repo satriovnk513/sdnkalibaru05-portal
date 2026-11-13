@@ -61,6 +61,7 @@
         el.style.cssText = 'max-width:520px;width:100%;box-shadow:0 10px 30px rgba(15,23,42,.18);pointer-events:auto;';
         el.textContent = message;
         host.appendChild(el);
+        while (host.children.length > 2) host.firstElementChild.remove();
         setTimeout(() => el.remove(), type === 'err' ? 6000 : 3200);
     }
 
@@ -385,7 +386,11 @@
                 : `<div style="overflow-x:auto"><table class="att-table"><thead><tr>${cols.map((c) =>
                     `<th ${c.sort ? `data-sort="${c.key}"` : ''}>${esc(c.label)}${this.sortKey === c.key ? (this.sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
                     <tbody>${slice.map((r) => `<tr>${cols.map((c) =>
-                        `<td data-label="${esc(c.label)}" class="${c.className || ''}">${c.render ? c.render(r) : esc(r[c.key] ?? '–')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+                        (() => {
+                        const v = c.render ? c.render(r) : esc(r[c.key] ?? '–');
+                        // Satu pembungkus agar isi sel tetap satu blok saat tabel jadi kartu.
+                        return `<td data-label="${esc(c.label)}" class="${c.className || ''}">${/att-actions/.test(c.className || '') ? v : `<div class="att-cell">${v}</div>`}</td>`;
+                    })()).join('')}</tr>`).join('')}</tbody></table></div>`;
             this.host.querySelector('[data-info]').textContent = total
                 ? `Menampilkan ${start + 1}–${start + slice.length} dari ${total} data`
                 : 'Menampilkan 0 data';

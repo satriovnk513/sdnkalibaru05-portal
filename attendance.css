@@ -151,6 +151,61 @@
 .att-item.att-missing { background: #fef2f2; border-radius: 12px; box-shadow: inset 4px 0 0 var(--att-a); padding-left: 8px; padding-right: 8px; }
 .att-item.att-missing .att-name::after { content: " — belum diabsen"; color: var(--att-a); font-weight: 600; font-size: 0.8rem; }
 
+/* Menu Akademik (admin) */
+.ak-head { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-end; }
+.ak-card-title { font-size: 1rem; font-weight: 700; margin: 0 0 12px; display: flex; gap: 8px; align-items: center; }
+.ak-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 1024px) {
+    .ak-split { grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); align-items: start; }
+    .ak-split-cal { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+}
+.ak-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; }
+.ak-check { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; border: 1px solid var(--att-line); border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+.ak-check input { width: 18px; height: 18px; }
+.ak-cal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.ak-cal-head b { font-size: 1.05rem; }
+.ak-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--att-line); border-left: 1px solid var(--att-line); }
+.ak-cal-dow { font-size: 0.72rem; font-weight: 700; color: var(--att-muted); text-align: center; padding: 8px 2px; border-right: 1px solid var(--att-line); border-bottom: 1px solid var(--att-line); }
+.ak-cal-dow.ak-red { color: var(--att-a); }
+.ak-cal-cell { min-height: 64px; border: none; border-right: 1px solid var(--att-line); border-bottom: 1px solid var(--att-line); background: #fff; text-align: left; padding: 6px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; font: inherit; min-width: 0; }
+.ak-cal-cell:hover { background: #f8fafc; }
+.ak-cal-cell.ak-empty { background: #f8fafc; cursor: default; }
+.ak-cal-num { font-weight: 700; font-size: 0.9rem; color: var(--att-ink); }
+.ak-cal-label { font-size: 0.66rem; line-height: 1.2; color: var(--att-muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.ak-cal-cell.ak-weekend { background: #fff5f5; }
+.ak-cal-cell.ak-weekend .ak-cal-num { color: var(--att-a); }
+.ak-cal-cell.ak-holiday { background: #fee2e2; }
+.ak-cal-cell.ak-holiday .ak-cal-num, .ak-cal-cell.ak-holiday .ak-cal-label { color: #991b1b; }
+.ak-cal-cell.ak-today { box-shadow: inset 0 0 0 2px var(--att-brand); }
+.ak-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; font-size: 0.78rem; color: var(--att-muted); }
+.ak-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.ak-dot { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--att-line); background: #fff; display: inline-block; }
+.ak-dot.ak-today { box-shadow: inset 0 0 0 2px var(--att-brand); }
+.ak-dot.ak-weekend { background: #fff5f5; }
+.ak-dot.ak-holiday { background: #fee2e2; }
+@media (max-width: 640px) {
+    .ak-cal-cell { min-height: 48px; padding: 4px; }
+    .ak-cal-label { display: none; }
+    .ak-cal-cell.ak-holiday::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--att-a); margin-top: auto; }
+}
+
+/* Tumpukan field vertikal (form) — field tidak ikut melebar 160 px ke bawah */
+.att-cell { min-width: 0; }
+.att-stack { display: flex; flex-direction: column; gap: 12px; }
+.att-stack > .att-field { flex: none; }
+
+/* Tabel di kolom sempit (mis. Daftar Hari Libur di samping kalender) ikut jadi kartu */
+.ak-split > .admin-card { container-type: inline-size; min-width: 0; }
+@container (max-width: 620px) {
+    .att-table thead { display: none; }
+    .att-table, .att-table tbody, .att-table tr, .att-table td { display: block; width: 100%; }
+    .att-table tr { border: 1px solid var(--att-line); border-radius: 12px; padding: 8px 12px; margin-bottom: 10px; background: #fff; }
+    .att-table td { border: none; padding: 4px 0; display: flex; gap: 8px; justify-content: space-between; align-items: center; text-align: right; overflow-wrap: anywhere; }
+    .att-table td::before { content: attr(data-label); color: var(--att-muted); font-size: 0.78rem; text-align: left; flex: none; max-width: 45%; }
+    .att-table td.att-actions { justify-content: flex-start; padding-top: 8px; }
+    .att-table td.att-actions::before { display: none; }
+}
+
 @media print {
     .att-noprint { display: none !important; }
 }

@@ -277,3 +277,28 @@ node --test tests/attendance-api.test.mjs          # 14 tes API (offline)
 bash supabase/tests/local/run.sh                   # 63 tes hak akses database
 PLAYWRIGHT_MODULE_DIR=... CHROMIUM_PATH=... node --test tests/attendance-ui.test.mjs   # 45 tes UI (360, 390, 1366 px)
 ```
+
+---
+
+# Modul Absensi — menu Akademik & Kelas
+
+Menu admin baru (grup **AKADEMIK** di sidebar), file `admin-akademik.js`:
+
+| Menu | Isi |
+|---|---|
+| Data Kelas | Rombel tahun ajaran aktif + jumlah siswa + wali; tambah/edit/hapus (hapus ditolak jika masih ada siswa/absensi) |
+| Wali Kelas | Form wali 1 (wajib) + wali 2 pendamping (opsional), daftar per kelas dengan NIP. RPC `set_homeroom` |
+| Mata Pelajaran | Tambah/edit/hapus mapel; **Atur guru** = centang kelas yang diajar tiap guru. RPC `set_subject_assignments` |
+| Tahun Ajaran | Tambah/edit/hapus; **Jadikan aktif** (tepat satu). RPC `set_active_academic_year` |
+| Hari Libur | Kalender bulanan + daftar; klik tanggal untuk tambah/ubah; libur rentang (Sabtu–Minggu dilewati); **Sinkron Libur Nasional**. RPC `sync_holidays` |
+
+Migration `20261113000001_attendance_akademik.sql` (**sudah diterapkan di produksi 13 Nov 2026**):
+
+- `holiday_catalog`: 57 tanggal Agustus 2026 – Desember 2027 dari SKB 3 Menteri 2026
+  (No. 1497/2025, 2/2025, 5/2025), SKB 3 Menteri 2027 (No. 1205, 3, 2 Tahun 2026), dan
+  Kalender Pendidikan DKI 2026/2027 (Kepdis No. 346/2026: libur semester 19 Des 2026 –
+  2 Jan 2027 dan 26 Jun – 10 Jul 2027). Sudah disinkronkan ke `school_holidays`.
+- Tahun ajaran 2026/2027 mulai 13 Juli 2026 (hari pertama sekolah menurut Kepdis).
+- Belum ada di katalog: libur awal Ramadan (mengikuti ketentuan pemerintah) dan libur
+  semester TA 2027/2028. Tambahkan lewat menu Hari Libur saat sudah terbit, atau tambah
+  baris ke `holiday_catalog` lewat migration baru lalu klik Sinkron.

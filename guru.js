@@ -358,7 +358,7 @@
                 <div class="att-muted">${esc(home.jabatan || '')}${userEmail ? ` · ${esc(userEmail)}` : ''}</div>
             </div>
             <h2>Ganti password</h2>
-            <form class="att-card" id="gPwForm" novalidate style="display:flex;flex-direction:column;gap:12px">
+            <form class="att-card att-stack" id="gPwForm" novalidate>
                 <div class="att-field"><label for="gPw1">Password baru</label><input class="att-input" id="gPw1" type="password" autocomplete="new-password" minlength="8"></div>
                 <div class="att-field"><label for="gPw2">Ulangi password baru</label><input class="att-input" id="gPw2" type="password" autocomplete="new-password" minlength="8"></div>
                 <p class="att-muted" style="margin:0">Minimal 8 karakter. Jangan pakai tanggal lahir atau NIP.</p>
