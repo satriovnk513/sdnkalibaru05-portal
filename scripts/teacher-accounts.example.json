@@ -1,0 +1,6 @@
+[
+  { "staff_name": "Sunarsih, S.Pd.", "email": "contoh.guru1@example.com", "login_id": "990000000000000001", "admin": false },
+  { "staff_name": "Nasori, S.Pd.", "email": "contoh.guru2@example.com", "login_id": null, "admin": false },
+  { "staff_name": "Paroji", "email": "contoh.admin@example.com", "login_id": null, "admin": true },
+  { "staff_name": "Satrio Vianka Manaman, S.Kom.", "email": "contoh.admin.lama@example.com", "login_id": null, "admin": true, "existing": true }
+]
