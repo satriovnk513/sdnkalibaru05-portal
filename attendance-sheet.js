@@ -121,21 +121,22 @@
      */
     function renderSheet(container, sheet, opts = {}) {
         const editable = Boolean(sheet.bisa_ubah);
-        const students = (sheet.siswa || []).map((s) => ({ ...s, status: s.status || 'H', catatan: s.catatan || '' }));
+        const students = (sheet.siswa || []).map((s) => ({ ...s, status: ORDER.includes(s.status) ? s.status : null, catatan: s.catatan || '' }));
         const draft = opts.draftKey ? draftGet(opts.draftKey) : null;
         let usingDraft = false;
         if (editable && draft && Array.isArray(draft.entries)) {
             const byId = new Map(draft.entries.map((e) => [e.student_id, e]));
             if (students.every((s) => byId.has(s.student_id)) && byId.size === students.length) {
-                for (const s of students) { s.status = byId.get(s.student_id).status; s.catatan = byId.get(s.student_id).note || ''; }
+                for (const s of students) { const v = byId.get(s.student_id).status; s.status = ORDER.includes(v) ? v : null; s.catatan = byId.get(s.student_id).note || ''; }
                 usingDraft = true;
             }
         }
         const openNotes = new Set();
+        let showMissing = false;   // tandai baris kosong setelah guru menekan Simpan
 
         const counts = () => {
-            const c = { H: 0, S: 0, I: 0, A: 0, D: 0 };
-            for (const s of students) c[s.status] = (c[s.status] || 0) + 1;
+            const c = { H: 0, S: 0, I: 0, A: 0, D: 0, kosong: 0 };
+            for (const s of students) { if (s.status) c[s.status] += 1; else c.kosong += 1; }
             return c;
         };
 
@@ -154,13 +155,17 @@
 
         function countsHtml() {
             const c = counts();
-            return `<div class="att-counts" id="attCounts">${ORDER.map((k) =>
-                `<div class="att-count ${k}"><b>${c[k]}</b><span>${STATUS[k]}</span></div>`).join('')}</div>`;
+            return `<div id="attCounts"><div class="att-counts">${ORDER.map((k) =>
+                `<div class="att-count ${k}"><b>${c[k]}</b><span>${STATUS[k]}</span></div>`).join('')}</div>
+                ${editable ? `<p class="att-progress ${c.kosong ? 'todo' : 'done'}" aria-live="polite">${c.kosong
+                    ? `<b>${c.kosong}</b> dari ${students.length} siswa belum diabsen`
+                    : `Semua ${students.length} siswa sudah diabsen`}</p>` : ''}</div>`;
         }
 
         function itemHtml(s, i) {
             const showNote = openNotes.has(s.student_id) || (s.catatan && editable);
-            return `<li class="att-item" data-i="${i}">
+            const missing = showMissing && editable && !s.status;
+            return `<li class="att-item${missing ? ' att-missing' : ''}" data-i="${i}">
                 <div class="att-item-top">
                     <span class="att-no">${esc(s.no)}</span>
                     <span class="att-name">${esc(s.nama)}${s.jk ? ` <span class="att-muted">(${esc(s.jk)})</span>` : ''}</span>
@@ -188,7 +193,8 @@
                 ${headerHtml()}
                 ${sheet.isian_awal_dari_harian && !sheet.session ? '<div class="att-alert info" style="margin-bottom:12px">Status sudah diisi awal dari absensi harian wali kelas. Sesuaikan jika perlu.</div>' : ''}
                 ${countsHtml()}
-                ${editable ? '<div class="att-row" style="margin:12px 0 4px"><button type="button" class="att-btn att-btn-ghost att-btn-sm" data-all="H">Tandai semua Hadir</button><span class="att-muted">Ketuk status siswa yang tidak hadir.</span></div>' : ''}
+                ${editable ? '<div class="att-row" style="margin:12px 0 4px"><button type="button" class="att-btn att-btn-ghost att-btn-sm" data-all="H">Tandai semua Hadir</button><span class="att-muted">Ketuk status tiap siswa. Ketuk lagi untuk mengosongkan.</span></div>' : ''}
+                <div class="att-alert err att-hidden" id="attMissing" role="alert" style="margin:8px 0"></div>
                 <ul class="att-list">${students.map(itemHtml).join('')}</ul>
                 ${editable ? `<div class="att-savebar att-noprint">
                     <button type="button" class="att-btn att-btn-primary" id="attSave">${sheet.session ? 'Simpan perubahan' : 'Simpan absensi'}</button>
@@ -200,6 +206,21 @@
             draftSet(opts.draftKey, { ts: Date.now(), entries: students.map((s) => ({ student_id: s.student_id, status: s.status, note: s.catatan })) });
         }
 
+        /** Kotak daftar siswa yang belum diabsen (muncul setelah menekan Simpan). */
+        function updateMissing() {
+            const box = container.querySelector('#attMissing');
+            if (!box || !showMissing) return;
+            const empty = students.filter((s) => !s.status);
+            if (!empty.length) {
+                box.className = 'att-alert ok';
+                box.textContent = 'Semua siswa sudah diabsen. Tekan Simpan lagi.';
+                return;
+            }
+            box.className = 'att-alert err';
+            box.innerHTML = `<b>${empty.length} siswa belum diabsen.</b> Pilih status untuk:
+                <ul style="margin:6px 0 0;padding-left:18px">${empty.map((s) => `<li>${esc(s.no)}. ${esc(s.nama)}</li>`).join('')}</ul>`;
+        }
+
         function updateCounts() {
             const el = container.querySelector('#attCounts');
             if (el) el.outerHTML = countsHtml();
@@ -209,9 +230,12 @@
             const st = e.target.closest('[data-st]');
             if (st && editable) {
                 const i = Number(st.dataset.i);
-                students[i].status = st.dataset.st;
-                st.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === st)));
+                // Ketuk status yang sudah terpilih = kosongkan lagi.
+                students[i].status = students[i].status === st.dataset.st ? null : st.dataset.st;
+                st.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.st === students[i].status)));
+                st.closest('.att-item')?.classList.toggle('att-missing', showMissing && !students[i].status);
                 updateCounts();
+                updateMissing();
                 saveDraft();
                 return;
             }
@@ -223,9 +247,10 @@
                 return;
             }
             if (e.target.closest('[data-all]')) {
-                const ok = students.every((s) => s.status === 'H') || await confirmSheet({
+                const changed = students.filter((s) => s.status && s.status !== 'H').length;
+                const ok = !changed || await confirmSheet({
                     title: 'Tandai semua Hadir?',
-                    html: '<p class="att-muted">Status siswa yang sudah diubah akan kembali menjadi Hadir.</p>',
+                    html: `<p class="att-muted">${changed} siswa yang sudah ditandai Sakit, Izin, Alpa, atau Dispensasi akan diubah menjadi Hadir.</p>`,
                     confirmText: 'Ya, semua Hadir',
                 });
                 if (!ok) return;
@@ -243,6 +268,18 @@
         };
 
         async function doSave(btn) {
+            const empty = students.filter((s) => !s.status);
+            if (empty.length) {
+                showMissing = true;
+                render();
+                updateMissing();
+                const first = container.querySelector('.att-missing');
+                if (first) {
+                    first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    first.querySelector('[data-st]')?.focus({ preventScroll: true });
+                }
+                return;
+            }
             const absent = students.filter((s) => s.status !== 'H');
             const c = counts();
             const list = absent.length
