@@ -11,7 +11,7 @@
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <link rel="stylesheet" href="attendance.css?v=4">
+    <link rel="stylesheet" href="attendance.css?v=5">
     <style>
         /* ── Reset & Base ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -75,8 +75,8 @@
 
         /* ── Sidebar ── */
         .sidebar {
-            width: 260px; min-height: 100vh; background: #1a1a2e; color: rgba(255,255,255,0.7);
-            display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0;
+            width: 260px; height: 100vh; height: 100dvh; background: #1a1a2e; color: rgba(255,255,255,0.7);
+            display: flex; flex-direction: column; position: fixed; top: 0; left: 0;
             z-index: 1000; overflow-y: auto; scrollbar-width: thin;
             scrollbar-color: rgba(255,255,255,0.1) transparent;
         }
@@ -91,7 +91,7 @@
         .brand-name { display: block; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 1rem; color: white; }
         .brand-sub { display: block; font-size: 0.72rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 1px; }
 
-        .sidebar-nav { flex: 1; padding: 1rem 0.75rem; }
+        .sidebar-nav { flex: 1 0 auto; padding: 1rem 0.75rem; }
         .nav-section-label {
             font-size: 0.68rem; font-weight: 700; color: rgba(255,255,255,0.3);
             text-transform: uppercase; letter-spacing: 0.1em; padding: 1rem 0.75rem 0.5rem;
@@ -110,7 +110,8 @@
         .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
         .sidebar-footer {
-            padding: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06);
+            padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom)); border-top: 1px solid rgba(255,255,255,0.06);
+            position: sticky; bottom: 0; background: #1a1a2e; flex: none;   /* Logout selalu terlihat, juga di HP */
         }
         .nav-item.logout-item { color: rgba(255,100,100,0.7); }
         .nav-item.logout-item:hover { background: rgba(255,100,100,0.1); color: #ff6b6b; }
@@ -1386,11 +1387,11 @@
     <script src="student-fields.js?v=1"></script>
     <script src="admin-students.js?v=2"></script>
     <script src="admin.js?v=4"></script>
-    <script src="attendance-sheet.js?v=4"></script>
-    <script src="admin-attendance.js?v=2"></script>
+    <script src="attendance-sheet.js?v=5"></script>
+    <script src="admin-attendance.js?v=3"></script>
     <script src="admin-akademik.js?v=1"></script>
-    <script src="rekap-print.js?v=1"></script>
-    <script src="admin-laporan.js?v=1"></script>
+    <script src="rekap-print.js?v=2"></script>
+    <script src="admin-laporan.js?v=2"></script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>

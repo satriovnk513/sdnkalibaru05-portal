@@ -253,6 +253,7 @@
             const label = kind === 'harian' ? 'harian' : subjects.find((x) => x.id === subjectId)?.code;
             window.Att.renderSheet(host, sheet, {
                 reasonRequired: Boolean(sheet.session),
+                notes: /^PAI/i.test(label || '') ? ['Bagi yang beragama <b>Non-Muslim</b>, mohon diberi status <b>Dispensasi</b>.'] : [],
                 subtitle: `Kelas ${sheet.kelas} · ${label} · ${fmtDate(date)}`,
                 onSave: async (entries, reason) => {
                     await rpc('save_attendance', { p_class_id: classId, p_date: date, p_kind: kind, p_subject_id: subjectId, p_entries: entries, p_reason: reason });

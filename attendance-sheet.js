@@ -119,6 +119,9 @@
      * opts.draftKey: kunci localStorage untuk isian yang belum terkirim
      * opts.reasonRequired: admin mengoreksi sesi yang sudah ada
      * opts.subtitle: teks di bawah judul
+     * opts.headHost: elemen terpisah untuk ringkasan (status, hitungan, tombol) — dipakai panel "tempel di atas"
+     * opts.notes: keterangan tambahan (HTML tepercaya) di atas daftar siswa
+     * opts.back: { href, label } tombol di bawah tombol Simpan
      */
     function renderSheet(container, sheet, opts = {}) {
         const editable = Boolean(sheet.bisa_ubah);
@@ -132,6 +135,8 @@
                 usingDraft = true;
             }
         }
+        const headHost = opts.headHost || null;
+        const find = (sel) => container.querySelector(sel) || (headHost ? headHost.querySelector(sel) : null);
         const openNotes = new Set();
         let showMissing = false;   // tandai baris kosong setelah guru menekan Simpan
 
@@ -180,26 +185,44 @@
             </li>`;
         }
 
+        const NOTE_D = `<div class="att-alert info att-keterangan"><b>Dispensasi</b> pada absensi siswa berlaku hanya untuk <b>kegiatan resmi yang mendapat persetujuan atau penugasan dari pihak sekolah.</b> Berbeda dengan izin pribadi atau sakit, siswa yang mendapat status dispensasi <b>tetap dihitung hadir</b> pada rekap KBM.</div>`;
+
+        function backHtml() {
+            return opts.back ? `<a class="att-btn att-btn-ghost att-btn-block att-back att-noprint" href="${esc(opts.back.href)}">${esc(opts.back.label)}</a>` : '';
+        }
+
         function render() {
+            const put = (head, body) => {
+                if (headHost) { headHost.innerHTML = head; container.innerHTML = body; } else container.innerHTML = head + body;
+            };
             if (!sheet.hari_sekolah) {
-                container.innerHTML = `<div class="att-alert warn">${esc(fmtDate(sheet.tanggal))} hari libur${sheet.libur ? ` (${esc(sheet.libur)})` : ''}. Absensi tidak perlu diisi.</div>`;
+                put('', `<div class="att-alert warn">${esc(fmtDate(sheet.tanggal))} hari libur${sheet.libur ? ` (${esc(sheet.libur)})` : ''}. Absensi tidak perlu diisi.</div>${backHtml()}`);
                 return;
             }
             if (!students.length) {
-                container.innerHTML = '<div class="att-alert warn">Rombel ini belum punya siswa. Hubungi admin.</div>';
+                put('', `<div class="att-alert warn">Rombel ini belum punya siswa. Hubungi admin.</div>${backHtml()}`);
                 return;
             }
-            container.innerHTML = `
+            const head = `
                 ${opts.subtitle ? `<p class="att-muted" style="margin:0">${esc(opts.subtitle)}</p>` : ''}
                 ${headerHtml()}
-                ${sheet.isian_awal_dari_harian && !sheet.session ? '<div class="att-alert info" style="margin-bottom:12px">Status sudah diisi awal dari absensi harian wali kelas. Sesuaikan jika perlu.</div>' : ''}
                 ${countsHtml()}
-                ${editable ? '<div class="att-row" style="margin:12px 0 4px"><button type="button" class="att-btn att-btn-ghost att-btn-sm" data-all="H">Tandai semua Hadir</button><span class="att-muted">Ketuk status tiap siswa. Ketuk lagi untuk mengosongkan.</span></div>' : ''}
+                ${editable ? `<div class="att-row att-bulk">
+                        <button type="button" class="att-btn att-btn-sm att-btn-hadir" data-all="H">Tandai semua Hadir</button>
+                        <button type="button" class="att-btn att-btn-sm att-btn-reset" data-reset>Reset</button>
+                    </div>
+                    <p class="att-muted att-hint">Ketuk status tiap siswa. Ketuk lagi untuk mengosongkan.</p>` : ''}`;
+            const body = `
+                ${sheet.isian_awal_dari_harian && !sheet.session ? '<div class="att-alert info" style="margin-bottom:12px">Status sudah diisi awal dari absensi harian wali kelas. Sesuaikan jika perlu.</div>' : ''}
+                ${NOTE_D}
+                ${(opts.notes || []).map((n) => `<div class="att-alert warn att-keterangan">${n}</div>`).join('')}
                 <div class="att-alert err att-hidden" id="attMissing" role="alert" style="margin:8px 0"></div>
                 <ul class="att-list">${students.map(itemHtml).join('')}</ul>
                 ${editable ? `<div class="att-savebar att-noprint">
                     <button type="button" class="att-btn att-btn-primary" id="attSave">${sheet.session ? 'Simpan perubahan' : 'Simpan absensi'}</button>
-                </div>` : ''}`;
+                </div>` : ''}
+                ${backHtml()}`;
+            put(head, body);
         }
 
         function saveDraft() {
@@ -223,11 +246,11 @@
         }
 
         function updateCounts() {
-            const el = container.querySelector('#attCounts');
+            const el = find('#attCounts');
             if (el) el.outerHTML = countsHtml();
         }
 
-        container.onclick = async (e) => {
+        const onClick = async (e) => {
             const st = e.target.closest('[data-st]');
             if (st && editable) {
                 const i = Number(st.dataset.i);
@@ -260,8 +283,26 @@
                 saveDraft();
                 return;
             }
+            if (e.target.closest('[data-reset]')) {
+                const filled = students.filter((s) => s.status).length;
+                if (!filled) return;
+                const ok = await confirmSheet({
+                    title: 'Reset semua status?',
+                    html: `<p class="att-muted">Status ${filled} siswa akan dikosongkan lagi. Catatan tidak dihapus.</p>`,
+                    confirmText: 'Ya, kosongkan',
+                    danger: true,
+                });
+                if (!ok) return;
+                for (const s of students) s.status = null;
+                showMissing = false;
+                render();
+                saveDraft();
+                return;
+            }
             if (e.target.closest('#attSave')) await doSave(e.target.closest('#attSave'));
         };
+        container.onclick = onClick;
+        if (headHost) headHost.onclick = onClick;
 
         container.oninput = (e) => {
             const ni = e.target.closest('[data-note-input]');
@@ -276,7 +317,7 @@
                 updateMissing();
                 const first = container.querySelector('.att-missing');
                 if (first) {
-                    first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    first.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     first.querySelector('[data-st]')?.focus({ preventScroll: true });
                 }
                 return;
@@ -312,6 +353,46 @@
 
         render();
         return { students, rerender: render };
+    }
+
+    // ------------------------------------------------------------------ panel tempel di atas
+    /**
+     * Membuat `el` menempel di atas saat halaman digulir. Tombol panah di bawahnya
+     * melepas tempelan (panel kembali ikut tergulir) dan menempelkannya lagi.
+     * Pilihan diingat di perangkat ini. topEl: header yang sudah menempel di atasnya.
+     */
+    function floatBar(el, topEl) {
+        let on = true;
+        try { on = localStorage.getItem('att-float') !== '0'; } catch { /* abaikan */ }
+        el.classList.add('att-float');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'att-float-toggle att-noprint';
+        const apply = () => {
+            el.classList.toggle('is-floating', on);
+            el.style.setProperty('--att-float-top', `${topEl ? topEl.offsetHeight : 0}px`);
+            btn.innerHTML = on
+                ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg><span>Lepas</span>'
+                : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg><span>Tempel di atas</span>';
+            btn.setAttribute('aria-pressed', String(on));
+            btn.setAttribute('aria-label', on ? 'Lepas panel, jangan menempel di atas saat digulir' : 'Tempelkan panel di atas saat digulir');
+            measure();
+        };
+        // Baris yang digulir otomatis (mis. siswa yang belum diabsen) berhenti di bawah panel, bukan di baliknya.
+        const measure = () => {
+            const top = topEl ? topEl.offsetHeight : 0;
+            const sticky = on && getComputedStyle(el).position === 'sticky';
+            document.documentElement.style.setProperty('--att-scroll-top', `${top + (sticky ? el.offsetHeight : 0) + 8}px`);
+        };
+        if (typeof ResizeObserver !== 'undefined') new ResizeObserver(measure).observe(el);
+        btn.addEventListener('click', () => {
+            on = !on;
+            try { localStorage.setItem('att-float', on ? '1' : '0'); } catch { /* abaikan */ }
+            apply();
+        });
+        el.appendChild(btn);
+        apply();
+        return el;
     }
 
     // ------------------------------------------------------------------ tabel standar
@@ -412,6 +493,6 @@
 
     window.Att = Object.freeze({
         STATUS, ORDER, BULAN, esc, fmtDate, romawi, todayJakarta, errMessage,
-        toast, confirm: confirmSheet, renderSheet, DataTable, draftDel,
+        toast, confirm: confirmSheet, renderSheet, DataTable, draftDel, floatBar,
     });
 })();

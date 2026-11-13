@@ -1,7 +1,7 @@
 // Tes offline modul cetak & Excel rekap absensi (data fiktif).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
@@ -66,6 +66,7 @@ test('HTML semester: persentase dan tanggal tanda tangan = hari ini bila semeste
 test('pct dan namaTtd', () => {
     assert.equal(RP.pct({ H: 8, S: 1, I: 0, A: 1 }), 80);
     assert.equal(RP.pct({ H: 0, S: 0, I: 0, A: 0 }), null);
+    assert.equal(RP.pct({ H: 7, S: 1, I: 0, A: 1, D: 1 }), 80, 'dispensasi dihitung hadir');
     assert.equal(RP.namaTtd('Abdul Azis, S.Pd.'), 'ABDUL AZIS, S.Pd.');
     assert.equal(RP.namaTtd('Paroji'), 'PAROJI');
 });
@@ -76,18 +77,26 @@ test('XLSX valid dibuka openpyxl: bulanan & semester', { skip: py.status !== 0 ?
     try {
         const fm = join(dir, 'bulanan.xlsx');
         const fs = join(dir, 'semester.xlsx');
-        writeFileSync(fm, RP.monthlyXlsx(month, header, {}));
-        writeFileSync(fs, RP.semesterXlsx(sem, header, {}));
+        const logoPng = new Uint8Array(readFileSync(new URL('../logo-cetak.png', import.meta.url)));
+        writeFileSync(fm, RP.monthlyXlsx(month, header, { logoPng }));
+        writeFileSync(fs, RP.semesterXlsx(sem, header, { logoPng }));
         const script = `
 import sys, openpyxl
 m = openpyxl.load_workbook(sys.argv[1]).active
 s = openpyxl.load_workbook(sys.argv[2]).active
-print(m.title, '|', m['A1'].value, '|', m['A4'].value, '|', m['D8'].value, '|', m['F8'].value, '|', m['G8'].value, '|', m.cell(8, 5 + 31 + 1).value, '|', m['F6'].value, '|', m.cell(7, 5 + 19).fill.fgColor.rgb, '|', len(m.merged_cells.ranges))
-print(s.title, '|', s['A1'].value, '|', s['D7'].value, '|', s['F7'].value, '|', s['K7'].value, '|', s['K8'].value)
+print(m.title, '|', m['D1'].value, '|', m['D4'].value, '|', m['D8'].value, '|', m['F8'].value, '|', m['G8'].value, '|', m.cell(8, 5 + 31 + 1).value, '|', m['F6'].value, '|', m.cell(7, 5 + 19).fill.fgColor.rgb, '|', len(m.merged_cells.ranges))
+print(s.title, '|', s['D1'].value, '|', s['D7'].value, '|', s['F7'].value, '|', s['K7'].value, '|', s['K8'].value)
+import zipfile
+for f in sys.argv[1:3]:
+    z = zipfile.ZipFile(f)
+    assert z.testzip() is None
+    print(len(z.read('xl/media/image1.png')), '|', 'drawing r:id' in z.read('xl/worksheets/sheet1.xml').decode())
 `;
         const r = spawnSync('python3', ['-c', script, fm, fs], { encoding: 'utf8' });
         assert.equal(r.status, 0, r.stderr);
-        const [l1, l2] = r.stdout.trim().split('\n').map((l) => l.split(' | '));
+        const [l1, l2, i1, i2] = r.stdout.trim().split('\n').map((l) => l.split(' | '));
+        assert.deepEqual(i1, [String(logoPng.length), 'True'], 'logo tertanam di Excel bulanan');
+        assert.deepEqual(i2, [String(logoPng.length), 'True'], 'logo tertanam di Excel semester');
         assert.deepEqual(l1.slice(0, 9), ['III.A Desember 2026', 'DAFTAR HADIR SISWA', 'KELAS : III.A', 'SISWA FIKTIF <SATU> & "DUA"', '•', 'S', '1', 'BULAN : DESEMBER 2026', 'FFFF0000']);
         assert.equal(Number(l1[9]), 9);
         assert.deepEqual(l2, ['Semester GANJIL III.A', 'REKAP ABSENSI SEMESTER GANJIL', 'SISWA FIKTIF SATU', '8', '80', '–']);
