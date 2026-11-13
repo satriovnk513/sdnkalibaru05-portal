@@ -312,6 +312,71 @@ begin
     execute 'reset role';
     perform set_config('request.jwt.claims', '', true);
 
+    -- ======================================================== I. Fase 1 RPC
+    delete from public.school_holidays where name = 'Libur fiktif';
+    update public.teacher_accounts set is_active = true where user_id = u_wali1a;
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_guru_home();
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'I Beranda', 'u', 'Wali 1A: satu rombel, tanpa mapel',
+        'ok', jsonb_array_length(v_j -> 'wali_kelas') = 1 and v_j -> 'wali_kelas' -> 0 ->> 'kelas' = '1 A'
+          and jsonb_array_length(v_j -> 'mapel') = 0 and jsonb_array_length(v_j -> 'semua_kelas') = 0);
+    v_j := public.get_class_month_recap(c1a, extract(year from v_d)::int, extract(month from v_d)::int);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'I Rekap', 'u', 'Rekap bulanan 1 A memuat status hari itu',
+        'ok', jsonb_array_length(v_j -> 'siswa') = 3
+          and (select count(*) from jsonb_array_elements(v_j -> 'siswa') x where x -> 'status' ? v_d::text) = 3);
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_class_month_recap(%L, 2026, 11)', c3a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'I Rekap', 'u', 'Rekap rombel lain ditolak', 'ok', v_r = '42501');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'I Akun', 'u', 'Guru tidak melihat daftar akun yang akan dibuat',
+        'ok', (select count(*) from public.teacher_account_requests) = 0
+          and public.t_try(format('insert into public.teacher_account_requests (staff_id, email) values (%L, %L)',
+                (select staff_id from public.teacher_accounts limit 1), 'x@y.id')) = '42501');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_guru_home();
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'I Beranda', 'u', 'Bu Susy: PAI di 9 rombel kelas 1–3',
+        'ok', jsonb_array_length(v_j -> 'mapel') = 9 and jsonb_array_length(v_j -> 'wali_kelas') = 0);
+    v_j := public.get_attendance_sheet(c1a, v_d, 'mapel', s_pai);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'I Lembar', 'u', 'Lembar PAI 1 A diisi awal dari absensi harian',
+        'ok', (v_j ->> 'isian_awal_dari_harian')::boolean
+          and (v_j ->> 'bisa_ubah')::boolean
+          and (select x ->> 'status' from jsonb_array_elements(v_j -> 'siswa') x where x ->> 'student_id' = st2::text) = 'S');
+    v_j := public.get_attendance_sheet(c1a, v_d, 'harian', null);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'I Lembar', 'u', 'Lembar harian 1 A terbaca tapi tidak bisa diubah guru PAI',
+        'ok', not (v_j ->> 'bisa_ubah')::boolean and jsonb_array_length(v_j -> 'siswa') = 3);
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_lilis, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'I Beranda', 'u', 'Kepala Sekolah melihat 17 rombel',
+        'ok', jsonb_array_length(public.get_guru_home() -> 'semua_kelas') = 17);
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'I Akun', 'u', 'Admin bisa mengisi daftar akun',
+        'ok', public.t_try(format('insert into public.teacher_account_requests (staff_id, email, login_id) values (%L, %L, %L)',
+                (select id from public.staff where name = 'Akna Dewi, S.Pd.'), 'akna@fiktif.test', '990000000000000099')) = 'OK');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_orphan, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1; v_r := public.t_try('select public.get_guru_home()');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'I Beranda', 'u', 'Akun tanpa data guru ditolak', 'ok', v_r = '42501');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end

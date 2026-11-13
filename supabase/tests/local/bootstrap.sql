@@ -128,3 +128,15 @@ create policy "Allow admin delete for staff" on public.staff for delete to authe
 grant select on public.staff to anon, authenticated;
 grant insert, update, delete on public.staff to authenticated;
 grant all on public.staff to service_role;
+
+-- Fungsi event trigger produksi (isi tidak relevan untuk tes; event trigger tidak dipasang).
+create or replace function public.rls_auto_enable()
+returns event_trigger
+language plpgsql
+security definer
+set search_path to 'pg_catalog'
+as $$
+begin
+    null;
+end;
+$$;
