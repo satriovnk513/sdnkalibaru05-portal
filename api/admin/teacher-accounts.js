@@ -8,6 +8,7 @@
  *   set_active      { staff_id, active }     aktifkan / nonaktifkan
  *   save_request    { staff_id, email, login_id, make_admin }  tambah/ubah data akun
  *   delete_request  { staff_id }             hapus dari daftar (hanya jika akun belum dibuat)
+ *   clear_pin       { staff_id }             hapus PIN pemulihan (guru lupa PIN)
  *
  * Akun dibuat dengan email_confirm = true: TIDAK ada email undangan/verifikasi yang
  * dikirim. Password awal dikembalikan SEKALI di respons untuk dibagikan admin; tidak
@@ -37,16 +38,19 @@ export function normalizeRequest(b) {
 }
 
 async function loadState(key) {
-    const [staff, reqs, accs] = await Promise.all([
+    const [staff, reqs, accs, pins] = await Promise.all([
         sb('GET', '/rest/v1/staff?select=id,name,role,order_index&order=order_index.asc,name.asc', { key }),
         sb('GET', '/rest/v1/teacher_account_requests?select=staff_id,email,login_id,make_admin', { key }),
         sb('GET', '/rest/v1/teacher_accounts?select=user_id,staff_id,email,login_id,is_active,created_at', { key }),
+        sb('GET', '/rest/v1/teacher_recovery_pins?select=user_id', { key }),
     ]);
     if (!staff.ok || !reqs.ok || !accs.ok) throw new Error('upstream');
-    return { staff: staff.json, reqs: reqs.json, accs: accs.json };
+    // Tabel PIN mungkin belum ada (migration belum dijalankan): anggap belum ada PIN.
+    return { staff: staff.json, reqs: reqs.json, accs: accs.json, pins: pins.ok && Array.isArray(pins.json) ? pins.json : [] };
 }
 
-export function buildRows({ staff, reqs, accs }, adminIds = new Set()) {
+export function buildRows({ staff, reqs, accs, pins = [] }, adminIds = new Set()) {
+    const pinUsers = new Set(pins.map((p) => p.user_id));
     const reqBy = new Map(reqs.map((r) => [r.staff_id, r]));
     const accBy = new Map(accs.map((a) => [a.staff_id, a]));
     return staff.map((s) => {
@@ -61,6 +65,7 @@ export function buildRows({ staff, reqs, accs }, adminIds = new Set()) {
             login_id: acc?.login_id ?? req?.login_id ?? null,
             admin: acc ? adminIds.has(acc.user_id) : Boolean(req?.make_admin),
             status,
+            pin: acc ? pinUsers.has(acc.user_id) : false,
             dibuat: acc?.created_at ?? null,
         };
     });
@@ -195,6 +200,13 @@ export default async function handler(req, res) {
             const d = await sb('DELETE', `/rest/v1/teacher_account_requests?staff_id=eq.${body.staff_id}`, { key, headers: { Prefer: 'return=minimal' } });
             if (!d.ok) return sendError(res, 502, 'upstream_error', 'Gagal menghapus.');
             return res.status(200).json({ ok: true });
+        }
+        case 'clear_pin': {
+            const acc = accBy.get(body.staff_id);
+            if (!acc) return sendError(res, 404, 'not_found', 'Akun belum dibuat.');
+            const r = await sb('POST', '/rest/v1/rpc/clear_recovery_pin', { key, body: { p_user: acc.user_id } });
+            if (!r.ok) return sendError(res, 502, 'upstream_error', 'Gagal menghapus PIN.');
+            return res.status(200).json({ ok: true, dihapus: r.json === true });
         }
         default:
             return sendError(res, 400, 'invalid_request', 'Aksi tidak dikenal.');

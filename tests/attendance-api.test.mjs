@@ -9,6 +9,8 @@ process.env.VERCEL_ENV = 'production';
 
 const { default: login, classifyIdentifier } = await import('../api/guru-login.js');
 const { default: accounts, buildRows, normalizeRequest, generatePassword } = await import('../api/admin/teacher-accounts.js');
+const { default: setPin, pinIsWeak } = await import('../api/guru-pin.js');
+const { default: resetPw } = await import('../api/guru-reset-password.js');
 
 const ORIGIN = 'https://sdnkalibaru05.sch.id';
 const ADMIN = '00000000-0000-4000-8000-0000000000a1';
@@ -38,6 +40,9 @@ function reset() {
         accs: [{ user_id: GURU, staff_id: ST(1), email: 'guru@fiktif.test', login_id: '990000000000000001', is_active: true, created_at: '2026-11-12' }],
         authUsers: new Set(['guru@fiktif.test']),
         failLinkFor: null,
+        emails: { [ADMIN]: 'admin@fiktif.test', [GURU]: 'guru@fiktif.test' },
+        pins: {},            // user_id → { pin, fails, locked }
+        pwChanged: {},
     };
 }
 
@@ -56,7 +61,7 @@ globalThis.fetch = async (url, opts = {}) => {
 
     if (p === '/auth/v1/user') {
         const id = db.tokens[auth.replace('Bearer ', '')];
-        return id ? json(200, { id, email: 'x@fiktif.test' }) : json(401, { msg: 'bad jwt' });
+        return id ? json(200, { id, email: db.emails[id] || 'x@fiktif.test' }) : json(401, { msg: 'bad jwt' });
     }
     if (p === '/auth/v1/token') {
         return db.passwords[body.email] === body.password
@@ -68,7 +73,30 @@ globalThis.fetch = async (url, opts = {}) => {
         db.authUsers.add(body.email);
         return json(200, { id: `11111111-0000-4000-8000-${String(db.authUsers.size).padStart(12, '0')}` });
     }
-    if (p.startsWith('/auth/v1/admin/users/')) return json(200, {});
+    if (p.startsWith('/auth/v1/admin/users/')) {
+        if (method === 'PUT' && body?.password) db.pwChanged[p.split('/').pop()] = body.password;
+        return json(200, {});
+    }
+    if (p === '/rest/v1/rpc/set_recovery_pin') {
+        if (!db.accs.some((a) => a.user_id === body.p_user)) return json(400, { code: 'P0002' });
+        db.pins[body.p_user] = { pin: body.p_pin, fails: 0, locked: false };
+        return json(204);
+    }
+    if (p === '/rest/v1/rpc/verify_recovery_pin') {
+        const r = db.pins[body.p_user];
+        if (!r) return json(200, 'tidak_ada');
+        if (r.locked) return json(200, 'terkunci');
+        if (r.pin === body.p_pin) { r.fails = 0; return json(200, 'ok'); }
+        r.fails += 1;
+        if (r.fails >= 5) { r.locked = true; r.fails = 0; return json(200, 'terkunci'); }
+        return json(200, 'salah');
+    }
+    if (p === '/rest/v1/rpc/clear_recovery_pin') {
+        const had = Boolean(db.pins[body.p_user]);
+        delete db.pins[body.p_user];
+        return json(200, had);
+    }
+    if (p === '/rest/v1/teacher_recovery_pins') return json(200, Object.keys(db.pins).map((user_id) => ({ user_id })));
     if (p === '/rest/v1/user_roles' && method === 'GET') {
         const uid = (q.get('user_id') || '').replace('eq.', '');
         if (uid) return json(200, db.roles.filter((r) => r.user_id === uid && r.role === 'admin'));
@@ -242,4 +270,90 @@ test('origin sama dengan host deployment diterima, origin asing tetap ditolak', 
     assert.equal(evil.status, 403);
     const evilLogin = await call(login, { origin: 'https://evil.test', body: { identifier: 'guru@fiktif.test', password: 'rahasia123' } });
     assert.equal(evilLogin.status, 403);
+});
+
+// ---------------------------------------------------------------- PIN pemulihan
+test('PIN lemah dikenali (sama dengan aturan database)', () => {
+    for (const p of ['123456', '654321', '111111', '121212', '123123', '112233', '12345', '12a456', '']) assert.equal(pinIsWeak(p), true, p);
+    for (const p of ['483920', '205817', '730194']) assert.equal(pinIsWeak(p), false, p);
+});
+
+test('buat PIN: wajib login, password saat ini benar, PIN tidak lemah', async () => {
+    let r = await call(setPin, { body: { password: 'rahasia123', pin: '483920' } });
+    assert.equal(r.status, 401, 'tanpa token ditolak');
+    r = await call(setPin, { token: 'jwt-guru', body: { password: 'salah', pin: '483920' } });
+    assert.equal(r.status, 401);
+    assert.match(r.body.error.message, /Password saat ini salah/);
+    assert.equal(db.pins[GURU], undefined);
+    r = await call(setPin, { token: 'jwt-guru', body: { password: 'rahasia123', pin: '123456' } });
+    assert.equal(r.status, 400);
+    assert.equal(r.body.error.type, 'weak_pin');
+    r = await call(setPin, { token: 'jwt-guru', body: { password: 'rahasia123', pin: '48392' } });
+    assert.equal(r.status, 400);
+    r = await call(setPin, { token: 'jwt-guru', body: { password: 'rahasia123', pin: '483920' } });
+    assert.equal(r.status, 200);
+    assert.equal(db.pins[GURU].pin, '483920');
+    assert.ok(!calls.some((c) => JSON.stringify(c).includes('rahasia123') && c.path.startsWith('/rest/')), 'password tidak dikirim ke database');
+});
+
+test('buat PIN dari origin asing ditolak', async () => {
+    const r = await call(setPin, { token: 'jwt-guru', origin: 'https://jahat.test', body: { password: 'rahasia123', pin: '483920' } });
+    assert.equal(r.status, 403);
+});
+
+test('lupa password: NIP + PIN benar → password diganti', async () => {
+    db.pins[GURU] = { pin: '483920', fails: 0, locked: false };
+    const r = await call(resetPw, { body: { identifier: '9900 0000 0000 0000 01', pin: '483920', password: 'BaruSekali9' } });
+    assert.equal(r.status, 200);
+    assert.equal(db.pwChanged[GURU], 'BaruSekali9');
+});
+
+test('lupa password: PIN salah, akun tak dikenal, dan belum punya PIN → pesan sama, password tidak berubah', async () => {
+    db.pins[GURU] = { pin: '483920', fails: 0, locked: false };
+    const a = await call(resetPw, { body: { identifier: 'guru@fiktif.test', pin: '111000', password: 'BaruSekali9' } });
+    const b = await call(resetPw, { body: { identifier: 'tidakada@fiktif.test', pin: '483920', password: 'BaruSekali9' } });
+    delete db.pins[GURU];
+    const c = await call(resetPw, { body: { identifier: 'guru@fiktif.test', pin: '483920', password: 'BaruSekali9' } });
+    for (const r of [a, b, c]) {
+        assert.equal(r.status, 401);
+        assert.equal(r.body.error.message, a.body.error.message);
+    }
+    assert.deepEqual(db.pwChanged, {});
+});
+
+test('lupa password: salah PIN 5x → terkunci (423), PIN benar pun ditolak', async () => {
+    db.pins[GURU] = { pin: '483920', fails: 0, locked: false };
+    const statuses = [];
+    for (let i = 0; i < 5; i++) {
+        statuses.push((await call(resetPw, { body: { identifier: 'guru@fiktif.test', pin: `00000${i}`, password: 'BaruSekali9' } })).status);
+    }
+    assert.deepEqual(statuses, [401, 401, 401, 401, 423]);
+    const r = await call(resetPw, { body: { identifier: 'guru@fiktif.test', pin: '483920', password: 'BaruSekali9' } });
+    assert.equal(r.status, 423);
+    assert.deepEqual(db.pwChanged, {});
+});
+
+test('lupa password: validasi input & akun nonaktif baru diberi tahu setelah PIN benar', async () => {
+    db.pins[GURU] = { pin: '483920', fails: 0, locked: false };
+    assert.equal((await call(resetPw, { body: { identifier: 'guru@fiktif.test', pin: '483920', password: 'pendek' } })).status, 400);
+    assert.equal((await call(resetPw, { body: { identifier: 'guru@fiktif.test', pin: '4839', password: 'BaruSekali9' } })).status, 400);
+    assert.equal((await call(resetPw, { body: { identifier: 'abc', pin: '483920', password: 'BaruSekali9' } })).status, 400);
+    db.accs[0].is_active = false;
+    assert.equal((await call(resetPw, { body: { identifier: 'guru@fiktif.test', pin: '000999', password: 'BaruSekali9' } })).status, 401);
+    const r = await call(resetPw, { body: { identifier: 'guru@fiktif.test', pin: '483920', password: 'BaruSekali9' } });
+    assert.equal(r.status, 403);
+    assert.deepEqual(db.pwChanged, {});
+});
+
+test('admin: daftar akun menampilkan status PIN dan bisa menghapus PIN; guru tidak bisa', async () => {
+    db.pins[GURU] = { pin: '483920', fails: 0, locked: false };
+    let r = await call(accounts, { method: 'GET', token: 'jwt-admin' });
+    assert.equal(r.body.rows.find((x) => x.staff_id === ST(1)).pin, true);
+    r = await call(accounts, { token: 'jwt-guru', body: { action: 'clear_pin', staff_id: ST(1) } });
+    assert.equal(r.status, 403);
+    r = await call(accounts, { token: 'jwt-admin', body: { action: 'clear_pin', staff_id: ST(1) } });
+    assert.equal(r.status, 200);
+    assert.equal(db.pins[GURU], undefined);
+    r = await call(accounts, { method: 'GET', token: 'jwt-admin' });
+    assert.equal(r.body.rows.find((x) => x.staff_id === ST(1)).pin, false);
 });

@@ -73,6 +73,19 @@ async function runUi() {
             if (b.password !== 'benar123') return r.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Email/NIP atau password salah.' } }) });
             return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: 'at-wali', refresh_token: 'rt', expires_in: 3600 }) });
         });
+        await ctx.route('**/api/guru-reset-password', async (r) => {
+            const b = JSON.parse(r.request().postData() || '{}');
+            apiCalls.push({ api: 'reset', identifier: b.identifier, pin: b.pin });
+            if (b.pin !== '483920') return r.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Email/NIP atau PIN salah. Belum pernah membuat PIN? Hubungi admin sekolah.' } }) });
+            return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        });
+        await ctx.route('**/api/guru-pin', async (r) => {
+            const b = JSON.parse(r.request().postData() || '{}');
+            apiCalls.push({ api: 'pin', pin: b.pin, auth: r.request().headers().authorization });
+            if (b.password !== 'benar123') return r.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Password saat ini salah.' } }) });
+            await r.request().frame().page().evaluate(() => { window.__fake.pin = true; });
+            return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        });
         await ctx.route('**/api/admin/teacher-accounts', async (r) => {
             const req = r.request();
             const body = req.method() === 'POST' ? JSON.parse(req.postData() || '{}') : null;
@@ -132,11 +145,34 @@ async function runUi() {
             check(gap > 8 && gap < 40, `login: jarak kolom email → password wajar (${Math.round(gap)} px)`);
         }
 
+        // Lupa password lewat PIN
+        await page.fill('#gId', '990000000000000001');
+        await page.click('#gForgot');
+        check(await page.isVisible('#gResetForm') && !(await page.isVisible('#gLoginForm')), 'tombol Lupa password? membuka form PIN');
+        check((await page.inputValue('#gRId')) === '990000000000000001', 'NIP yang sudah diketik ikut terisi di form lupa password');
+        check((await page.getAttribute('#gRPin', 'inputmode')) === 'numeric', 'kolom PIN memunculkan keypad angka di HP');
+        await page.fill('#gRPin', '12ab34');
+        check((await page.inputValue('#gRPin')) === '1234', 'kolom PIN hanya menerima angka');
+        await page.fill('#gRPin', '111000');
+        await page.fill('#gRPw1', 'PasswordBaru1');
+        await page.fill('#gRPw2', 'PasswordBaru1');
+        await page.click('#gResetBtn');
+        await page.waitForSelector('#gResetErr:not(.g-hidden)');
+        check(/PIN salah/.test(await page.textContent('#gResetErr')), 'PIN salah menampilkan pesan');
+        await shot(page, 'guru-01b-lupa-password-360.png');
+        check(await overflow(page) <= 0, 'form lupa password tidak bergeser ke samping');
+        await page.fill('#gRPin', '483920');
+        await page.click('#gResetBtn');
+        await page.waitForSelector('#gLoginForm', { state: 'visible' });
+        check(/Password berhasil diganti/.test(await page.textContent('#gLoginErr')) && (await page.inputValue('#gId')) === '990000000000000001',
+            'PIN benar → kembali ke login dengan pesan sukses');
+        check(apiCalls.some((c) => c.api === 'reset' && c.pin === '483920'), 'API reset dipanggil dengan PIN');
+
         await page.fill('#gId', '990000000000000001');
         await page.fill('#gPw', 'salah');
         await page.click('#gLoginBtn');
-        await page.waitForSelector('#gLoginErr:not(.g-hidden)');
-        check(/salah/.test(await page.textContent('#gLoginErr')), 'password salah menampilkan pesan');
+        await page.waitForFunction(() => /password salah/.test(document.getElementById('gLoginErr').textContent) && !document.getElementById('gLoginErr').classList.contains('g-hidden'));
+        check(/err/.test(await page.getAttribute('#gLoginErr', 'class')), 'password salah menampilkan pesan (merah, bukan pesan sukses sebelumnya)');
 
         await page.fill('#gPw', 'benar123');
         await page.click('#gLoginBtn');
@@ -147,6 +183,8 @@ async function runUi() {
             && /Mulai Absensi/.test(await page.textContent('.g-hero-btn')), 'kartu utama: foto/inisial guru, kelas, tombol Mulai Absensi');
         check(/Absensi KELAS 1\.A Hari Ini/.test(await page.textContent('.g-task-go')) && !/Isi tanggal lain/.test(await page.textContent('#gMain')), 'kartu wali kelas: satu tombol "Absensi KELAS … Hari Ini"');
         check(/Segera hadir/.test(await page.textContent('.g-soon')), 'kartu Jadwal Kelas bertanda segera hadir');
+        await page.waitForSelector('.g-pin-nudge');
+        check(/PIN pemulihan/.test(await page.textContent('.g-pin-nudge')), 'dashboard mengingatkan guru yang belum punya PIN');
         check(await page.isVisible('#gTopOut'), 'tombol keluar ada di pojok kanan atas');
         check(await overflow(page) <= 0, 'dashboard tidak bergeser ke samping');
         check(/Belum diisi/.test(await page.textContent('.g-task')), 'kartu menandai absensi belum diisi');
@@ -300,6 +338,19 @@ async function runUi() {
         await page.click('#gPwForm button[type="submit"]');
         await page.waitForSelector('#attToastHost .att-alert.err');
         check(/tidak sama/.test(await page.textContent('#attToastHost')), 'ganti password menolak konfirmasi yang beda');
+        await page.waitForSelector('#gPinForm');
+        check(/Belum dibuat/.test(await page.textContent('#gPinCard')), 'kartu PIN pemulihan: status belum dibuat');
+        await page.fill('#gPinPw', 'salah');
+        await page.fill('#gPin1', '483920');
+        await page.fill('#gPin2', '483920');
+        await page.click('#gPinBtn');
+        await page.waitForFunction(() => /Password saat ini salah/.test(document.getElementById('attToastHost')?.textContent || ''));
+        check(true, 'buat PIN dengan password salah ditolak');
+        await page.fill('#gPinPw', 'benar123');
+        await page.click('#gPinBtn');
+        await page.waitForFunction(() => /Sudah dibuat/.test(document.getElementById('gPinCard')?.textContent || ''));
+        check(apiCalls.some((c) => c.api === 'pin' && c.pin === '483920' && /^Bearer /.test(c.auth || '')), 'PIN disimpan lewat API dengan token guru');
+        check(/Ganti PIN/.test(await page.textContent('#gPinBtn')), 'setelah tersimpan tombol berubah jadi Ganti PIN');
         await shot(page, 'guru-08-akun-360.png');
         await page.click('#gLogout');
         await page.waitForSelector('#gLogin:not(.g-hidden)');

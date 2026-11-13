@@ -42,6 +42,8 @@ run "Migration Akademik & Hari Libur" "$ROOT/supabase/migrations/20261113000001_
 run "Migration Akademik (ulang, idempotent)" "$ROOT/supabase/migrations/20261113000001_attendance_akademik.sql"
 run "Migration Laporan"              "$ROOT/supabase/migrations/20261113000002_attendance_laporan.sql"
 run "Migration absen tanggal bebas"   "$ROOT/supabase/migrations/20261113000003_attendance_any_date.sql"
+run "Migration PIN pemulihan"        "$ROOT/supabase/migrations/20261113000004_recovery_pin.sql"
+run "Migration PIN (ulang, idempotent)" "$ROOT/supabase/migrations/20261113000004_recovery_pin.sql"
 
 echo "→ Tes Absensi"
 {

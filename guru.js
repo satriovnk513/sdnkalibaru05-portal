@@ -80,7 +80,9 @@
     function showLogin(message) {
         $('gApp').classList.add('g-hidden');
         $('gLogin').classList.remove('g-hidden');
+        showReset(false);
         const err = $('gLoginErr');
+        err.className = 'att-alert err';
         err.classList.toggle('g-hidden', !message);
         err.textContent = message || '';
     }
@@ -97,6 +99,7 @@
         const identifier = $('gId').value.trim();
         const password = $('gPw').value;
         if (!identifier || !password) return showLogin('Isi email atau NIP/NUPTK dan password.');
+        $('gLoginErr').classList.add('g-hidden');
         const btn = $('gLoginBtn');
         btn.disabled = true;
         btn.textContent = 'Memeriksa…';
@@ -120,10 +123,61 @@
         }
     });
 
+    // ------------------------------------------------------------------ lupa password (PIN)
+    function showReset(on) {
+        $('gLoginBox').classList.toggle('g-hidden', on);
+        $('gResetBox').classList.toggle('g-hidden', !on);
+        $('gResetErr').classList.add('g-hidden');
+        if (on) {
+            if (!$('gRId').value) $('gRId').value = $('gId').value.trim();
+            ($('gRId').value ? $('gRPin') : $('gRId')).focus();
+        }
+    }
+    $('gForgot').addEventListener('click', () => showReset(true));
+    $('gResetBack').addEventListener('click', () => { showReset(false); $('gId').focus(); });
+    $('gRPin').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6); });
+
+    $('gResetForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fail = (m) => { const el = $('gResetErr'); el.textContent = m; el.classList.remove('g-hidden'); };
+        const identifier = $('gRId').value.trim();
+        const pin = $('gRPin').value.trim();
+        const a = $('gRPw1').value;
+        const b = $('gRPw2').value;
+        if (!identifier) return fail('Isi email atau NIP/NUPTK.');
+        if (!/^[0-9]{6}$/.test(pin)) return fail('PIN harus 6 angka.');
+        if (a.length < 8) return fail('Password baru minimal 8 karakter.');
+        if (a !== b) return fail('Kedua password baru tidak sama.');
+        const btn = $('gResetBtn');
+        btn.disabled = true;
+        btn.textContent = 'Memeriksa…';
+        try {
+            const res = await fetch('/api/guru-reset-password', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ identifier, pin, password: a }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body?.error?.message || 'Gagal mengganti password. Coba lagi.');
+            $('gRPin').value = ''; $('gRPw1').value = ''; $('gRPw2').value = '';
+            $('gId').value = identifier;
+            showReset(false);
+            const ok = $('gLoginErr');
+            ok.className = 'att-alert ok';
+            ok.textContent = 'Password berhasil diganti. Silakan masuk dengan password baru.';
+            $('gPw').focus();
+        } catch (err) {
+            fail(errMessage(err));
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Ganti password';
+        }
+    });
+
     async function logout() {
         await sb.auth.signOut();
         home = null;
         staffExtra = null;
+        pinStatus = null;
         homeDay = null;
         location.hash = '#/';
         showLogin('');
@@ -142,6 +196,13 @@
         chev: '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>',
     };
     let staffExtra = null;      // { image_url, nip } dari data Guru & Staf di website
+    let pinStatus = null;       // { ada, dibuat, terkunci } — PIN pemulihan milik sendiri
+
+    async function loadPinStatus(force = false) {
+        if (pinStatus && !force) return pinStatus;
+        try { pinStatus = (await rpc('get_my_recovery_pin')) || { ada: false }; } catch { pinStatus = null; }
+        return pinStatus;
+    }
     let homeDay = null;         // tanggal (ISO) yang dipilih di kartu "Jadwal"
 
     const kelasTitik = (k) => String(k || '').replace(/\s+/, '.');
@@ -160,6 +221,7 @@
             const { data } = await sb.from('staff').select('image_url, nip').eq('id', home.staff_id).maybeSingle();
             staffExtra = { image_url: safeUrl(data?.image_url), nip: String(data?.nip || '').replace(/^\s*NIP\.?\s*/i, '') };
         } catch { staffExtra = { image_url: '', nip: '' }; }
+        await loadPinStatus();
         if (parseHash().path === '/' && home) renderHome();
     }
 
@@ -195,6 +257,10 @@
             ${target && home.is_school_day ? `<a class="g-hero-btn" href="${target.href}">${ICON.clip}${target.done ? 'Lihat Absensi' : 'Mulai Absensi'}</a>` : ''}
         </section>`);
 
+        if (pinStatus && !pinStatus.ada) {
+            parts.push(`<div class="att-alert warn g-pin-nudge" style="margin-bottom:12px"><b>Buat PIN pemulihan</b> supaya kalau lupa password bisa reset sendiri tanpa admin.
+                <a href="#/akun" style="font-weight:700">Buat sekarang →</a></div>`);
+        }
         if (!home.is_school_day) {
             parts.push(`<div class="att-alert warn" style="margin-bottom:12px">Hari ini libur${home.holiday_name ? ` (${esc(home.holiday_name)})` : ''}. Absensi tidak perlu diisi.</div>`);
         }
@@ -505,6 +571,8 @@
                 <p class="att-muted" style="margin:0">Minimal 8 karakter. Jangan pakai tanggal lahir atau NIP.</p>
                 <button type="submit" class="att-btn att-btn-primary">Simpan password</button>
             </form>
+            <h2 id="gPinTitle">PIN pemulihan</h2>
+            <div class="att-card att-stack g-pin-card" id="gPinCard"><div class="att-muted">Memuat…</div></div>
             ${home.is_admin ? '<a class="att-btn att-btn-ghost att-btn-block" style="margin-top:16px" href="/admin">Buka Panel Admin</a>' : ''}
             <button type="button" class="att-btn att-btn-danger att-btn-block" id="gLogout" style="margin-top:16px">Keluar</button>`);
         $('gLogout').addEventListener('click', logout);
@@ -519,6 +587,53 @@
             $('gPw1').value = '';
             $('gPw2').value = '';
             toast('Password berhasil diganti.');
+        });
+        renderPinCard();
+    }
+
+    async function renderPinCard() {
+        const st = await loadPinStatus(true);
+        const card = $('gPinCard');
+        if (!card) return;
+        const status = !st ? '<span class="att-badge mute">Status tidak terbaca</span>'
+            : st.ada ? `<span class="att-badge ok">Sudah dibuat${st.dibuat ? ` · ${esc(st.dibuat)}` : ''}</span>`
+                : '<span class="att-badge warn">Belum dibuat</span>';
+        card.innerHTML = `
+            <div class="att-row"><b>Status</b>${status}</div>
+            <p class="att-muted" style="margin:0">PIN 6 angka dipakai di halaman masuk (<i>Lupa password?</i>) untuk mengganti password sendiri tanpa admin. Simpan baik-baik, jangan dibagikan, dan jangan pakai tanggal lahir atau 123456.</p>
+            <form class="att-stack" id="gPinForm" novalidate>
+                <div class="att-field"><label for="gPinPw">Password saat ini</label><input class="att-input" id="gPinPw" type="password" autocomplete="current-password"></div>
+                <div class="att-field"><label for="gPin1">${st?.ada ? 'PIN baru' : 'PIN'} (6 angka)</label><input class="att-input g-pin" id="gPin1" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off"></div>
+                <div class="att-field"><label for="gPin2">Ulangi PIN</label><input class="att-input g-pin" id="gPin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off"></div>
+                <button type="submit" class="att-btn att-btn-primary" id="gPinBtn">${st?.ada ? 'Ganti PIN' : 'Simpan PIN'}</button>
+            </form>`;
+        for (const id of ['gPin1', 'gPin2']) $(id).addEventListener('input', (e) => { e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6); });
+        $('gPinForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = $('gPinPw').value;
+            const pin = $('gPin1').value;
+            if (!password) return toast('Isi password Anda saat ini.', 'err');
+            if (!/^[0-9]{6}$/.test(pin)) return toast('PIN harus 6 angka.', 'err');
+            if (pin !== $('gPin2').value) return toast('Kedua PIN tidak sama.', 'err');
+            const btn = $('gPinBtn');
+            btn.disabled = true;
+            btn.textContent = 'Menyimpan…';
+            try {
+                const { data: { session } } = await sb.auth.getSession();
+                const res = await fetch('/api/guru-pin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+                    body: JSON.stringify({ password, pin }),
+                });
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(body?.error?.message || 'Gagal menyimpan PIN.');
+                toast('PIN pemulihan tersimpan.');
+                await renderPinCard();
+            } catch (err) {
+                toast(errMessage(err), 'err');
+                btn.disabled = false;
+                btn.textContent = 'Simpan PIN';
+            }
         });
     }
 
