@@ -98,7 +98,7 @@ globalThis.fetch = async (url, opts = {}) => {
     return json(404, { msg: `tidak ditiru: ${method} ${p}` });
 };
 
-function call(handler, { method = 'POST', body, token, origin = ORIGIN } = {}) {
+function call(handler, { method = 'POST', body, token, origin = ORIGIN, host } = {}) {
     return new Promise((resolve) => {
         const res = {
             headers: {}, statusCode: 200,
@@ -107,7 +107,9 @@ function call(handler, { method = 'POST', body, token, origin = ORIGIN } = {}) {
             json(b) { resolve({ status: this.statusCode, body: b, headers: this.headers }); return this; },
             end() { resolve({ status: this.statusCode, headers: this.headers }); return this; },
         };
-        const headers = { origin, 'x-forwarded-for': `10.0.0.${Math.floor(Math.random() * 250)}` };
+        const headers = { 'x-forwarded-for': `10.0.0.${Math.floor(Math.random() * 250)}` };
+        if (origin) headers.origin = origin;
+        if (host) headers.host = host;
         if (token) headers.authorization = `Bearer ${token}`;
         handler({ method, headers, body }, res);
     });
@@ -224,4 +226,20 @@ test('tanpa SUPABASE_SERVICE_ROLE_KEY: pesan konfigurasi jelas', async () => {
     } finally {
         process.env.SUPABASE_SERVICE_ROLE_KEY = saved;
     }
+});
+
+// ---------------------------------------------------------------- origin
+test('GET tanpa header Origin (same-origin di browser) diterima', async () => {
+    const r = await call(accounts, { method: 'GET', token: 'jwt-admin', origin: null });
+    assert.equal(r.status, 200);
+    assert.equal(r.headers['Access-Control-Allow-Origin'], undefined);
+});
+
+test('origin sama dengan host deployment diterima, origin asing tetap ditolak', async () => {
+    const same = await call(accounts, { method: 'GET', token: 'jwt-admin', origin: 'https://sdnkalibaru05-portal.vercel.app', host: 'sdnkalibaru05-portal.vercel.app' });
+    assert.equal(same.status, 200);
+    const evil = await call(accounts, { method: 'GET', token: 'jwt-admin', origin: 'https://evil.test', host: 'sdnkalibaru05.sch.id' });
+    assert.equal(evil.status, 403);
+    const evilLogin = await call(login, { origin: 'https://evil.test', body: { identifier: 'guru@fiktif.test', password: 'rahasia123' } });
+    assert.equal(evilLogin.status, 403);
 });
