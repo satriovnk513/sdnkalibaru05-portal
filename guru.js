@@ -343,10 +343,55 @@
                         <thead><tr><th>No</th><th>Nama</th><th>L/P</th>${head}<th>S</th><th>I</th><th>A</th></tr></thead>
                         <tbody>${body}</tbody></table></div>
                     <p class="att-muted">• = hadir. Kolom merah = Sabtu, Minggu, atau hari libur.</p>
-                </details>`;
+                </details>
+                <h2>Cetak &amp; unduh</h2>
+                <div class="att-card att-stack">
+                    <div class="att-row"><b style="flex:1 1 100%">Daftar hadir ${esc(window.Att.BULAN[m - 1])} ${y}</b>
+                        <button type="button" class="att-btn att-btn-ghost" id="gRkPrint" style="flex:1">Cetak / PDF</button>
+                        <button type="button" class="att-btn att-btn-ghost" id="gRkXlsx" style="flex:1">Excel</button></div>
+                    <div class="att-field"><label for="gRkSem">Rekap semester (untuk rapor)</label>
+                        <select class="att-select" id="gRkSem"><option value="1" ${m >= 7 ? 'selected' : ''}>Semester Ganjil (Jul–Des)</option><option value="2" ${m < 7 ? 'selected' : ''}>Semester Genap (Jan–Jun)</option></select></div>
+                    <div class="att-row"><button type="button" class="att-btn att-btn-ghost" id="gRkSemPrint" style="flex:1">Cetak / PDF</button>
+                        <button type="button" class="att-btn att-btn-ghost" id="gRkSemXlsx" style="flex:1">Excel</button></div>
+                    <p class="att-muted" style="margin:0">Format sama dengan daftar hadir kertas, tanda tangan Kepala Sekolah dan wali kelas.</p>
+                </div>`;
+            wireRekapExports(classId, r);
         } catch (err) {
             $('gRekap').innerHTML = `<div class="att-alert err">${esc(errMessage(err))}</div>`;
         }
+    }
+
+    function wireRekapExports(classId, monthRecap) {
+        const RP = window.RekapPrint;
+        let header = null;
+        const getHeader = async () => (header ||= await rpc('get_class_report_header', { p_class_id: classId }));
+        const myWali = () => {
+            const w = home.wali_kelas.find((x) => x.class_id === classId);
+            return w ? w.posisi : 1;
+        };
+        const guard = (fn) => async (e) => {
+            const btn = e.currentTarget;
+            btn.disabled = true;
+            try { await fn(); } catch (err) { toast(errMessage(err), 'err'); } finally { btn.disabled = false; }
+        };
+        const print = (html) => { if (!RP.print(html)) toast('Pop-up diblokir. Izinkan pop-up untuk situs ini.', 'err'); };
+        $('gRkPrint').addEventListener('click', guard(async () => print(RP.monthlyHtml(monthRecap, await getHeader(), { wali: myWali() }))));
+        $('gRkXlsx').addEventListener('click', guard(async () => {
+            const h = await getHeader();
+            RP.download(RP.monthlyXlsx(monthRecap, h, { wali: myWali() }), `${RP.fileName('Daftar_Hadir', h, `${window.Att.BULAN[monthRecap.bulan - 1]}_${monthRecap.tahun}`)}.xlsx`);
+            toast('File Excel diunduh.');
+        }));
+        const sem = async () => {
+            const s = Number($('gRkSem').value);
+            const [recap, h] = await Promise.all([rpc('get_class_semester_recap', { p_class_id: classId, p_semester: s }), getHeader()]);
+            return { recap, h, s };
+        };
+        $('gRkSemPrint').addEventListener('click', guard(async () => { const d = await sem(); print(RP.semesterHtml(d.recap, d.h, { wali: myWali() })); }));
+        $('gRkSemXlsx').addEventListener('click', guard(async () => {
+            const d = await sem();
+            RP.download(RP.semesterXlsx(d.recap, d.h, { wali: myWali() }), `${RP.fileName('Rekap_Semester', d.h, `${d.s === 1 ? 'Ganjil' : 'Genap'}_${d.h.tahun_ajaran}`)}.xlsx`);
+            toast('File Excel diunduh.');
+        }));
     }
 
     // ------------------------------------------------------------------ akun

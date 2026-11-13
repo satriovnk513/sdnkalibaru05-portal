@@ -112,6 +112,31 @@
                 })),
             }));
         }
+        case 'get_class_report_header': {
+            const c = T.classes.find((x) => x.id === args.p_class_id);
+            const y = T.academic_years.find((x) => x.id === c?.academic_year_id);
+            const st = (id) => T.staff.find((x) => x.id === id) || {};
+            const nip = (v) => (String(v || '').replace(/^NIP\.?\s*/i, '') || null);
+            const ks = T.staff.find((x) => x.role.startsWith('Kepala Sekolah'));
+            return Promise.resolve(ok({
+                kelas: c?.name, tahun_ajaran: y?.name, ta_mulai: y?.start_date, ta_selesai: y?.end_date,
+                wali: T.homeroom_assignments.filter((h) => h.class_id === args.p_class_id).sort((a, b) => a.position - b.position)
+                    .map((h) => ({ posisi: h.position, nama: st(h.staff_id).name, nip: nip(st(h.staff_id).nip) })),
+                kepala_sekolah: ks ? { nama: ks.name, nip: nip(ks.nip) } : null,
+            }));
+        }
+        case 'get_class_semester_recap': {
+            const harian = Object.entries(F.sessions).filter(([k]) => k.startsWith(`${args.p_class_id}|`) && k.endsWith('|harian|-'));
+            return Promise.resolve(ok({
+                semester: args.p_semester, mulai: args.p_semester === 1 ? '2026-07-13' : '2027-01-01', selesai: args.p_semester === 1 ? '2026-12-31' : '2027-06-30',
+                sampai_hari_ini: today, hari_efektif: 85, hari_terisi: harian.length,
+                siswa: (roster[args.p_class_id] || []).map((r) => {
+                    const t = { H: 0, S: 0, I: 0, A: 0, D: 0 };
+                    for (const [, v] of harian) { const st = v.records[r.student_id]?.status; if (st) t[st] += 1; }
+                    return { student_id: r.student_id, no: r.no_urut, nama: r.nama, jk: r.jenis_kelamin, nis: r.nis, nisn: r.nisn, ...t };
+                }),
+            }));
+        }
         case 'sync_holidays': {
             let n = 0;
             for (const c of F.catalog) if (!T.school_holidays.some((h) => h.holiday_date === c.holiday_date)) { T.school_holidays.push({ ...c }); n += 1; }
@@ -156,6 +181,7 @@
             { id: ST(2), name: 'Taripah, S.Pd.', role: 'Wakil Kepala Sekolah|Wakil Kepala Sekolah', nip: 'NIP. 990000000000000002', order_index: 2 },
             { id: ST(3), name: 'Susy Nurhayati', role: 'Guru Mata Pelajaran|Guru Pendidikan Agama Islam', nip: '', order_index: 3 },
             { id: ST(4), name: 'Guru Fiktif Pendamping, S.Pd.', role: 'Guru Kelas|Guru Kelas', nip: '', order_index: 4 },
+            { id: ST(5), name: 'Kepala Fiktif, S.Pd.SD', role: 'Kepala Sekolah|Kepala Sekolah', nip: 'NIP. 990000000000000009', order_index: 0 },
         ],
         homeroom_assignments: [
             { class_id: C1A, staff_id: ST(1), position: 1 },
