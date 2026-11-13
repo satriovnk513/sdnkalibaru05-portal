@@ -701,6 +701,16 @@
                     Akun Guru
                 </a>
 
+                <div class="nav-section-label">LAPORAN</div>
+                <a class="nav-item" data-tab="tabRekapBulanan" onclick="showTab('tabRekapBulanan', this)">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+                    Rekap Bulanan
+                </a>
+                <a class="nav-item" data-tab="tabRekapSemester" onclick="showTab('tabRekapSemester', this)">
+                    <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+                    Rekap Semester
+                </a>
+
                 <div class="nav-section-label">AKADEMIK</div>
                 <a class="nav-item" data-tab="tabClasses" onclick="showTab('tabClasses', this)">
                     <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 22h8M12 18v4"/></svg>
@@ -881,6 +891,44 @@
                         </div>
                         <nav class="stu-pagination" id="stuPagination" aria-label="Halaman data siswa"></nav>
                         <datalist id="stuKelasList"></datalist>
+                    </div>
+                </div>
+
+                <!-- ═══ TAB REKAP BULANAN ═══ -->
+                <div id="tabRekapBulanan" class="tab-content">
+                    <div class="section-header ak-head"><div><h2>Rekap Absensi Bulanan</h2><p class="att-muted" style="margin:4px 0 0">Format sama dengan daftar hadir kertas. Cetak / simpan PDF atau unduh Excel.</p></div>
+                        <div class="att-row"><button type="button" class="att-btn att-btn-ghost" id="lpBlnPrint">🖨 Cetak / PDF</button><button type="button" class="att-btn att-btn-primary" id="lpBlnXlsx">⬇ Export Excel</button></div></div>
+                    <div class="admin-card">
+                        <div class="att-table-tools">
+                            <div class="att-field"><label for="lpBlnKelas">Kelas</label><select class="att-select" id="lpBlnKelas"></select></div>
+                            <div class="att-field" style="flex:0 1 180px"><label for="lpBlnBulan">Bulan</label><input type="month" class="att-input" id="lpBlnBulan"></div>
+                            <div class="att-field" style="flex:0 1 220px"><label for="lpBlnWali">Tanda tangan wali</label>
+                                <select class="att-select" id="lpBlnWali"><option value="1">Wali Kelas 1 (utama)</option><option value="2">Wali Kelas 2 (pendamping)</option></select></div>
+                            <button type="button" class="att-btn att-btn-primary" id="lpBlnShow">Tampilkan</button>
+                        </div>
+                        <div class="att-row" style="margin:-4px 0 12px;gap:16px">
+                            <label class="att-row" style="font-size:.88rem"><input type="checkbox" id="lpBlnNip" checked> Tampilkan NIP di laporan</label>
+                            <label class="att-row" style="font-size:.88rem"><input type="checkbox" id="lpBlnBlank"> Cetak blanko kosong (untuk diisi tangan)</label>
+                        </div>
+                        <div id="lpBlnOut"></div>
+                    </div>
+                </div>
+
+                <!-- ═══ TAB REKAP SEMESTER ═══ -->
+                <div id="tabRekapSemester" class="tab-content">
+                    <div class="section-header ak-head"><div><h2>Rekap Absensi Semester</h2><p class="att-muted" style="margin:4px 0 0">Jumlah sakit, izin, alpa per siswa untuk rapor. TA aktif: <b data-lp-ta>…</b></p></div>
+                        <div class="att-row"><button type="button" class="att-btn att-btn-ghost" id="lpSemPrint">🖨 Cetak / PDF</button><button type="button" class="att-btn att-btn-primary" id="lpSemXlsx">⬇ Export Excel</button></div></div>
+                    <div class="admin-card">
+                        <div class="att-table-tools">
+                            <div class="att-field"><label for="lpSemKelas">Kelas</label><select class="att-select" id="lpSemKelas"></select></div>
+                            <div class="att-field" style="flex:0 1 200px"><label for="lpSemSemester">Semester</label><select class="att-select" id="lpSemSemester"><option value="1">Ganjil (Jul–Des)</option><option value="2">Genap (Jan–Jun)</option></select></div>
+                            <div class="att-field" style="flex:0 1 220px"><label for="lpSemWali">Tanda tangan wali</label>
+                                <select class="att-select" id="lpSemWali"><option value="1">Wali Kelas 1 (utama)</option><option value="2">Wali Kelas 2 (pendamping)</option></select></div>
+                            <button type="button" class="att-btn att-btn-primary" id="lpSemShow">Tampilkan</button>
+                        </div>
+                        <div class="att-row" style="margin:-4px 0 12px"><label class="att-row" style="font-size:.88rem"><input type="checkbox" id="lpSemNip" checked> Tampilkan NIP di laporan</label></div>
+                        <div id="lpSemInfo"></div>
+                        <div id="lpSemTable"></div>
                     </div>
                 </div>
 
@@ -1341,6 +1389,8 @@
     <script src="attendance-sheet.js?v=4"></script>
     <script src="admin-attendance.js?v=2"></script>
     <script src="admin-akademik.js?v=1"></script>
+    <script src="rekap-print.js?v=1"></script>
+    <script src="admin-laporan.js?v=1"></script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>

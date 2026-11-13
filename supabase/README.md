@@ -302,3 +302,11 @@ Migration `20261113000001_attendance_akademik.sql` (**sudah diterapkan di produk
 - Belum ada di katalog: libur awal Ramadan (mengikuti ketentuan pemerintah) dan libur
   semester TA 2027/2028. Tambahkan lewat menu Hari Libur saat sudah terbit, atau tambah
   baris ke `holiday_catalog` lewat migration baru lalu klik Sinkron.
+
+## Laporan (20261113000002)
+
+- `get_class_report_header(class)` — kop laporan: kelas, tahun ajaran, wali kelas 1/2 + NIP, kepala sekolah + NIP.
+- `get_class_semester_recap(class, 1|2)` — total H/S/I/A/D per siswa dari absensi **harian** dalam semester (ganjil = Juli–Des, genap = Jan–akhir TA), hari efektif s.d. hari ini, dan hari yang sudah terisi.
+- Hak akses sama dengan rekap bulanan (`can_view_class`). Hanya menambah fungsi.
+- Front-end: `rekap-print.js` membuat dokumen cetak (format kertas "DAFTAR HADIR SISWA", A4 landscape) dan file Excel (.xlsx) tanpa library luar. Admin: menu **Laporan** → Rekap Bulanan / Rekap Semester. Guru: `/guru` → Rekap → *Cetak & unduh*.
+- Tes: `supabase/tests/local/run.sh` bagian K, `node --test tests/rekap-print.test.mjs`.

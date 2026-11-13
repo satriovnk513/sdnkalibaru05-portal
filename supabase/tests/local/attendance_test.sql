@@ -436,6 +436,33 @@ begin
     execute 'reset role';
     perform set_config('request.jwt.claims', '', true);
 
+    -- ======================================================== K. Laporan
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_class_report_header(c1a);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'K Kop', 'u', 'Kop 1 A: TA 2026/2027, wali Sunarsih, kepala sekolah Lilis',
+        'ok', v_j ->> 'kelas' = '1 A' and v_j ->> 'tahun_ajaran' = '2026/2027'
+          and v_j -> 'wali' -> 0 ->> 'nama' = 'Sunarsih, S.Pd.'
+          and v_j -> 'kepala_sekolah' ->> 'nama' = 'Lilis Kholisoh, S.Pd.SD');
+    v_j := public.get_class_semester_recap(c1a, case when extract(month from v_d) >= 7 then 1 else 2 end);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'K Semester', 'u', 'Rekap semester 1 A: 3 siswa, Siswa Fiktif Dua sakit 1 kali, hari terisi >= 1',
+        'ok', jsonb_array_length(v_j -> 'siswa') = 3
+          and (select (x ->> 'S')::int from jsonb_array_elements(v_j -> 'siswa') x where x ->> 'student_id' = st2::text) = 1
+          and (v_j ->> 'hari_terisi')::int >= 1 and (v_j ->> 'hari_efektif')::int >= 1);
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_class_semester_recap(%L, 3)', c1a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'K Semester', 'u', 'Semester selain 1/2 ditolak', 'ok', v_r = '22023');
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_class_semester_recap(%L, 1)', c3a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'K Hak', 'u', 'Wali 1A tidak bisa rekap semester 3A', 'ok', v_r = '42501');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_josua, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_class_report_header(%L)', c1a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'K Hak', 'u', 'Guru PJOK 4–6 tidak bisa membuka kop 1 A', 'ok', v_r = '42501');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end

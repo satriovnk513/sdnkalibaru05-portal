@@ -61,7 +61,8 @@ async function runUi() {
     cleanup.push(() => browser.close());
 
     async function newPage(path, viewport) {
-        const ctx = await browser.newContext({ viewport, hasTouch: viewport.width < 700, isMobile: viewport.width < 700 });
+        const ctx = await browser.newContext({ viewport, hasTouch: viewport.width < 700, isMobile: viewport.width < 700, acceptDownloads: true });
+        await ctx.addInitScript(() => { window.print = () => { window.__printed = (window.__printed || 0) + 1; }; });
         ctx.setDefaultTimeout(8000);
         await ctx.route('https://cdn.jsdelivr.net/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE }));
         await ctx.route(/^https:\/\/(fonts\.|wwpbghdepykfqgzhyvmh|.*vercel)/, (r) => r.fulfill({ status: 204, body: '' }));
@@ -100,6 +101,24 @@ async function runUi() {
     }
 
     const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    const { spawnSync } = await import('node:child_process');
+    const hasOpenpyxl = spawnSync('python3', ['-c', 'import openpyxl'], { encoding: 'utf8' }).status === 0;
+    const { mkdtempSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dlDir = mkdtempSync(join(tmpdir(), 'att-dl-'));
+    async function xlsxCells(download, cells) {
+        const path = join(dlDir, `${Date.now()}-${Math.random().toString(36).slice(2)}.xlsx`);
+        await download.saveAs(path);
+        if (!hasOpenpyxl) return null;
+        const r = spawnSync('python3', ['-c', 'import sys,openpyxl\nws=openpyxl.load_workbook(sys.argv[1]).active\nprint("|".join(str(ws[c].value) for c in sys.argv[2:]))', path, ...cells], { encoding: 'utf8' });
+        return r.status === 0 ? r.stdout.trim().split('|') : [`ERROR ${r.stderr.slice(0, 120)}`];
+    }
+    async function popupFrom(page, click) {
+        const [pop] = await Promise.all([page.context().waitForEvent('page'), click()]);
+        await pop.waitForLoadState();
+        await pop.waitForFunction(() => document.querySelector('.page'));
+        return pop;
+    }
 
     // ============================================================ GURU — HP 360 px
     {
@@ -201,6 +220,22 @@ async function runUi() {
         await page.waitForSelector('.att-student-card');
         check(await overflow(page) <= 0, 'rekap (kartu) tidak bergeser ke samping');
         await shot(page, 'guru-07-rekap-360.png');
+        {
+            const pop = await popupFrom(page, () => page.click('#gRkPrint'));
+            const txt = await pop.textContent('body');
+            check(/DAFTAR HADIR SISWA/.test(txt) && /KELAS : I\.A/.test(txt) && /SUNARSIH, S\.Pd\./.test(txt) && /KEPALA FIKTIF, S\.Pd\.SD/.test(txt),
+                'guru: cetak daftar hadir berisi kop, kelas Romawi, TTD wali & kepala sekolah');
+            const printed = await pop.waitForFunction(() => window.__printed >= 1, null, { timeout: 3000 }).then(() => true, async () => JSON.stringify(await pop.evaluate(() => ({ p: window.__printed, rs: document.readyState, f: String(window.print).slice(0, 40) }))));
+            check(printed === true, `guru: dialog cetak terbuka otomatis (${printed})`);
+            await pop.close();
+            const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#gRkXlsx')]);
+            check(/^Daftar_Hadir_I\.A_.*\.xlsx$/.test(dl.suggestedFilename()), `guru: nama file Excel (${dl.suggestedFilename()})`);
+            const v = await xlsxCells(dl, ['A1', 'A4']);
+            check(!v || (v[0] === 'DAFTAR HADIR SISWA' && v[1] === 'KELAS : I.A'), `guru: file Excel valid (${v})`);
+            const pop2 = await popupFrom(page, () => page.click('#gRkSemPrint'));
+            check(/REKAP ABSENSI SEMESTER/.test(await pop2.textContent('body')), 'guru: cetak rekap semester');
+            await pop2.close();
+        }
 
         // Akun
         await page.click('.g-nav a[data-nav="akun"]');
@@ -389,6 +424,70 @@ async function runUi() {
         await shot(page, `akademik-05-mapel-${vp.tag}.png`);
 
         check(errors.length === 0, `${T} tidak ada error JavaScript di menu Akademik (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
+
+    // ============================================================ ADMIN — Laporan
+    for (const vp of [{ width: 1366, height: 900, tag: '1366' }, { width: 390, height: 844, tag: '390' }]) {
+        const { ctx, page, errors } = await newPage('/admin', { width: vp.width, height: vp.height });
+        await page.fill('#adminEmail', 'admin@fiktif.test');
+        await page.fill('#adminPassword', 'x');
+        await page.click('.btn-login');
+        await page.waitForSelector('#mainContent', { state: 'visible' });
+        const T = `[${vp.tag}]`;
+        // isi satu absensi harian dulu supaya rekap punya data
+        await page.evaluate(() => showTab('tabAttendance'));
+        await page.waitForSelector('#attSheet .att-list');
+        await page.click('[data-all="H"]');
+        await page.click('.att-item[data-i="0"] [data-st="S"]');
+        await page.click('#attSave');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => window.__fake.calls.some((c) => c.fn === 'save_attendance'));
+
+        await page.evaluate(() => showTab('tabRekapBulanan'));
+        await page.waitForSelector('#lpBlnOut .att-recap');
+        check((await page.textContent('#topbarTitle')) === 'Rekap Bulanan', `${T} judul Rekap Bulanan`);
+        check(/I\.A/.test(await page.textContent('#lpBlnOut')) && (await page.$$('#lpBlnOut .att-recap tbody tr')).length === 3, `${T} pratinjau rekap bulanan 3 siswa`);
+        check(await page.$('#lpBlnOut td.c-S') !== null, `${T} pratinjau menandai siswa sakit`);
+        check(await overflow(page) <= 0, `${T} Rekap Bulanan tidak bergeser ke samping (tabel tanggal di dalam kotak gulir)`);
+        await shot(page, `laporan-01-bulanan-${vp.tag}.png`);
+        const pop = await popupFrom(page, () => page.click('#lpBlnPrint'));
+        const txt = await pop.textContent('body');
+        check(/DAFTAR HADIR SISWA/.test(txt) && /BULAN : /.test(txt) && /Laki-laki = 1/.test(txt) && /Perempuan = 2/.test(txt), `${T} cetak bulanan: kop, bulan, jumlah L/P`);
+        if (vp.tag === '1366') {
+            await pop.emulateMedia({ media: 'print' });
+            await pop.setViewportSize({ width: 1123, height: 794 });
+            await shot(pop, 'laporan-02-cetak-bulanan.png');
+        }
+        await pop.close();
+        await page.check('#lpBlnBlank');
+        const popB = await popupFrom(page, () => page.click('#lpBlnPrint'));
+        check(!(/>•</.test(await popB.content())), `${T} blanko kosong tanpa isian`);
+        await popB.close();
+        await page.uncheck('#lpBlnBlank');
+        const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#lpBlnXlsx')]);
+        const v = await xlsxCells(dl, ['A1', 'A4', 'D8']);
+        check(!v || (v[0] === 'DAFTAR HADIR SISWA' && v[1] === 'KELAS : I.A' && v[2] === 'SISWA FIKTIF DUA'), `${T} Excel bulanan valid (${v})`);
+
+        await page.evaluate(() => showTab('tabRekapSemester'));
+        await page.waitForSelector('#lpSemTable .att-table');
+        check(/Menampilkan 1–3 dari 3 data/.test(await page.textContent('#lpSemTable [data-info]')), `${T} rekap semester memakai tabel standar`);
+        check(await overflow(page) <= 0, `${T} Rekap Semester tidak bergeser ke samping`);
+        await shot(page, `laporan-03-semester-${vp.tag}.png`);
+        await page.selectOption('#lpSemWali', '2');
+        const popS = await popupFrom(page, () => page.click('#lpSemPrint'));
+        const ts = await popS.textContent('body');
+        check(/REKAP ABSENSI SEMESTER/.test(ts) && /% KEHADIRAN/.test(ts), `${T} cetak rekap semester`);
+        if (vp.tag === '1366') {
+            await popS.emulateMedia({ media: 'print' });
+            await popS.setViewportSize({ width: 1123, height: 794 });
+            await shot(popS, 'laporan-04-cetak-semester.png');
+        }
+        await popS.close();
+        const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('#lpSemXlsx')]);
+        const v2 = await xlsxCells(dl2, ['A1', 'D7']);
+        check(!v2 || (/REKAP ABSENSI SEMESTER/.test(v2[0]) && v2[1] === 'SISWA FIKTIF DUA'), `${T} Excel semester valid (${v2})`);
+        check(errors.length === 0, `${T} tidak ada error JavaScript di Laporan (${errors.join(' | ').slice(0, 160)})`);
         await ctx.close();
     }
 }
