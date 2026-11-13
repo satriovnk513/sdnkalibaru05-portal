@@ -266,4 +266,129 @@ async function runUi() {
         check(errors.length === 0, `[${vp.tag}] tidak ada error JavaScript di /admin (${errors.join(' | ').slice(0, 120)})`);
         await ctx.close();
     }
+
+    // ============================================================ ADMIN — menu Akademik
+    for (const vp of [{ width: 1366, height: 900, tag: '1366' }, { width: 390, height: 844, tag: '390' }]) {
+        const { ctx, page, errors } = await newPage('/admin', { width: vp.width, height: vp.height });
+        await page.fill('#adminEmail', 'admin@fiktif.test');
+        await page.fill('#adminPassword', 'x');
+        await page.click('.btn-login');
+        await page.waitForSelector('#mainContent', { state: 'visible' });
+        const T = `[${vp.tag}]`;
+
+        // Hari Libur
+        await page.evaluate(() => showTab('tabHolidays'));
+        await page.waitForSelector('#akCal .ak-cal-grid');
+        check((await page.textContent('#topbarTitle')) === 'Hari Libur', `${T} judul Hari Libur`);
+        check(await overflow(page) <= 0, `${T} Hari Libur tidak bergeser ke samping`);
+        check(/Menampilkan 1–1 dari 1 data/.test(await page.textContent('#akHolTable [data-info]')), `${T} daftar libur memakai Tampilkan/Menampilkan`);
+        await page.click('#akHolSync');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => /dari 3 data/.test(document.querySelector('#akHolTable [data-info]').textContent));
+        check(/2 hari libur ditambahkan/.test(await page.textContent('#attToastHost')), `${T} Sinkron menambah 2 libur yang belum ada`);
+        // Ke Desember 2026 lalu cek 25 Des ditandai libur
+        await page.evaluate(() => { const want = '2026-12'; for (let i = 0; i < 24; i++) { if (document.querySelector('[data-date="2026-12-25"]')) break; document.querySelector('[data-cal="1"]').click(); } return want; });
+        await page.waitForSelector('[data-date="2026-12-25"].ak-holiday');
+        check(true, `${T} kalender menandai 25 Desember sebagai libur`);
+        await shot(page, `akademik-01-libur-${vp.tag}.png`);
+        // Klik hari kerja biasa → form tambah dengan tanggal terisi
+        await page.click('[data-date="2026-12-21"]');
+        await page.waitForSelector('#fs_name');
+        check((await page.inputValue('#fs_dari')) === '2026-12-21', `${T} klik tanggal mengisi form tambah libur`);
+        await page.fill('#fs_sampai', '2026-12-23');
+        await page.fill('#fs_name', 'Libur Semester Ganjil');
+        await page.click('.att-sheet button[type="submit"]');
+        await page.waitForFunction(() => /dari 6 data/.test(document.querySelector('#akHolTable [data-info]').textContent));
+        check(true, `${T} tambah libur rentang 21–23 Des (3 hari) tersimpan`);
+        // Hapus satu
+        await page.click('[data-hol-del="2026-12-23"]');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => /dari 5 data/.test(document.querySelector('#akHolTable [data-info]').textContent));
+        check(true, `${T} hapus hari libur`);
+
+        // Tahun Ajaran
+        await page.evaluate(() => showTab('tabAcademicYears'));
+        await page.waitForSelector('#akYearTable .att-table');
+        await page.click('#akYearAdd');
+        check((await page.inputValue('#fs_name')) === '2027/2028', `${T} tahun ajaran berikutnya terisi otomatis`);
+        await page.fill('#fs_name', '2027/2029');
+        await page.click('.att-sheet button[type="submit"]');
+        check(/YYYY\/YYYY/.test(await page.textContent('#fsErr')), `${T} nama tahun ajaran salah ditolak`);
+        await page.fill('#fs_name', '2027/2028');
+        await page.click('.att-sheet button[type="submit"]');
+        await page.waitForSelector('[data-year-act]');
+        await page.click('[data-year-act]');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => window.__fake.calls.some((c) => c.fn === 'set_active_academic_year'));
+        await page.waitForFunction(() => document.querySelectorAll('#akYearTable [data-year-act]').length === 1);
+        check(true, `${T} ganti tahun ajaran aktif`);
+        await shot(page, `akademik-02-tahun-${vp.tag}.png`);
+        // kembalikan ke 2026/2027
+        await page.click('[data-year-act]');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => window.__fake.tables.academic_years.find((y) => y.name === '2026/2027').is_active);
+
+        // Data Kelas
+        await page.evaluate(() => showTab('tabClasses'));
+        await page.waitForSelector('#akClassTable .att-table');
+        check(/2 rombel · 4 siswa/.test(await page.textContent('#akClassInfo')), `${T} Data Kelas: jumlah rombel dan siswa`);
+        await page.click('[data-class-del]');
+        await page.waitForSelector('#attToastHost .att-alert.err');
+        check(/masih punya 3 siswa/.test(await page.textContent('#attToastHost')), `${T} kelas yang masih ada siswanya tidak bisa dihapus`);
+        await page.click('#akClassAdd');
+        await page.selectOption('#fs_grade', '6');
+        await page.selectOption('#fs_section', 'B');
+        await page.click('.att-sheet button[type="submit"]');
+        await page.waitForFunction(() => /3 rombel/.test(document.getElementById('akClassInfo').textContent));
+        check(true, `${T} tambah kelas 6 B`);
+        check(await overflow(page) <= 0, `${T} Data Kelas tidak bergeser ke samping`);
+        await shot(page, `akademik-03-kelas-${vp.tag}.png`);
+
+        // Wali Kelas
+        await page.evaluate(() => showTab('tabHomeroom'));
+        await page.waitForSelector('#akHrTable .att-table');
+        check(/Belum ada/.test(await page.textContent('#akHrTable')), `${T} kelas baru tanpa wali ditandai "Belum ada"`);
+        const c6b = await page.evaluate(() => window.__fake.tables.classes.find((c) => c.name === '6 B').id);
+        await page.selectOption('#akHrClass', c6b);
+        await page.selectOption('#akHrW1', { label: 'Taripah, S.Pd.' });
+        await page.selectOption('#akHrW2', { label: 'Taripah, S.Pd.' });
+        await page.click('#akHrSave');
+        await page.waitForSelector('#attToastHost .att-alert.err');
+        check(/tidak boleh sama/.test(await page.textContent('#attToastHost')), `${T} wali 2 sama dengan wali 1 ditolak`);
+        await page.selectOption('#akHrW2', { label: 'Guru Fiktif Pendamping, S.Pd.' });
+        await page.click('#akHrSave');
+        await page.waitForFunction(() => window.__fake.tables.homeroom_assignments.filter((h) => h.position === 2).length === 1);
+        await page.waitForFunction(() => /Guru Fiktif Pendamping/.test(document.getElementById('akHrTable').textContent));
+        check(true, `${T} wali kelas 1 + pendamping tersimpan`);
+        check(await overflow(page) <= 0, `${T} Wali Kelas tidak bergeser ke samping`);
+        await shot(page, `akademik-04-wali-${vp.tag}.png`);
+
+        // Mata Pelajaran
+        await page.evaluate(() => showTab('tabSubjects'));
+        await page.waitForSelector('#akSubTable .att-table');
+        check(/Susy Nurhayati/.test(await page.textContent('#akSubTable')), `${T} mapel menampilkan guru pengampu`);
+        await page.click('#akSubAdd');
+        await page.fill('#fs_code', 'bing');
+        await page.fill('#fs_name', 'Bahasa Inggris');
+        await page.click('.att-sheet button[type="submit"]');
+        await page.waitForFunction(() => /BING/.test(document.getElementById('akSubTable').textContent));
+        check(/Belum ada guru/.test(await page.textContent('#akSubTable')), `${T} mapel baru (kode jadi huruf besar) tanpa guru`);
+        const bing = await page.evaluate(() => window.__fake.tables.subjects.find((x) => x.code === 'BING').id);
+        await page.click(`[data-sub-assign="${bing}"]`);
+        await page.selectOption('#fs_staff', { label: 'Sunarsih, S.Pd.' });
+        await page.check('#fs_kelas input >> nth=0');
+        await page.check('#fs_kelas input >> nth=1');
+        await page.click('.att-sheet button[type="submit"]');
+        await page.waitForFunction(() => window.__fake.calls.some((c) => c.fn === 'set_subject_assignments' && c.args.p_class_ids.length === 2));
+        await page.waitForFunction(() => /Sunarsih/.test(document.getElementById('akSubTable').textContent));
+        check(true, `${T} atur guru mapel ke 2 kelas`);
+        await page.click(`[data-sub-del="${bing}"]`);
+        await page.waitForSelector('#attToastHost .att-alert.err');
+        check(/Cabut dulu penugasan/.test(await page.textContent('#attToastHost')), `${T} mapel yang masih punya guru tidak bisa dihapus`);
+        check(await overflow(page) <= 0, `${T} Mata Pelajaran tidak bergeser ke samping`);
+        await shot(page, `akademik-05-mapel-${vp.tag}.png`);
+
+        check(errors.length === 0, `${T} tidak ada error JavaScript di menu Akademik (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
 }

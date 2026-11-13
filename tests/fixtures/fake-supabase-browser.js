@@ -112,6 +112,26 @@
                 })),
             }));
         }
+        case 'sync_holidays': {
+            let n = 0;
+            for (const c of F.catalog) if (!T.school_holidays.some((h) => h.holiday_date === c.holiday_date)) { T.school_holidays.push({ ...c }); n += 1; }
+            return Promise.resolve(ok({ ditambahkan: n, katalog: F.catalog.length, sampai: '2027-12-26' }));
+        }
+        case 'set_homeroom': {
+            if (!args.p_wali1) return Promise.resolve(err('Wali Kelas 1 wajib dipilih.'));
+            if (args.p_wali2 && args.p_wali2 === args.p_wali1) return Promise.resolve(err('Wali Kelas 2 tidak boleh sama dengan Wali Kelas 1.'));
+            T.homeroom_assignments = T.homeroom_assignments.filter((h) => h.class_id !== args.p_class_id);
+            T.homeroom_assignments.push({ class_id: args.p_class_id, staff_id: args.p_wali1, position: 1 });
+            if (args.p_wali2) T.homeroom_assignments.push({ class_id: args.p_class_id, staff_id: args.p_wali2, position: 2 });
+            return Promise.resolve(ok(null));
+        }
+        case 'set_active_academic_year':
+            for (const y of T.academic_years) y.is_active = y.id === args.p_id;
+            return Promise.resolve(ok(null));
+        case 'set_subject_assignments':
+            T.subject_assignments = T.subject_assignments.filter((a) => !(a.subject_id === args.p_subject_id && a.staff_id === args.p_staff_id));
+            for (const c of [...new Set(args.p_class_ids || [])]) T.subject_assignments.push({ subject_id: args.p_subject_id, class_id: c, staff_id: args.p_staff_id });
+            return Promise.resolve(ok(new Set(args.p_class_ids || []).size));
         case 'student_summary':
             return Promise.resolve(ok([{ total_siswa: 4, tercantum: 4, perlu_verifikasi: 0, jumlah_rombel: 2, daftar_kelas: ['1 A', '3 A'], diarsipkan: 0 }]));
         case 'archive_attendance_session':
@@ -121,13 +141,51 @@
         }
     }
 
-    // Query builder generik: cukup untuk panel admin (data lain kosong).
+    // ------------------------------------------------------------------ tabel tiruan (stateful)
+    const AY1 = '00000000-0000-4000-8000-0000000000a1';
+    const ST = (n) => `00000000-0000-4000-8000-0000000000f${n}`;
+    const T = F.tables = F.tables || {
+        academic_years: [{ id: AY1, name: '2026/2027', start_date: '2026-07-13', end_date: '2027-06-30', is_active: true }],
+        classes: [
+            { id: C1A, name: '1 A', grade: 1, section: 'A', academic_year_id: AY1 },
+            { id: C3A, name: '3 A', grade: 3, section: 'A', academic_year_id: AY1 },
+        ],
+        subjects: [{ id: PAI, code: 'PAI', name: 'Pendidikan Agama Islam' }],
+        staff: [
+            { id: ST(1), name: 'Sunarsih, S.Pd.', role: 'Guru Kelas|Guru Kelas', nip: 'NIP. 990000000000000001', order_index: 1 },
+            { id: ST(2), name: 'Taripah, S.Pd.', role: 'Wakil Kepala Sekolah|Wakil Kepala Sekolah', nip: 'NIP. 990000000000000002', order_index: 2 },
+            { id: ST(3), name: 'Susy Nurhayati', role: 'Guru Mata Pelajaran|Guru Pendidikan Agama Islam', nip: '', order_index: 3 },
+            { id: ST(4), name: 'Guru Fiktif Pendamping, S.Pd.', role: 'Guru Kelas|Guru Kelas', nip: '', order_index: 4 },
+        ],
+        homeroom_assignments: [
+            { class_id: C1A, staff_id: ST(1), position: 1 },
+            { class_id: C3A, staff_id: ST(2), position: 1 },
+        ],
+        subject_assignments: [
+            { subject_id: PAI, class_id: C1A, staff_id: ST(3) },
+            { subject_id: PAI, class_id: C3A, staff_id: ST(3) },
+        ],
+        student_enrollments: [
+            { class_id: C1A, end_date: null }, { class_id: C1A, end_date: null }, { class_id: C1A, end_date: null },
+            { class_id: C3A, end_date: null },
+        ],
+        school_holidays: [
+            { holiday_date: '2026-12-25', name: 'Kelahiran Yesus Kristus', kind: 'nasional', source: 'SKB 3 Menteri 2026' },
+        ],
+        attendance_changes: [{ action: 'buat', old_status: null, new_status: null, reason: null, changed_by: 'u1', changed_at: new Date().toISOString(), student_id: null }],
+        teacher_accounts: [{ user_id: 'u1', email: 'sunarsih@fiktif.test' }],
+    };
+    F.catalog = F.catalog || [
+        { holiday_date: '2026-12-24', name: 'Cuti Bersama Kelahiran Yesus Kristus', kind: 'cuti_bersama', source: 'SKB 3 Menteri 2026' },
+        { holiday_date: '2026-12-25', name: 'Kelahiran Yesus Kristus', kind: 'nasional', source: 'SKB 3 Menteri 2026' },
+        { holiday_date: '2027-01-01', name: 'Tahun Baru 2027 Masehi', kind: 'nasional', source: 'SKB 3 Menteri 2027' },
+    ];
+    let idSeq = 100;
+    const newId = () => `00000000-0000-4000-8000-${String(idSeq++).padStart(12, '0')}`;
+
     function from(table) {
         const ops = [];
-        const q = {
-            _count: null,
-            then(res, rej) { return Promise.resolve(resolveTable(table, ops, q)).then(res, rej); },
-        };
+        const q = { _count: null, then(res, rej) { return Promise.resolve(resolveTable(table, ops, q)).then(res, rej); } };
         for (const m of ['select', 'eq', 'neq', 'order', 'range', 'limit', 'in', 'ilike', 'or', 'is', 'not', 'filter', 'gte', 'lte', 'gt', 'lt', 'update', 'insert', 'delete', 'upsert', 'match', 'contains']) {
             q[m] = (...a) => { ops.push([m, a]); if (m === 'select' && a[1]?.count) q._count = a[1]; return q; };
         }
@@ -136,17 +194,69 @@
         return q;
     }
 
+    function matches(row, ops) {
+        for (const [m, a] of ops) {
+            if (typeof a?.[0] === 'string' && a[0].includes('.')) continue;   // filter relasi diabaikan
+            if (m === 'eq' && String(row[a[0]]) !== String(a[1])) return false;
+            if (m === 'neq' && String(row[a[0]]) === String(a[1])) return false;
+            if (m === 'is' && (row[a[0]] ?? null) !== a[1]) return false;
+            if (m === 'in' && !a[1].map(String).includes(String(row[a[0]]))) return false;
+        }
+        return true;
+    }
+
+    const fkError = { code: '23503', message: 'update or delete violates foreign key constraint' };
+
     function resolveTable(table, ops, q) {
-        F.calls.push({ table, ops: ops.map((o) => o[0]) });
-        const single = ops.some((o) => o[0] === 'maybeSingle' || o[0] === 'single');
-        let rows = [];
-        if (table === 'user_roles') rows = currentUser() === 'admin' ? [{ role: 'admin' }] : [];
-        if (table === 'classes') rows = [{ id: C1A, name: '1 A', grade: 1, section: 'A' }, { id: C3A, name: '3 A', grade: 3, section: 'A' }];
-        if (table === 'subjects') rows = [{ id: PAI, code: 'PAI', name: 'Pendidikan Agama Islam' }];
-        if (table === 'attendance_changes') rows = [{ action: 'buat', old_status: null, new_status: null, reason: null, changed_by: 'u1', changed_at: new Date().toISOString(), student_id: null }];
-        if (table === 'teacher_accounts') rows = [{ user_id: 'u1', email: 'sunarsih@fiktif.test' }];
-        if (single) return { data: rows[0] ?? null, error: null };
-        return { data: rows, error: null, count: q._count ? rows.length : null };
+        const kinds = ops.map((o) => o[0]);
+        F.calls.push({ table, ops: kinds });
+        const single = kinds.includes('maybeSingle') || kinds.includes('single');
+        if (table === 'user_roles') {
+            const rows = currentUser() === 'admin' ? [{ role: 'admin' }] : [];
+            return single ? { data: rows[0] ?? null, error: null } : { data: rows, error: null };
+        }
+        if (table === 'attendance_sessions') {
+            const rows = Object.keys(F.sessions).map((k) => ({ id: F.sessions[k].id, session_date: k.split('|')[1], archived_at: null }));
+            const hit = rows.filter((r) => matches(r, ops));
+            return { data: q._count?.head ? null : hit, error: null, count: hit.length };
+        }
+        const rows = T[table] || [];
+        const ins = ops.find((o) => o[0] === 'insert' || o[0] === 'upsert');
+        if (ins) {
+            const list = Array.isArray(ins[1][0]) ? ins[1][0] : [ins[1][0]];
+            if (table === 'school_holidays' && list.some((r) => rows.some((h) => h.holiday_date === r.holiday_date))) {
+                return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } };
+            }
+            for (const r of list) {
+                const row = { ...r };
+                if (table !== 'school_holidays' && !row.id) row.id = newId();
+                if (table === 'classes') row.name = `${row.grade} ${row.section}`;
+                rows.push(row);
+            }
+            F.calls.push({ write: 'insert', table, rows: list });
+            return { data: null, error: null };
+        }
+        const upd = ops.find((o) => o[0] === 'update');
+        if (upd) {
+            for (const r of rows.filter((x) => matches(x, ops))) {
+                Object.assign(r, upd[1][0]);
+                if (table === 'classes') r.name = `${r.grade} ${r.section}`;
+            }
+            F.calls.push({ write: 'update', table, values: upd[1][0] });
+            return { data: null, error: null };
+        }
+        if (kinds.includes('delete')) {
+            const victims = rows.filter((x) => matches(x, ops));
+            if (table === 'classes' && victims.some((v) => T.student_enrollments.some((e) => e.class_id === v.id))) return { data: null, error: fkError };
+            if (table === 'subjects' && victims.some((v) => T.subject_assignments.some((e) => e.subject_id === v.id))) return { data: null, error: fkError };
+            if (table === 'academic_years' && victims.some((v) => T.classes.some((c) => c.academic_year_id === v.id))) return { data: null, error: fkError };
+            T[table] = rows.filter((x) => !victims.includes(x));
+            F.calls.push({ write: 'delete', table, n: victims.length });
+            return { data: null, error: null };
+        }
+        const hit = rows.filter((r) => matches(r, ops)).map((r) => ({ ...r }));
+        if (single) return { data: hit[0] ?? null, error: null };
+        return { data: q._count?.head ? null : hit, error: null, count: q._count ? hit.length : null };
     }
 
     function emit(event, session) { for (const cb of listeners) setTimeout(() => cb(event, session), 0); }

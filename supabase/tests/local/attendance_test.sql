@@ -77,13 +77,14 @@ begin
     select id into st5 from public.student_records where nik = '9900000000000302';
     select id into st6 from public.student_records where nik = '9900000000000401';
 
-    select max(g)::date into v_d from generate_series(public.jakarta_today() - 7, public.jakarta_today(), interval '1 day') g
-        where extract(isodow from g) not in (6, 7);
+    -- Hari sekolah (bukan akhir pekan/libur) terakhir sampai hari ini.
+    select max(g)::date into v_d from generate_series(public.jakarta_today() - 40, public.jakarta_today(), interval '1 day') g
+        where public.is_school_day(g::date);
     select max(g)::date into v_sat from generate_series(public.jakarta_today() - 7, public.jakarta_today() - 1, interval '1 day') g
         where extract(isodow from g) = 6;
     select min(g)::date into v_old from (
-        select g from generate_series(public.jakarta_today() - 20, public.jakarta_today() - 1, interval '1 day') g
-        where extract(isodow from g) not in (6, 7) order by g desc limit 5) x;
+        select g from generate_series(public.jakarta_today() - 60, public.jakarta_today() - 1, interval '1 day') g
+        where public.is_school_day(g::date) order by g desc limit 5) x;
 
     e_1a := jsonb_build_array(
         jsonb_build_object('student_id', st1, 'status', 'H'),
@@ -374,6 +375,64 @@ begin
     execute 'set local role authenticated';
     v_no := v_no + 1; v_r := public.t_try('select public.get_guru_home()');
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'I Beranda', 'u', 'Akun tanpa data guru ditolak', 'ok', v_r = '42501');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+
+    -- ======================================================== J. Akademik
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'J Libur', 'u', 'Katalog libur terisi s.d. 26 Des 2027 dan tersinkron',
+        'ok', (select max(holiday_date) from public.holiday_catalog) = date '2027-12-26'
+          and not exists (select 1 from public.holiday_catalog c where not exists (
+                select 1 from public.school_holidays h where h.holiday_date = c.holiday_date)));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'J Libur', 'u', '25 Des 2026, 10 Mar 2027, 21 Des 2026 bukan hari sekolah; 13 Nov 2026 hari sekolah',
+        'ok', not public.is_school_day(date '2026-12-25') and not public.is_school_day(date '2027-03-10')
+          and not public.is_school_day(date '2026-12-21') and public.is_school_day(date '2026-11-13'));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'J Libur', 'u', 'Tanggal bertumpuk memakai nama libur nasional (24 Des 2026 = cuti bersama)',
+        'ok', (select kind from public.school_holidays where holiday_date = date '2026-12-24') = 'cuti_bersama');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'J Tahun ajaran', 'u', 'TA 2026/2027 mulai 13 Juli 2026',
+        'ok', (select start_date from public.academic_years where name = '2026/2027') = date '2026-07-13');
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1; v_r := public.t_try('select public.sync_holidays()');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'J Hak', 'u', 'Guru tidak bisa sinkron libur', 'ok', v_r = '42501');
+    v_no := v_no + 1; v_r := public.t_try(format('select public.set_homeroom(%L, %L, null)', c3a, (select staff_id from public.teacher_accounts where user_id = u_wali1a)));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'J Hak', 'u', 'Guru tidak bisa mengubah wali kelas', 'ok', v_r = '42501');
+    v_no := v_no + 1; v_r := public.t_try(format('insert into public.school_holidays (holiday_date, name) values (%L, %L)', date '2027-02-01', 'x'));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'J Hak', 'u', 'Guru tidak bisa menambah hari libur', 'ok', v_r = '42501');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    delete from public.school_holidays where holiday_date = date '2027-03-10';
+    v_j := public.sync_holidays();
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'J Sinkron', 'u', 'Sinkron mengembalikan libur yang terhapus, lalu idempoten',
+        'ok', (v_j ->> 'ditambahkan')::int = 1 and (public.sync_holidays() ->> 'ditambahkan')::int = 0);
+    v_no := v_no + 1; v_r := public.t_try(format('select public.set_homeroom(%L, %L, %L)', c3a,
+        (select id from public.staff where name = 'Taripah, S.Pd.'), (select id from public.staff where name = 'Taripah, S.Pd.')));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'J Wali', 'u', 'Wali 2 sama dengan wali 1 ditolak', 'ok', v_r = '22023');
+    perform public.set_homeroom(c3a, (select id from public.staff where name = 'Taripah, S.Pd.'), (select id from public.staff where name = 'Akna Dewi, S.Pd.'));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'J Wali', 'u', 'Wali pendamping tersimpan di posisi 2',
+        'ok', (select count(*) from public.homeroom_assignments where class_id = c3a) = 2
+          and (select s.name from public.homeroom_assignments h join public.staff s on s.id = h.staff_id where h.class_id = c3a and h.position = 2) = 'Akna Dewi, S.Pd.');
+    v_n := public.set_subject_assignments(s_pjok, (select id from public.staff where name = 'Josua Prasetyo, S.Pd.'),
+               array(select id from public.classes where grade = 6));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'J Mapel', 'u', 'Penugasan mapel diganti utuh (Josua: 4–6 → hanya 6 A, 6 B)',
+        'ok', v_n = 2
+          and (select count(*) from public.subject_assignments where subject_id = s_pjok
+                 and staff_id = (select id from public.staff where name = 'Josua Prasetyo, S.Pd.')) = 2);
+    insert into public.academic_years (name, start_date, end_date) values ('2027/2028', date '2027-07-12', date '2028-06-30');
+    perform public.set_active_academic_year((select id from public.academic_years where name = '2027/2028'));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'J Tahun ajaran', 'u', 'Ganti tahun ajaran aktif: tepat satu yang aktif',
+        'ok', (select count(*) from public.academic_years where is_active) = 1
+          and (select name from public.academic_years where is_active) = '2027/2028');
     execute 'reset role';
     perform set_config('request.jwt.claims', '', true);
 
