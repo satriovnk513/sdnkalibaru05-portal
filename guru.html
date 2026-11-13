@@ -61,6 +61,53 @@
         .g-chip.done { border-color: #bbf7d0; background: var(--att-h-bg); color: #166534; }
         .g-date-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 12px; }
 
+        /* Dashboard */
+        .g-top-out { flex: none; min-width: 44px; min-height: 44px; border: 1px solid #fecdd3; background: #fff1f2; color: var(--att-brand); border-radius: 12px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+        .g-top-out svg, .g-welcome svg, .g-hero-btn svg, .g-tag svg, .g-sched svg, .att-btn-blue svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+        .g-welcome { margin-bottom: 14px; display: flex; flex-direction: column; gap: 2px; }
+        .g-welcome > b { font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+        .g-hero { position: relative; overflow: hidden; border-radius: 18px; padding: 18px 16px; margin-bottom: 14px; color: #fff; background: linear-gradient(110deg, #e11d48 0%, #9d174d 48%, #4c1d95 100%); display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+        .g-hero::after { content: ""; position: absolute; right: -40px; top: -50px; width: 190px; height: 190px; border-radius: 50%; border: 26px solid rgba(255,255,255,.07); pointer-events: none; }
+        .g-hero-ava { flex: none; width: 64px; height: 64px; border-radius: 50%; background: #fff; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 3px solid rgba(255,255,255,.85); }
+        .g-hero-ava img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+        .g-hero-ava span { color: #be123c; font-weight: 800; font-size: 1.3rem; }
+        .g-hero-body { flex: 1 1 170px; min-width: 0; position: relative; z-index: 1; }
+        .g-hero-body small { display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: .08em; opacity: .85; }
+        .g-hero-body strong { display: block; font-size: 1.3rem; font-weight: 800; line-height: 1.2; margin: 2px 0 6px; overflow-wrap: anywhere; }
+        .g-hero-body strong i { font-style: normal; font-weight: 500; opacity: .9; }
+        .g-hero-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 0.8rem; }
+        .g-hero-day { background: #22d3ee; color: #083344; font-weight: 700; border-radius: 999px; padding: 2px 10px; font-size: 0.72rem; }
+        .g-hero-btn { position: relative; z-index: 1; flex: 1 1 100%; min-height: 46px; border-radius: 12px; background: #fff; color: var(--att-brand); font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; }
+        @media (min-width: 560px) { .g-hero { padding: 22px; } .g-hero-btn { flex: 0 0 auto; } }
+        .g-box { background: #fff; border: 1px solid var(--att-line); border-radius: 16px; margin-bottom: 14px; overflow: hidden; }
+        .g-box-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 14px; background: #f8fafc; border-bottom: 1px solid var(--att-line); }
+        .g-box-head > b { flex: 1 1 auto; font-size: 0.98rem; }
+        .g-box-body { padding: 14px; }
+        .g-tag { display: inline-flex; align-items: center; gap: 5px; border-radius: 8px; padding: 4px 8px; font-size: 0.68rem; font-weight: 800; letter-spacing: .03em; }
+        .g-tag svg { width: 14px; height: 14px; }
+        .g-tag.wali { background: #ffe4e6; color: #be123c; }
+        .g-tag.mapel { background: #dcfce7; color: #166534; }
+        .g-tag.soon { background: #e0e7ff; color: #3730a3; }
+        .att-btn-blue { background: #2563eb; color: #fff; min-height: 48px; }
+        .att-btn-blue:hover { background: #1d4ed8; }
+        .g-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 12px; }
+        .g-days button { min-height: 48px; border-radius: 12px; border: 1.5px solid var(--att-line); background: #fff; font: 700 0.85rem 'Inter', sans-serif; color: #475569; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; }
+        .g-days button small { font-weight: 500; font-size: 0.7rem; color: var(--att-muted); }
+        .g-days button[aria-selected="true"] { background: #166534; border-color: #166534; color: #fff; }
+        .g-days button[aria-selected="true"] small { color: #dcfce7; }
+        .g-sched-list { display: grid; gap: 8px; }
+        .g-sched { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 12px; border: 1px solid var(--att-line); border-radius: 12px; background: #fff; color: var(--att-ink); text-decoration: none; font-weight: 400; }
+        .g-sched.done { border-color: #bbf7d0; background: var(--att-h-bg); color: var(--att-ink); }
+        .g-sched.off { opacity: .55; }
+        .g-sched > svg { color: var(--att-muted); }
+        .g-sched-ico { flex: none; width: 40px; height: 40px; border-radius: 10px; background: #dcfce7; color: #166534; display: flex; align-items: center; justify-content: center; }
+        .g-sched-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: center; font-size: 0.82rem; color: #475569; }
+        .g-sched-txt b { flex: 1 1 100%; font-size: 0.95rem; color: var(--att-ink); }
+        .g-sched-txt span { display: inline-flex; align-items: center; gap: 4px; }
+        .g-sched-txt svg { width: 14px; height: 14px; }
+        .g-time { background: #dcfce7; color: #166534; border-radius: 999px; padding: 1px 8px; font-weight: 600; font-size: 0.74rem; }
+        .g-soon { border-style: dashed; }
+
         /* Profil siswa */
         .g-prof dl { display: grid; grid-template-columns: minmax(0, 42%) minmax(0, 1fr); gap: 8px 12px; margin: 0; font-size: 0.92rem; }
         .g-prof dt { color: var(--att-muted); }
@@ -105,10 +152,11 @@
             <button type="button" class="g-back g-hidden" id="gBack" aria-label="Kembali">‹</button>
             <img id="gTopLogo" src="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png" alt="" onerror="this.style.visibility='hidden'">
             <div class="g-top-title"><b id="gTitle">Hari ini</b><span id="gSub"></span></div>
+            <button type="button" class="g-top-out" id="gTopOut" aria-label="Keluar" title="Keluar"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></button>
         </header>
         <main class="g-main" id="gMain" tabindex="-1"><div class="g-loading">Memuat…</div></main>
         <nav class="g-nav" aria-label="Menu guru">
-            <a href="#/" data-nav="home"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Hari ini</a>
+            <a href="#/" data-nav="home"><svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>Dashboard</a>
             <a href="#/siswa" data-nav="siswa"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Siswa</a>
             <a href="#/rekap" data-nav="rekap"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Rekap</a>
             <a href="#/akun" data-nav="akun"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>Akun</a>
@@ -119,6 +167,6 @@
     <script src="supabase-config.js"></script>
     <script src="attendance-sheet.js?v=5"></script>
     <script src="rekap-print.js?v=2"></script>
-    <script src="guru.js?v=4"></script>
+    <script src="guru.js?v=5"></script>
 </body>
 </html>

@@ -123,60 +123,144 @@
     async function logout() {
         await sb.auth.signOut();
         home = null;
+        staffExtra = null;
+        homeDay = null;
         location.hash = '#/';
         showLogin('');
     }
 
     // ------------------------------------------------------------------ beranda
+    const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const ICON = {
+        home: '<svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>',
+        clip: '<svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 13l2 2 4-4"/></svg>',
+        user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>',
+        book: '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>',
+        board: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+        clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+        cal: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+        chev: '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>',
+    };
+    let staffExtra = null;      // { image_url, nip } dari data Guru & Staf di website
+    let homeDay = null;         // tanggal (ISO) yang dipilih di kartu "Jadwal"
+
+    const kelasTitik = (k) => String(k || '').replace(/\s+/, '.');
+    const isoAdd = (iso, n) => {
+        const [y, m, d] = iso.split('-').map(Number);
+        return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+    };
+    const dow = (iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); };
+    const initials = (nama) => shortName(nama).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+    const safeUrl = (u) => (/^https:\/\//i.test(String(u || '')) ? String(u) : '');
+
+    /** Foto & NIP guru diambil dari data Guru & Staf yang sudah tampil di website (data publik). */
+    async function loadStaffExtra() {
+        if (staffExtra || !home?.staff_id) return;
+        try {
+            const { data } = await sb.from('staff').select('image_url, nip').eq('id', home.staff_id).maybeSingle();
+            staffExtra = { image_url: safeUrl(data?.image_url), nip: String(data?.nip || '').replace(/^\s*NIP\.?\s*/i, '') };
+        } catch { staffExtra = { image_url: '', nip: '' }; }
+        if (parseHash().path === '/' && home) renderHome();
+    }
+
     function renderHome() {
         setNav('home');
-        setTop(`Halo, ${shortName(home.nama)}`, fmtDate(home.today));
+        setTop('Dashboard Guru', fmtDate(home.today));
+        loadStaffExtra();
+        const today = home.today;
+        const monday = isoAdd(today, -((dow(today) + 6) % 7));
+        const week = [0, 1, 2, 3, 4].map((i) => isoAdd(monday, i));
+        if (!homeDay || !week.includes(homeDay)) homeDay = week.includes(today) ? today : week[4];
         const parts = [];
+
+        parts.push(`<div class="g-welcome"><b>${ICON.home} Dashboard Guru</b>
+            <span class="att-muted">Selamat datang, <b>${esc(home.nama)}</b>${staffExtra?.nip ? ` (${esc(staffExtra.nip)})` : ''}</span></div>`);
+
+        // Kartu utama: tugas absensi terdekat
+        const wali0 = home.wali_kelas[0];
+        const mapel0 = home.mapel.find((m) => !m.hari_ini) || home.mapel[0];
+        const target = wali0
+            ? { kelas: wali0.kelas, label: wali0.posisi === 2 ? 'Wali Pendamping' : 'Wali Kelas', href: `#/absen?kelas=${wali0.class_id}&tanggal=${today}&jenis=harian`, done: Boolean(wali0.hari_ini) }
+            : mapel0 ? { kelas: mapel0.kelas, label: mapel0.kode, href: `#/absen?kelas=${mapel0.class_id}&tanggal=${today}&jenis=mapel&mapel=${mapel0.subject_id}`, done: Boolean(mapel0.hari_ini) } : null;
+        const avatar = staffExtra?.image_url
+            ? `<img src="${esc(staffExtra.image_url)}" alt="Foto ${esc(shortName(home.nama))}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${esc(initials(home.nama))}'}))">`
+            : `<span>${esc(initials(home.nama))}</span>`;
+        parts.push(`<section class="g-hero" aria-label="Jadwal mengajar terdekat">
+            <div class="g-hero-ava">${avatar}</div>
+            <div class="g-hero-body">
+                <small>JADWAL MENGAJAR TERDEKAT</small>
+                <strong>${target ? `KELAS ${esc(kelasTitik(target.kelas))} — <i>${esc(target.label)}</i>` : esc(home.jabatan || 'Belum ada kelas')}</strong>
+                <div class="g-hero-meta"><span class="g-hero-day">Hari ${HARI[dow(today)]}</span><span>Jam pelajaran: <b>segera hadir</b></span></div>
+            </div>
+            ${target && home.is_school_day ? `<a class="g-hero-btn" href="${target.href}">${ICON.clip}${target.done ? 'Lihat Absensi' : 'Mulai Absensi'}</a>` : ''}
+        </section>`);
+
         if (!home.is_school_day) {
-            parts.push(`<div class="att-alert warn">Hari ini libur${home.holiday_name ? ` (${esc(home.holiday_name)})` : ''}. Absensi tidak perlu diisi.</div>`);
+            parts.push(`<div class="att-alert warn" style="margin-bottom:12px">Hari ini libur${home.holiday_name ? ` (${esc(home.holiday_name)})` : ''}. Absensi tidak perlu diisi.</div>`);
         }
 
-        if (home.wali_kelas.length) {
-            parts.push('<h2>Absensi harian</h2>');
-            for (const w of home.wali_kelas) {
-                const t = w.hari_ini;
-                const rekap = t?.rekap || {};
-                const absen = ['S', 'I', 'A', 'D'].filter((k) => rekap[k]).map((k) => `${rekap[k]} ${window.Att.STATUS[k].toLowerCase()}`).join(', ');
-                const href = `#/absen?kelas=${w.class_id}&tanggal=${home.today}&jenis=harian`;
-                parts.push(`<div class="att-card g-task ${t ? 'done' : 'todo'}">
-                    <div class="g-task-head">
-                        <div><b>Kelas ${esc(w.kelas)}</b><div class="att-muted">${esc(w.jumlah_siswa)} siswa${w.posisi === 2 ? ' · wali pendamping' : ''}</div></div>
-                        ${t ? `<span class="att-badge ok">Sudah diisi ${esc(t.disimpan)}</span>` : (home.is_school_day ? '<span class="att-badge bad">Belum diisi</span>' : '')}
-                    </div>
-                    ${t ? `<div class="att-muted">${rekap.H || 0} hadir${absen ? `, ${esc(absen)}` : ''}</div>` : ''}
-                    ${home.is_school_day ? `<a class="att-btn ${t ? 'att-btn-ghost' : 'att-btn-primary'} att-btn-block" href="${href}">${t ? (t.terkunci ? 'Lihat absensi' : 'Lihat / ubah') : 'Isi absensi sekarang'}</a>` : ''}
-                    <a class="att-btn att-btn-ghost att-btn-sm" href="#/absen?kelas=${w.class_id}&jenis=harian&pilih=1">Isi tanggal lain</a>
-                </div>`);
-            }
+        for (const w of home.wali_kelas) {
+            const t = w.hari_ini;
+            const rekap = t?.rekap || {};
+            const absen = ['S', 'I', 'A', 'D'].filter((k) => rekap[k]).map((k) => `${rekap[k]} ${window.Att.STATUS[k].toLowerCase()}`).join(', ');
+            const href = `#/absen?kelas=${w.class_id}&tanggal=${today}&jenis=harian`;
+            parts.push(`<section class="g-box g-task ${t ? 'done' : 'todo'}">
+                <header class="g-box-head"><span class="g-tag wali">${ICON.user}${w.posisi === 2 ? 'WALI PENDAMPING' : 'WALI KELAS'}</span><b>KELAS ${esc(kelasTitik(w.kelas))}</b>
+                    ${t ? `<span class="att-badge ok">Sudah diisi ${esc(t.disimpan)}</span>` : (home.is_school_day ? '<span class="att-badge bad">Belum diisi</span>' : '')}</header>
+                <div class="g-box-body">
+                    <p class="att-muted" style="margin:0 0 12px">Anda bisa mengisi absensi harian untuk seluruh siswa di kelas ini (${esc(w.jumlah_siswa)} siswa).${t ? ` Hari ini: ${rekap.H || 0} hadir${absen ? `, ${esc(absen)}` : ''}.` : ''}</p>
+                    <a class="att-btn att-btn-blue att-btn-block g-task-go" href="${href}">${ICON.clip}${t ? (t.terkunci ? `Lihat Absensi KELAS ${esc(kelasTitik(w.kelas))}` : `Lihat / Ubah Absensi KELAS ${esc(kelasTitik(w.kelas))}`) : `Absensi KELAS ${esc(kelasTitik(w.kelas))} Hari Ini`}</a>
+                    <p class="att-muted" style="margin:8px 0 0">Tanggal lain bisa dipilih di dalam halaman absensi.</p>
+                </div>
+            </section>`);
         }
 
         if (home.mapel.length) {
-            const bySubject = new Map();
-            for (const m of home.mapel) {
-                if (!bySubject.has(m.subject_id)) bySubject.set(m.subject_id, { nama: m.mapel, kode: m.kode, kelas: [] });
-                bySubject.get(m.subject_id).kelas.push(m);
-            }
-            for (const s of bySubject.values()) {
-                parts.push(`<h2>${esc(s.kode)} · ${esc(s.nama)}</h2>
-                    <div class="att-card"><p class="att-muted" style="margin:0 0 10px">Pilih kelas yang Anda ajar hari ini.</p>
-                    <div class="g-chips">${s.kelas.map((k) => `<a class="g-chip ${k.hari_ini ? 'done' : ''}" href="#/absen?kelas=${k.class_id}&tanggal=${home.today}&jenis=mapel&mapel=${k.subject_id}">${esc(k.kelas)}${k.hari_ini ? ' ✓' : ''}</a>`).join('')}</div></div>`);
-            }
+            const future = homeDay > today;
+            const rows = home.mapel.map((m) => {
+                const done = homeDay === today && m.hari_ini;
+                const inner = `<span class="g-sched-ico">${ICON.board}</span>
+                    <span class="g-sched-txt"><b>KELAS ${esc(kelasTitik(m.kelas))}${done ? ' ✓' : ''}</b>
+                        <span>${ICON.book}${esc(m.mapel)}</span>
+                        <span class="g-time">${ICON.clock}Jam: segera hadir</span></span>${ICON.chev}`;
+                return future
+                    ? `<div class="g-sched off" aria-disabled="true">${inner}</div>`
+                    : `<a class="g-sched g-chip ${done ? 'done' : ''}" href="#/absen?kelas=${m.class_id}&tanggal=${homeDay}&jenis=mapel&mapel=${m.subject_id}">${inner}</a>`;
+            }).join('');
+            parts.push(`<section class="g-box">
+                <header class="g-box-head"><span class="g-tag mapel">${ICON.book}GURU MAPEL</span><b>Jadwal ${homeDay === today ? 'Hari Ini' : ''} — ${HARI[dow(homeDay)]}</b>
+                    <span class="att-badge mute">${home.mapel.length} kelas</span></header>
+                <div class="g-box-body">
+                    <div class="g-days" role="tablist" aria-label="Pilih hari">${week.map((d) => `<button type="button" role="tab" data-day="${d}" aria-selected="${d === homeDay}">${HARI[dow(d)].slice(0, 3)}<small>${Number(d.slice(8))}</small></button>`).join('')}</div>
+                    ${future ? '<div class="att-alert info" style="margin-bottom:10px">Tanggal ini belum tiba, absensi belum bisa diisi.</div>' : ''}
+                    <div class="g-sched-list">${rows}</div>
+                    <p class="att-muted" style="margin:10px 0 0">Jam pelajaran per hari menyusul di fitur Jadwal Kelas. Untuk sekarang semua kelas yang Anda ajar ditampilkan.</p>
+                </div>
+            </section>`);
         }
 
+        parts.push(`<section class="g-box g-soon">
+            <header class="g-box-head"><span class="g-tag soon">${ICON.cal}JADWAL KELAS</span><b>Jadwal pelajaran</b><span class="att-badge warn">Segera hadir</span></header>
+            <div class="g-box-body"><p class="att-muted" style="margin:0">Jadwal pelajaran per kelas lengkap dengan jam mengajar akan tampil di sini.</p></div>
+        </section>`);
+
         if (home.is_pimpinan && home.semua_kelas.length) {
-            parts.push(`<h2>Pantau sekolah</h2><div class="att-card"><p class="att-muted" style="margin:0 0 10px">Lihat rekap absensi rombel mana pun.</p>
-                <div class="g-chips">${home.semua_kelas.map((c) => `<a class="g-chip" href="#/rekap?kelas=${c.class_id}">${esc(c.kelas)}</a>`).join('')}</div></div>`);
+            parts.push(`<section class="g-box"><header class="g-box-head"><span class="g-tag soon">${ICON.board}PANTAU SEKOLAH</span><b>Rekap semua kelas</b></header>
+                <div class="g-box-body"><div class="g-chips">${home.semua_kelas.map((c) => `<a class="g-chip" href="#/rekap?kelas=${c.class_id}">${esc(c.kelas)}</a>`).join('')}</div></div></section>`);
         }
 
         if (!home.wali_kelas.length && !home.mapel.length && !home.is_pimpinan) {
             parts.push('<div class="att-alert info">Belum ada kelas yang ditugaskan kepada Anda. Hubungi admin sekolah.</div>');
         }
+        const keepY = window.scrollY;
         main(parts.join(''));
+        $('gMain').querySelectorAll('[data-day]').forEach((b) => b.addEventListener('click', () => {
+            homeDay = b.dataset.day;
+            const y = window.scrollY;
+            renderHome();
+            window.scrollTo(0, y);
+        }));
+        if (keepY && staffExtra) window.scrollTo(0, keepY);
     }
 
     // ------------------------------------------------------------------ absensi
@@ -451,6 +535,10 @@
         if (path === '/akun') return renderAkun();
         go('/');
     }
+
+    $('gTopOut').addEventListener('click', async () => {
+        if (await window.Att.confirm({ title: 'Keluar dari Portal Guru?', confirmText: 'Keluar', danger: true })) logout();
+    });
 
     $('gBack').addEventListener('click', () => {
         if (history.length > 1) history.back(); else go('/');

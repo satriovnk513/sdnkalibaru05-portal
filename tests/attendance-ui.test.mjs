@@ -142,12 +142,36 @@ async function runUi() {
         await page.click('#gLoginBtn');
         await page.waitForSelector('#gApp:not(.g-hidden)');
         await page.waitForSelector('.g-task');
-        check(/Halo, Sunarsih/.test(await page.textContent('#gTitle')), 'beranda menyapa nama guru');
+        check(/Selamat datang, Sunarsih/.test(await page.textContent('.g-welcome')) && /Dashboard Guru/.test(await page.textContent('#gTitle')), 'dashboard menyapa nama guru');
+        check(/JADWAL MENGAJAR TERDEKAT/.test(await page.textContent('.g-hero')) && /KELAS 1\.A/.test(await page.textContent('.g-hero')) && await page.$('.g-hero-ava') !== null
+            && /Mulai Absensi/.test(await page.textContent('.g-hero-btn')), 'kartu utama: foto/inisial guru, kelas, tombol Mulai Absensi');
+        check(/Absensi KELAS 1\.A Hari Ini/.test(await page.textContent('.g-task-go')) && !/Isi tanggal lain/.test(await page.textContent('#gMain')), 'kartu wali kelas: satu tombol "Absensi KELAS … Hari Ini"');
+        check(/Segera hadir/.test(await page.textContent('.g-soon')), 'kartu Jadwal Kelas bertanda segera hadir');
+        check(await page.isVisible('#gTopOut'), 'tombol keluar ada di pojok kanan atas');
+        check(await overflow(page) <= 0, 'dashboard tidak bergeser ke samping');
         check(/Belum diisi/.test(await page.textContent('.g-task')), 'kartu menandai absensi belum diisi');
         check(await overflow(page) <= 0, 'beranda tidak bergeser ke samping');
         await shot(page, 'guru-02-beranda-360.png');
 
-        await page.click('.g-task a.att-btn-primary');
+        await shot(page, 'guru-02-dashboard-360.png');
+        // Kartu Guru Mapel: pilih hari Senin–Jumat, lalu buka absen PAI
+        check((await page.$$('.g-days [data-day]')).length === 5, 'kartu jadwal punya pilihan hari Senin–Jumat');
+        await page.click('.g-days [data-day]:first-child');
+        check(/— Senin/.test(await page.textContent('#gMain')) && await page.getAttribute('.g-days [data-day]:first-child', 'aria-selected') === 'true', 'memilih Senin mengganti jadwal ke hari Senin');
+        {
+            const monday = await page.getAttribute('.g-days [data-day]:first-child', 'data-day');
+            const today = await page.evaluate(() => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date()));
+            if (monday <= today) {
+                check((await page.getAttribute('.g-sched', 'href')).includes(`tanggal=${monday}`), 'tautan absen mapel memakai tanggal hari yang dipilih');
+                await page.click('.g-sched');
+                await page.waitForSelector('.att-list .att-item');
+                check(/Non-Muslim<\/b>, mohon diberi status <b>Dispensasi/.test(await page.innerHTML('#gSheet')), 'absen PAI menampilkan keterangan Non-Muslim → Dispensasi');
+                await page.click('#gSheet .att-back');
+                await page.waitForSelector('.g-task');
+                check(true, 'tombol Kembali ke Menu Utama membawa ke dashboard');
+            }
+        }
+        await page.click('.g-task a.g-task-go');
         await page.waitForSelector('.att-list .att-item');
         check((await page.$$('.att-list .att-item')).length === 3, 'lembar absensi memuat 3 siswa');
         check(await overflow(page) <= 0, 'lembar absensi tidak bergeser ke samping (nama panjang)');

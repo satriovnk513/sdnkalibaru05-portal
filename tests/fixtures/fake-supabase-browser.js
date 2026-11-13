@@ -33,7 +33,8 @@
         const base = { today, is_school_day: true, holiday_name: null, earliest_date: today, semua_kelas: [], is_admin: false, is_pimpinan: false };
         const sess = F.sessions[`${C1A}|${today}|harian|-`];
         if (user === 'wali') {
-            return { ...base, staff_id: 'st1', nama: 'Sunarsih, S.Pd.', jabatan: 'Guru Kelas', mapel: [],
+            return { ...base, staff_id: 'st1', nama: 'Sunarsih, S.Pd.', jabatan: 'Guru Kelas',
+                mapel: [{ class_id: C3A, kelas: '3 A', subject_id: PAI, kode: 'PAI', mapel: 'Pendidikan Agama Islam', hari_ini: Boolean(F.sessions[`${C3A}|${today}|mapel|${PAI}`]) }],
                 wali_kelas: [{ class_id: C1A, kelas: '1 A', posisi: 1, jumlah_siswa: 3,
                     hari_ini: sess ? { session_id: sess.id, disimpan: '07.15', terkunci: false, rekap: Object.values(sess.records).reduce((a, r) => { a[r.status] = (a[r.status] || 0) + 1; return a; }, {}) } : null }] };
         }
