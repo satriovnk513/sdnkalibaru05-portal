@@ -359,8 +359,8 @@ async function runUi() {
 
         // Dashboard: kartu rekap per tanggal + peringatan alpa
         await page.evaluate(() => { window.__fake.alpha = [
-            { class_id: 'c1a', kelas: '1 A', student_id: '00000000-0000-4000-8000-000000000052', nama: 'Siswa Fiktif Satu', alpa: 5, terakhir: '2026-11-10' },
-            { class_id: 'c1a', kelas: '1 A', student_id: '00000000-0000-4000-8000-000000000053', nama: 'Siswa Fiktif Tiga', alpa: 4, terakhir: '2026-11-05' },
+            { class_id: '00000000-0000-4000-8000-0000000000c1', kelas: '1 A', student_id: '00000000-0000-4000-8000-000000000052', nama: 'Siswa Fiktif Satu', alpa: 5, terakhir: '2026-11-10', hp: '081200000001' },
+            { class_id: '00000000-0000-4000-8000-0000000000c1', kelas: '1 A', student_id: '00000000-0000-4000-8000-000000000053', nama: 'Siswa Fiktif Tiga', alpa: 4, terakhir: '2026-11-05', hp: null },
         ]; });
         await page.evaluate(() => {
             const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
@@ -389,6 +389,18 @@ async function runUi() {
         await page.waitForSelector('#gAlpha');
         check(/2 siswa alpa lebih dari 3 hari/.test(await page.textContent('#gAlpha')) && /5 hari alpa/.test(await page.textContent('#gAlpha'))
             && (await page.getAttribute('#gAlpha li a', 'href')) === '#/siswa/00000000-0000-4000-8000-000000000052', 'notifikasi alpa: jumlah siswa, hari alpa, tautan ke profil');
+        check(/terakhir 10 Nov 2026/.test(await page.textContent('#gAlpha')) && !/November/.test(await page.textContent('#gAlpha li')), 'tanggal di notifikasi alpa memakai bulan singkat (10 Nov 2026)');
+        {
+            const wa = await page.getAttribute('#gAlpha .g-wa[href]', 'href');
+            const msg = decodeURIComponent(new URL(wa).searchParams.get('text') || '');
+            check(/^https:\/\/wa\.me\/6281200000001\?text=/.test(wa) && (await page.getAttribute('#gAlpha .g-wa[href]', 'target')) === '_blank'
+                && /Hubungi Orang Tua/.test(await page.textContent('#gAlpha .g-wa[href]')), 'tombol Hubungi Orang Tua membuka WhatsApp nomor orang tua (format 62)');
+            check(/Siswa Fiktif Satu/.test(msg) && /alpa \(tidak hadir tanpa keterangan\) sebanyak 5 hari/.test(msg) && /Sunarsih, S\.Pd\./.test(msg) && /Wali Kelas 1\.A/.test(msg),
+                'pesan WhatsApp sudah terisi: nama siswa, jumlah alpa, nama & jabatan wali kelas');
+            check(/belum ada/.test(await page.textContent('#gAlpha li:nth-child(2)')) && await page.$('#gAlpha li:nth-child(2) .g-wa[href]') === null, 'siswa tanpa No. HP: keterangan, tanpa tombol WhatsApp');
+        }
+        check(await page.$eval('.g-hero-body strong i', (i) => getComputedStyle(i).display === 'block' && /^— Wali Kelas$/.test(i.textContent.trim()))
+            && /^KELAS 1\.A/.test((await page.textContent('.g-hero-body strong')).trim()), 'kartu utama: "— Wali Kelas" di baris bawah KELAS 1.A');
         check(await overflow(page) <= 0, 'dashboard dengan kartu rekap + notifikasi tidak bergeser ke samping');
         await shot(page, 'guru-02b-dashboard-rekap-360.png');
 

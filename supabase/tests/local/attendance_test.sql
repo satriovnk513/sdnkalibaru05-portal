@@ -582,10 +582,11 @@ begin
               and session_date >= (public.get_alpha_alerts(1) ->> 'dari')::date);
     v_j := public.get_alpha_alerts(4);
     v_no := v_no + 1;
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Alpa', 'u', 'Wali 1A: siswa alpa >= 4 hari muncul (st1), yang alpa 1x tidak',
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Alpa', 'u', 'Wali 1A: siswa alpa >= 4 hari muncul (st1) dengan No. HP orang tua, yang alpa 1x tidak',
         'ok', case when v_n >= 4 then
                 jsonb_array_length(v_j -> 'siswa') = 1 and v_j -> 'siswa' -> 0 ->> 'student_id' = st1::text
                 and (v_j -> 'siswa' -> 0 ->> 'alpa')::int = v_n and v_j -> 'siswa' -> 0 ->> 'kelas' = '1 A'
+                and v_j -> 'siswa' -> 0 ->> 'hp' = '081200000001'
               else jsonb_array_length(v_j -> 'siswa') = 0 end);
     v_no := v_no + 1; v_r := public.t_try('select public.get_alpha_alerts(0)');
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Alpa', 'u', 'Batas 0 ditolak', 'ok', v_r = '22023');
