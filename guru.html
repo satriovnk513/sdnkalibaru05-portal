@@ -77,7 +77,7 @@
         .g-hero-body { flex: 1 1 170px; min-width: 0; position: relative; z-index: 1; }
         .g-hero-body small { display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: .08em; opacity: .85; }
         .g-hero-body strong { display: block; font-size: 1.3rem; font-weight: 800; line-height: 1.2; margin: 2px 0 6px; overflow-wrap: anywhere; }
-        .g-hero-body strong i { font-style: normal; font-weight: 500; opacity: .9; }
+        .g-hero-body strong i { display: block; font-style: normal; font-weight: 500; font-size: 1.05rem; opacity: .92; margin-top: 2px; }
         .g-hero-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 0.8rem; }
         .g-hero-day { background: #22d3ee; color: #083344; font-weight: 700; border-radius: 999px; padding: 2px 10px; font-size: 0.72rem; }
         .g-hero-btn { position: relative; z-index: 1; flex: 1 1 100%; min-height: 46px; border-radius: 12px; background: #fff; color: var(--att-brand); font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; }
@@ -149,8 +149,13 @@
         .g-bell svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .g-bell i { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #dc2626; color: #fff; font: 700 0.7rem/20px 'Inter', sans-serif; text-align: center; font-style: normal; }
         .g-alert-box ul { list-style: none; margin: 0; padding: 0; }
-        .g-alert-box li a { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 52px; padding: 6px 0; border-top: 1px solid #fecaca; text-decoration: none; color: var(--att-ink); }
-        .g-alert-box li a > span:first-child { display: flex; flex-direction: column; min-width: 0; }
+        .g-alert-box li { border-top: 1px solid #fecaca; padding: 8px 0 10px; }
+        .g-alpha-main { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 44px; text-decoration: none; color: var(--att-ink); }
+        .g-alpha-main > span:first-child { display: flex; flex-direction: column; min-width: 0; }
+        .g-alert-box li small { white-space: nowrap; }
+        .g-wa { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; margin-top: 4px; padding: 0 12px; border-radius: 999px; background: #dcfce7; color: #166534; font-weight: 700; font-size: 0.82rem; text-decoration: none; border: 1px solid #bbf7d0; }
+        .g-wa svg { width: 16px; height: 16px; fill: currentColor; stroke: none; }
+        .g-wa.off { background: none; border: none; padding: 0; color: var(--att-muted); font-weight: 500; font-size: 0.78rem; min-height: 0; }
         .g-alert-box li small { color: var(--att-muted); }
         .g-alert-box li .att-badge { flex: none; }
         .g-alert-box summary { cursor: pointer; padding: 10px 0 4px; color: #991b1b; font-weight: 600; font-size: 0.86rem; }
@@ -262,6 +267,6 @@
     <script src="attendance-sheet.js?v=5"></script>
     <script src="rekap-print.js?v=2"></script>
     <script src="att-charts.js?v=1"></script>
-    <script src="guru.js?v=8"></script>
+    <script src="guru.js?v=9"></script>
 </body>
 </html>

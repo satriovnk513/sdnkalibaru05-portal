@@ -256,6 +256,7 @@
         cal: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
         chev: '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>',
         left: '<svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>',
+        wa: '<svg viewBox="0 0 24 24" class="fill"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.6-.3Z"/></svg>',
         bell: '<svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
     };
     let staffExtra = null;      // { image_url, nip } dari data Guru & Staf di website
@@ -332,7 +333,7 @@
             <div class="g-hero-ava">${avatar}</div>
             <div class="g-hero-body">
                 <small>JADWAL MENGAJAR TERDEKAT</small>
-                <strong>${target ? `KELAS ${esc(kelasTitik(target.kelas))} — <i>${esc(target.label)}</i>` : esc(home.jabatan || 'Belum ada kelas')}</strong>
+                <strong>${target ? `KELAS ${esc(kelasTitik(target.kelas))}<i>— ${esc(target.label)}</i>` : esc(home.jabatan || 'Belum ada kelas')}</strong>
                 <div class="g-hero-meta"><span class="g-hero-day">Hari ${HARI[dow(today)]}</span><span>Jam pelajaran: <b>segera hadir</b></span></div>
             </div>
             ${target && home.is_school_day ? `<a class="g-hero-btn" href="${target.href}">${ICON.clip}${target.done ? 'Lihat Absensi' : 'Mulai Absensi'}</a>` : ''}
@@ -342,7 +343,7 @@
             const list = alphaAlerts.siswa;
             parts.push(`<section class="g-alert-box" id="gAlpha" role="status" aria-label="Peringatan alpa">
                 <header><span class="g-bell">${ICON.bell}<i>${list.length}</i></span>
-                    <div><b>${list.length} siswa alpa lebih dari 3 hari</b><span class="att-muted">Semester ini, sejak ${esc(fmtDate(alphaAlerts.dari, false))}. Perlu ditindaklanjuti.</span></div></header>
+                    <div><b>${list.length} siswa alpa lebih dari 3 hari</b><span class="att-muted">Semester ini, sejak ${esc(fmtShort(alphaAlerts.dari))}. Perlu ditindaklanjuti.</span></div></header>
                 <ul>${list.slice(0, 5).map(alphaItem).join('')}</ul>
                 ${list.length > 5 ? `<details><summary>Lihat ${list.length - 5} siswa lainnya</summary><ul>${list.slice(5).map(alphaItem).join('')}</ul></details>` : ''}
             </section>`);
@@ -437,9 +438,35 @@
         wireDayCard();
     }
 
+    /** "13 Nov 2026" — bulan disingkat supaya tanggal muat satu baris di HP. */
+    function fmtShort(iso) {
+        if (!iso) return '';
+        const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+        return `${d} ${window.Att.BULAN[m - 1].slice(0, 3)} ${y}`;
+    }
+
+    /** Tautan WhatsApp ke orang tua dengan pesan siap kirim. null jika nomor tidak valid. */
+    function waParentLink(s) {
+        const digits = String(s.hp || '').replace(/\D/g, '');
+        const intl = digits.startsWith('62') ? digits : digits.startsWith('0') ? `62${digits.slice(1)}` : '';
+        if (!/^62\d{8,13}$/.test(intl)) return null;
+        const wali = home.wali_kelas.find((w) => w.class_id === s.class_id);
+        const peran = wali ? `${wali.posisi === 2 ? 'Wali Kelas Pendamping' : 'Wali Kelas'} ${kelasTitik(s.kelas)}` : (home.jabatan || 'SDN Kalibaru 05 Pagi');
+        const text = `Assalamu'alaikum / Selamat pagi, Bapak/Ibu orang tua/wali dari ananda *${s.nama}* (Kelas ${kelasTitik(s.kelas)}).\n\n`
+            + `Kami dari SDN Kalibaru 05 Pagi ingin menginformasikan bahwa ananda tercatat *alpa (tidak hadir tanpa keterangan) sebanyak ${s.alpa} hari* pada semester ini, terakhir pada ${fmtDate(s.terakhir)}.\n\n`
+            + 'Mohon kesediaan Bapak/Ibu untuk mengonfirmasi keadaan ananda. Terima kasih.\n\n'
+            + `Hormat kami,\n${home.nama}\n${peran}`;
+        return `https://wa.me/${intl}?text=${encodeURIComponent(text)}`;
+    }
+
     function alphaItem(s) {
-        return `<li><a href="#/siswa/${esc(s.student_id)}"><span><b>${esc(s.nama)}</b><small>Kelas ${esc(kelasTitik(s.kelas))} · terakhir ${esc(fmtDate(s.terakhir, false))}</small></span>
-            <span class="att-badge bad">${esc(s.alpa)} hari alpa</span></a></li>`;
+        const wa = waParentLink(s);
+        return `<li>
+            <a class="g-alpha-main" href="#/siswa/${esc(s.student_id)}"><span><b>${esc(s.nama)}</b><small>Kelas ${esc(kelasTitik(s.kelas))} · terakhir ${esc(fmtShort(s.terakhir))}</small></span>
+                <span class="att-badge bad">${esc(s.alpa)} hari alpa</span></a>
+            ${wa ? `<a class="g-wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">${ICON.wa}Hubungi Orang Tua</a>`
+        : '<span class="g-wa off">No. HP orang tua belum ada di data siswa</span>'}
+        </li>`;
     }
 
     // ------------------------------------------------------------------ statistik
