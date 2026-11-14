@@ -333,3 +333,9 @@ Lupa password tanpa email: guru membuat PIN 6 angka di menu **Akun** (wajib pass
 - Akun baru dan "Reset password" memakai NIP/NUPTK guru sebagai password awal (acak bila guru tidak punya NIP/NUPTK).
 - `teacher_accounts.must_change_password = true` → di `/guru` guru ditahan di layar **Buat password baru** sampai menggantinya (`api/guru-change-password.js`; password baru tidak boleh sama dengan NIP/NUPTK atau email).
 - Tanda itu dicabut juga saat guru mengganti password lewat PIN pemulihan.
+
+## Statistik & peringatan alpa (20261114000002)
+
+- `get_class_attendance_stats(class, dari, sampai)` — ringkasan absensi **harian** satu rombel: total H/S/I/A/D, per hari, per siswa, hari efektif & terisi (maks. 400 hari). Dipakai kartu "Absensi per tanggal" di dashboard guru dan halaman **Statistik** (harian / bulanan / semester; grafik di `att-charts.js`, tanpa library luar).
+- `get_alpha_alerts(min = 4)` — siswa yang alpanya ≥ `min` hari pada semester berjalan ("lebih dari 3 hari"). Wali kelas melihat kelasnya; pimpinan & admin semua kelas. Kosong selama absensi belum diisi.
+- Tes: `run.sh` bagian M, `tests/att-charts.test.mjs`.

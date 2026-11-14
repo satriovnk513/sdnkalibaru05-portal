@@ -357,6 +357,61 @@ async function runUi() {
             await pop2.close();
         }
 
+        // Dashboard: kartu rekap per tanggal + peringatan alpa
+        await page.evaluate(() => { window.__fake.alpha = [
+            { class_id: 'c1a', kelas: '1 A', student_id: '00000000-0000-4000-8000-000000000052', nama: 'Siswa Fiktif Satu', alpa: 5, terakhir: '2026-11-10' },
+            { class_id: 'c1a', kelas: '1 A', student_id: '00000000-0000-4000-8000-000000000053', nama: 'Siswa Fiktif Tiga', alpa: 4, terakhir: '2026-11-05' },
+        ]; });
+        await page.evaluate(() => {
+            const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+            const S = (n) => `00000000-0000-4000-8000-00000000005${n}`;
+            window.__fake.sessions[`00000000-0000-4000-8000-0000000000c1|${today}|harian|-`] = { id: 'sess-stat',
+                records: { [S(1)]: { status: 'H' }, [S(2)]: { status: 'S' }, [S(3)]: { status: 'D' } } };
+        });
+        await page.click('.g-nav a[data-nav="home"]');
+        await page.waitForSelector('#gDayBody .ac-rows');
+        check((await page.$$('#gDayBody .ac-row')).length === 5 && /Dispensasi \(D\)/.test(await page.textContent('#gDayBody')), 'kartu rekap per tanggal: Hadir, Izin, Sakit, Alpa, Dispensasi');
+        check(/Absensi Hari Ini/.test(await page.textContent('#gDayTitle')) && await page.isDisabled('#gDayNext'), 'kartu rekap mulai dari hari ini; tombol berikutnya mati (belum ada besok)');
+        {
+            const total = await page.$$eval('#gDayBody .ac-row-top b', (b) => b.reduce((n, x) => n + parseInt(x.textContent, 10), 0));
+            check(total === 3 && /%/.test(await page.textContent('#gDayBody .ac-badge b')), `kartu rekap menjumlah 3 siswa dan menampilkan % kehadiran (${total})`);
+            check((await page.textContent('#gDayBody .ac-badge b')).trim() === '66,7%', 'kehadiran 2 dari 3 (hadir + dispensasi) = 66,7%');
+        }
+        const before = await page.inputValue('#gDayDate');
+        await page.click('#gDayPrev');
+        await page.waitForFunction((d) => document.getElementById('gDayDate').value !== d, before);
+        await page.waitForFunction(() => /Absensi per Tanggal/.test(document.getElementById('gDayTitle').textContent) && document.getElementById('gDayBody').style.opacity === '');
+        check((await page.inputValue('#gDayDate')) < before && !(await page.isDisabled('#gDayNext')), 'tombol sebelumnya memundurkan tanggal satu hari');
+        check(/belum diisi|libur/.test(await page.textContent('#gDayBody')), 'tanggal tanpa absensi diberi keterangan');
+        await page.click('#gDayNext');
+        await page.waitForFunction((d) => document.getElementById('gDayDate').value === d, before);
+        check(true, 'tombol berikutnya kembali ke hari ini');
+        await page.waitForSelector('#gAlpha');
+        check(/2 siswa alpa lebih dari 3 hari/.test(await page.textContent('#gAlpha')) && /5 hari alpa/.test(await page.textContent('#gAlpha'))
+            && (await page.getAttribute('#gAlpha li a', 'href')) === '#/siswa/00000000-0000-4000-8000-000000000052', 'notifikasi alpa: jumlah siswa, hari alpa, tautan ke profil');
+        check(await overflow(page) <= 0, 'dashboard dengan kartu rekap + notifikasi tidak bergeser ke samping');
+        await shot(page, 'guru-02b-dashboard-rekap-360.png');
+
+        // Statistik
+        await page.click('.g-nav a[data-nav="statistik"]');
+        await page.waitForSelector('#gStat .g-tiles');
+        check((await page.$$('.g-nav a')).length === 5 && await overflow(page) <= 0, 'menu bawah 5 tombol (ada Statistik) muat di 360 px');
+        check(await page.$('#gStKomposisi .ac-donut svg') !== null && await page.$('#gStTren svg rect') !== null, 'statistik bulanan: donat komposisi + batang tren');
+        await page.click('[data-komposisi="batang"]');
+        check(await page.$('#gStKomposisi .ac-bars') !== null && await page.$('#gStKomposisi .ac-donut') === null, 'komposisi bisa diganti ke grafik batang');
+        await page.click('[data-tren="garis"]');
+        check(await page.$('#gStTren svg path') !== null && /Terendah/.test(await page.textContent('#gStTren')), 'tren bisa diganti ke grafik garis %');
+        await shot(page, 'guru-09-statistik-bulan-360.png');
+        await page.click('[data-mode="semester"]');
+        await page.waitForFunction(() => /Semester (Ganjil|Genap)/.test(document.querySelector('.g-stat-title')?.textContent || ''));
+        check(/per bulan/.test(await page.textContent('#gStat')), 'mode semester: tren digabung per bulan');
+        await page.click('[data-mode="hari"]');
+        await page.waitForFunction(() => /tidak hadir \/ dispensasi/.test(document.getElementById('gStat')?.textContent || ''));
+        check(await page.isVisible('#gStDate') && !(await page.isVisible('#gStMonth')) && await page.$('#gStTren') === null, 'mode harian: pilih tanggal, tanpa grafik tren');
+        check(await page.$('#gFloat.att-float #gStKelas') !== null, 'filter statistik ada di panel yang bisa menempel');
+        check(await overflow(page) <= 0, 'halaman statistik tidak bergeser ke samping');
+        await shot(page, 'guru-09b-statistik-hari-360.png');
+
         // Akun
         await page.click('.g-nav a[data-nav="akun"]');
         await page.fill('#gPw1', 'abcdefgh');

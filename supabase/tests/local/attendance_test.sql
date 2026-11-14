@@ -533,6 +533,81 @@ begin
     execute 'reset role';
     perform set_config('request.jwt.claims', '', true);
 
+    -- ======================================================== M. Statistik & peringatan alpa
+    -- Tes Akademik di atas memindahkan tahun ajaran aktif; kembalikan ke tahun ajaran rombel 1 A.
+    update public.academic_years set is_active = false where is_active;
+    update public.academic_years set is_active = true where id = (select academic_year_id from public.classes where id = c1a);
+    -- Empat hari lampau (tanggal berbeda, di dalam semester berjalan) dengan st1 alpa; st3 alpa 1x saja.
+    insert into public.attendance_sessions (id, class_id, session_date, kind)
+    select gen_random_uuid(), c1a, d::date, 'harian'
+    from (select d from generate_series(v_d - 40, v_d - 1, interval '1 day') d
+          where public.is_school_day(d::date)
+            and d::date >= (select start_date from public.academic_years where is_active)
+            and not exists (select 1 from public.attendance_sessions x where x.class_id = c1a and x.session_date = d::date and x.kind = 'harian' and x.archived_at is null)
+          order by d desc limit 4) q;
+    insert into public.attendance_records (session_id, student_id, status)
+    select s.id, st.sid, case when st.sid = st1 then 'A' when st.sid = st3 and s.session_date = (select min(session_date) from public.attendance_sessions where class_id = c1a and kind = 'harian' and session_date < v_d) then 'A' else 'H' end
+    from public.attendance_sessions s cross join (values (st1), (st2), (st3)) st(sid)
+    where s.class_id = c1a and s.kind = 'harian' and s.session_date < v_d
+      and not exists (select 1 from public.attendance_records r where r.session_id = s.id);
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_class_attendance_stats(c1a, v_d, v_d);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Statistik', 'u', 'Per tanggal 1 A: 3 siswa, 1 hari terisi, Sakit 1, jumlah status = 3',
+        'ok', (v_j ->> 'jumlah_siswa')::int = 3 and (v_j ->> 'hari_terisi')::int = 1 and (v_j -> 'total' ->> 'S')::int = 1
+          and (select sum(value::int) from jsonb_each_text(v_j -> 'total')) = 3
+          and jsonb_array_length(v_j -> 'harian') = 1 and v_j ->> 'libur' is null);
+    v_j := public.get_class_attendance_stats(c1a, v_d - 40, v_d);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Statistik', 'u', 'Rentang: per hari berurutan, per siswa st1 alpa = jumlah hari lampau, hari efektif >= hari terisi',
+        'ok', jsonb_array_length(v_j -> 'harian') = (v_j ->> 'hari_terisi')::int
+          and (v_j ->> 'hari_efektif')::int >= (v_j ->> 'hari_terisi')::int
+          and (select (x ->> 'A')::int from jsonb_array_elements(v_j -> 'siswa') x where x ->> 'student_id' = st1::text)
+              = (select count(*) from public.attendance_sessions where class_id = c1a and kind = 'harian' and session_date < v_d and session_date >= v_d - 40 and archived_at is null)
+          and (v_j -> 'harian' -> 0 ->> 'tanggal') < (v_j -> 'harian' -> -1 ->> 'tanggal'));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Statistik', 'u', 'Sabtu: ditandai libur, 0 hari efektif',
+        'ok', (public.get_class_attendance_stats(c1a, v_sat, v_sat) ->> 'libur') = 'Sabtu/Minggu'
+          and (public.get_class_attendance_stats(c1a, v_sat, v_sat) ->> 'hari_efektif')::int = 0);
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_class_attendance_stats(%L, %L, %L)', c1a, v_d, v_d - 1));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Statistik', 'u', 'Rentang terbalik ditolak', 'ok', v_r = '22023');
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_class_attendance_stats(%L, %L, %L)', c1a, v_d - 500, v_d));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Statistik', 'u', 'Rentang lebih dari 400 hari ditolak', 'ok', v_r = '22023');
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_class_attendance_stats(%L, %L, %L)', c3a, v_d, v_d));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Hak', 'u', 'Wali 1A tidak bisa statistik 3A', 'ok', v_r = '42501');
+
+    v_n := (select count(*) from public.attendance_sessions where class_id = c1a and kind = 'harian' and session_date < v_d and archived_at is null
+              and session_date >= (public.get_alpha_alerts(1) ->> 'dari')::date);
+    v_j := public.get_alpha_alerts(4);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Alpa', 'u', 'Wali 1A: siswa alpa >= 4 hari muncul (st1), yang alpa 1x tidak',
+        'ok', case when v_n >= 4 then
+                jsonb_array_length(v_j -> 'siswa') = 1 and v_j -> 'siswa' -> 0 ->> 'student_id' = st1::text
+                and (v_j -> 'siswa' -> 0 ->> 'alpa')::int = v_n and v_j -> 'siswa' -> 0 ->> 'kelas' = '1 A'
+              else jsonb_array_length(v_j -> 'siswa') = 0 end);
+    v_no := v_no + 1; v_r := public.t_try('select public.get_alpha_alerts(0)');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Alpa', 'u', 'Batas 0 ditolak', 'ok', v_r = '22023');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_josua, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Alpa', 'u', 'Guru mapel (bukan wali) tidak menerima peringatan kelas lain',
+        'ok', jsonb_array_length(public.get_alpha_alerts(1) -> 'siswa') = 0);
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_lilis, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Alpa', 'u', 'Kepala sekolah melihat peringatan semua kelas',
+        'ok', exists (select 1 from jsonb_array_elements(public.get_alpha_alerts(1) -> 'siswa') x where x ->> 'student_id' = st1::text));
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    v_no := v_no + 1; v_r := public.t_try('select public.get_alpha_alerts(4)');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Hak', 'u', 'Anon tidak bisa memanggil get_alpha_alerts', 'ok', v_r = '42501');
+    execute 'reset role';
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end
