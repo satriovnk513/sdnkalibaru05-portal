@@ -202,7 +202,7 @@
             { holiday_date: '2026-12-25', name: 'Kelahiran Yesus Kristus', kind: 'nasional', source: 'SKB 3 Menteri 2026' },
         ],
         attendance_changes: [{ action: 'buat', old_status: null, new_status: null, reason: null, changed_by: 'u1', changed_at: new Date().toISOString(), student_id: null }],
-        teacher_accounts: [{ user_id: 'u1', email: 'sunarsih@fiktif.test' }],
+        teacher_accounts: [{ user_id: 'u1', email: 'sunarsih@fiktif.test' }, { user_id: 'u-wali', email: 'wali@fiktif.test', must_change_password: false }],
     };
     F.catalog = F.catalog || [
         { holiday_date: '2026-12-24', name: 'Cuti Bersama Kelahiran Yesus Kristus', kind: 'cuti_bersama', source: 'SKB 3 Menteri 2026' },

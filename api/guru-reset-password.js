@@ -33,6 +33,7 @@ export default async function handler(req, res) {
     if (!/^[0-9]{6}$/.test(pin)) return sendError(res, 400, 'invalid_pin', 'PIN harus 6 angka.');
     if (password.length < 8 || password.length > 72) return sendError(res, 400, 'invalid_password', 'Password baru minimal 8 karakter.');
     if (password === pin) return sendError(res, 400, 'invalid_password', 'Password baru tidak boleh sama dengan PIN.');
+    if (id.kind === 'nip' && password.replace(/[\s.]/g, '') === id.value) return sendError(res, 400, 'invalid_password', 'Password baru tidak boleh sama dengan NIP/NUPTK.');
 
     const key = serviceKey();
     if (!key) return sendError(res, 500, 'config_error', 'Fitur lupa password belum dikonfigurasi di server.');
@@ -40,7 +41,7 @@ export default async function handler(req, res) {
     const filter = id.kind === 'email'
         ? `email=eq.${encodeURIComponent(id.value)}`
         : `login_id=eq.${encodeURIComponent(id.value)}`;
-    const acc = await sb('GET', `/rest/v1/teacher_accounts?select=user_id,is_active&${filter}`, { key });
+    const acc = await sb('GET', `/rest/v1/teacher_accounts?select=user_id,is_active,login_id&${filter}`, { key });
     if (!acc.ok) return sendError(res, 502, 'upstream_error', 'Server sedang bermasalah. Coba lagi.');
     const row = Array.isArray(acc.json) ? acc.json[0] : null;
     if (!row) return sendError(res, 401, 'invalid_pin', GENERIC);
@@ -53,11 +54,15 @@ export default async function handler(req, res) {
     }
     if (v.json !== 'ok') return sendError(res, 401, 'invalid_pin', GENERIC);
     if (!row.is_active) return sendError(res, 403, 'inactive', 'Akun dinonaktifkan. Hubungi admin.');
+    if (row.login_id && password.replace(/[\s.]/g, '') === row.login_id) return sendError(res, 400, 'invalid_password', 'Password baru tidak boleh sama dengan NIP/NUPTK.');
 
     const u = await sb('PUT', `/auth/v1/admin/users/${row.user_id}`, { key, body: { password } });
     if (!u.ok) {
         if (u.status === 422) return sendError(res, 400, 'invalid_password', 'Password baru ditolak. Pakai kombinasi huruf dan angka, minimal 8 karakter.');
         return sendError(res, 502, 'upstream_error', 'Gagal mengganti password. Coba lagi.');
     }
+    await sb('PATCH', `/rest/v1/teacher_accounts?user_id=eq.${row.user_id}`, {
+        key, body: { must_change_password: false, updated_at: new Date().toISOString() }, headers: { Prefer: 'return=minimal' },
+    });
     return res.status(200).json({ ok: true });
 }

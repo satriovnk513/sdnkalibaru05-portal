@@ -327,3 +327,9 @@ Lupa password tanpa email: guru membuat PIN 6 angka di menu **Akun** (wajib pass
 - PIN lemah ditolak (111111, 123456, 121212, dst). Salah 5 kali → terkunci 30 menit. Pesan gagal tidak membedakan akun tak dikenal / PIN salah / belum punya PIN.
 - Guru lupa PIN: admin → Akun Guru → **Hapus PIN** (dan Reset password bila perlu).
 - Tes: `run.sh` bagian L, `tests/attendance-api.test.mjs`.
+
+## Password awal = NIP/NUPTK (20261114000001)
+
+- Akun baru dan "Reset password" memakai NIP/NUPTK guru sebagai password awal (acak bila guru tidak punya NIP/NUPTK).
+- `teacher_accounts.must_change_password = true` → di `/guru` guru ditahan di layar **Buat password baru** sampai menggantinya (`api/guru-change-password.js`; password baru tidak boleh sama dengan NIP/NUPTK atau email).
+- Tanda itu dicabut juga saat guru mengganti password lewat PIN pemulihan.

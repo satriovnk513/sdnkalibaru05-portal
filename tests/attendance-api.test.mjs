@@ -11,6 +11,7 @@ const { default: login, classifyIdentifier } = await import('../api/guru-login.j
 const { default: accounts, buildRows, normalizeRequest, generatePassword } = await import('../api/admin/teacher-accounts.js');
 const { default: setPin, pinIsWeak } = await import('../api/guru-pin.js');
 const { default: resetPw } = await import('../api/guru-reset-password.js');
+const { default: changePw, passwordProblem } = await import('../api/guru-change-password.js');
 
 const ORIGIN = 'https://sdnkalibaru05.sch.id';
 const ADMIN = '00000000-0000-4000-8000-0000000000a1';
@@ -109,18 +110,22 @@ globalThis.fetch = async (url, opts = {}) => {
         const email = q.get('email')?.replace('eq.', '');
         const nip = q.get('login_id')?.replace('eq.', '');
         let rows = db.accs;
+        const uid = q.get('user_id')?.replace('eq.', '');
+        if (uid) rows = rows.filter((a) => a.user_id === uid);
         if (email) rows = rows.filter((a) => a.email === decodeURIComponent(email));
         if (nip) rows = rows.filter((a) => a.login_id === nip);
         return json(200, rows);
     }
     if (p === '/rest/v1/teacher_accounts' && method === 'POST') {
         if (db.failLinkFor === body.staff_id) return json(409, { code: '23505' });
-        db.accs.push({ ...body, is_active: true });
+        db.accs.push({ is_active: true, ...body });
         return json(201);
     }
     if (p === '/rest/v1/teacher_accounts' && method === 'PATCH') {
-        const sid = q.get('staff_id').replace('eq.', '');
-        Object.assign(db.accs.find((a) => a.staff_id === sid), body);
+        const sid = q.get('staff_id')?.replace('eq.', '');
+        const uid = q.get('user_id')?.replace('eq.', '');
+        const acc = db.accs.find((a) => (sid ? a.staff_id === sid : a.user_id === uid));
+        if (acc) Object.assign(acc, body);
         return json(204);
     }
     return json(404, { msg: `tidak ditiru: ${method} ${p}` });
@@ -199,12 +204,19 @@ test('akun guru: GET memberi status tiap staf', async () => {
     assert.deepEqual(by, { 'Guru Fiktif Satu': 'aktif', 'Guru Fiktif Dua': 'siap_dibuat', 'Operator Fiktif': 'siap_dibuat', 'Belum Daftar': 'belum_didaftarkan' });
 });
 
-test('akun guru: buat semua → dua akun baru, password sekali, operator jadi admin', async () => {
+test('akun guru: buat semua → password awal = NIP/NUPTK (acak jika tak punya), wajib ganti, operator jadi admin', async () => {
+    db.reqs[1].login_id = '990000000000000002';
     const r = await call(accounts, { token: 'jwt-admin', body: { action: 'create' } });
     assert.equal(r.status, 200);
     const ok = r.body.results.filter((x) => x.ok);
     assert.equal(ok.length, 2);
-    for (const x of ok) assert.match(x.password, /^[a-zA-Z2-9]{10}$/);
+    const dua = ok.find((x) => x.nama === 'Guru Fiktif Dua');
+    assert.equal(dua.password, '990000000000000002', 'password awal = NIP/NUPTK');
+    assert.equal(dua.dari_nip, true);
+    const op = ok.find((x) => x.nama === 'Operator Fiktif');
+    assert.match(op.password, /^[a-zA-Z2-9]{10}$/, 'tanpa NIP → password acak');
+    assert.equal(op.dari_nip, false);
+    assert.ok(db.accs.filter((a) => a.staff_id !== ST(1)).every((a) => a.must_change_password === true), 'akun baru wajib ganti password');
     assert.ok(r.body.results.find((x) => x.nama === 'Guru Fiktif Satu' && !x.ok));
     const created = calls.filter((c) => c.path === '/auth/v1/admin/users');
     assert.ok(created.every((c) => c.body.email_confirm === true));
@@ -356,4 +368,50 @@ test('admin: daftar akun menampilkan status PIN dan bisa menghapus PIN; guru tid
     assert.equal(db.pins[GURU], undefined);
     r = await call(accounts, { method: 'GET', token: 'jwt-admin' });
     assert.equal(r.body.rows.find((x) => x.staff_id === ST(1)).pin, false);
+});
+
+// ---------------------------------------------------------------- password awal = NIP
+test('reset password oleh admin → kembali ke NIP/NUPTK dan wajib ganti lagi', async () => {
+    db.accs[0].must_change_password = false;
+    const r = await call(accounts, { token: 'jwt-admin', body: { action: 'reset_password', staff_id: ST(1) } });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.password, '990000000000000001');
+    assert.equal(r.body.dari_nip, true);
+    assert.equal(db.pwChanged[GURU], '990000000000000001');
+    assert.equal(db.accs[0].must_change_password, true);
+});
+
+test('aturan password baru: minimal 8, tidak boleh sama dengan NIP/NUPTK atau email', () => {
+    const me = { login_id: '990000000000000001', email: 'guru@fiktif.test' };
+    assert.match(passwordProblem('pendek', me), /minimal 8/);
+    assert.match(passwordProblem('990000000000000001', me), /NIP/);
+    assert.match(passwordProblem('9900 0000 0000 0000 01', me), /NIP/);
+    assert.match(passwordProblem('Guru@Fiktif.test', me), /email/);
+    assert.equal(passwordProblem('RahasiaBaru7', me), null);
+});
+
+test('guru ganti password: tanda wajib-ganti dicabut; NIP sebagai password ditolak; wajib login', async () => {
+    db.accs[0].must_change_password = true;
+    let r = await call(changePw, { body: { password: 'RahasiaBaru7' } });
+    assert.equal(r.status, 401);
+    r = await call(changePw, { token: 'jwt-guru', body: { password: '990000000000000001' } });
+    assert.equal(r.status, 400);
+    assert.equal(db.accs[0].must_change_password, true);
+    assert.deepEqual(db.pwChanged, {});
+    r = await call(changePw, { token: 'jwt-guru', body: { password: 'RahasiaBaru7' } });
+    assert.equal(r.status, 200);
+    assert.equal(db.pwChanged[GURU], 'RahasiaBaru7');
+    assert.equal(db.accs[0].must_change_password, false);
+    r = await call(changePw, { token: 'jwt-admin', body: { password: 'RahasiaBaru7' } });
+    assert.equal(r.status, 403, 'akun tanpa data guru ditolak');
+});
+
+test('lupa password lewat PIN: password baru = NIP ditolak; sukses mencabut tanda wajib-ganti', async () => {
+    db.pins[GURU] = { pin: '483920', fails: 0, locked: false };
+    db.accs[0].must_change_password = true;
+    let r = await call(resetPw, { body: { identifier: 'guru@fiktif.test', pin: '483920', password: '990000000000000001' } });
+    assert.equal(r.status, 400);
+    r = await call(resetPw, { body: { identifier: 'guru@fiktif.test', pin: '483920', password: 'RahasiaBaru7' } });
+    assert.equal(r.status, 200);
+    assert.equal(db.accs[0].must_change_password, false);
 });

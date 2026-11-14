@@ -53,10 +53,10 @@
         back.className = 'att-sheet-backdrop';
         back.innerHTML = `<div class="att-sheet" role="dialog" aria-modal="true" aria-labelledby="accPwTitle" style="max-width:720px">
             <h3 id="accPwTitle">${esc(title)}</h3>
-            ${ok.length ? `<div class="att-alert warn" style="margin:8px 0 12px">Password hanya tampil <b>sekali ini</b>. Salin atau cetak sekarang, lalu bagikan langsung ke tiap guru. Guru bisa menggantinya sendiri di menu Akun.</div>
+            ${ok.length ? `<div class="att-alert warn" style="margin:8px 0 12px">Password awal = <b>NIP/NUPTK masing-masing</b> (acak untuk yang tidak punya NIP/NUPTK, tampil <b>sekali ini</b> saja, jadi catat sekarang). Guru <b>wajib membuat password baru</b> saat login pertama.</div>
             <div style="overflow-x:auto"><table class="att-table"><thead><tr><th>Nama</th><th>Login (email / NIP)</th><th>Password awal</th></tr></thead><tbody>
             ${ok.map((r) => `<tr><td data-label="Nama">${esc(r.nama)}</td><td data-label="Login">${esc(r.email)}${r.login_id ? `<br><span class="att-muted">${esc(r.login_id)}</span>` : ''}</td>
-                <td data-label="Password"><code style="font-size:1.05rem;letter-spacing:.5px">${esc(r.password)}</code></td></tr>`).join('')}
+                <td data-label="Password"><code style="font-size:1.05rem;letter-spacing:.5px">${esc(r.password)}</code>${r.dari_nip ? ' <span class="att-badge mute">= NIP/NUPTK</span>' : ' <span class="att-badge warn">acak</span>'}</td></tr>`).join('')}
             </tbody></table></div>` : ''}
             ${fail.length ? `<div class="att-alert err" style="margin-top:12px"><b>${fail.length} gagal:</b><ul style="margin:6px 0 0;padding-left:18px">${fail.map((r) => `<li>${esc(r.nama || r.staff_id)} — ${esc(r.pesan)}</li>`).join('')}</ul></div>` : ''}
             <div class="att-row" style="margin-top:16px">
@@ -178,7 +178,7 @@
     async function onAccClick(e) {
         if (e.target.closest('#accCreateAll')) {
             const n = accRows.filter((r) => r.status === 'siap_dibuat').length;
-            const ok = await window.Att.confirm({ title: `Buat ${n} akun sekarang?`, html: '<p class="att-muted">Tidak ada email yang dikirim. Password awal akan tampil sekali untuk Anda bagikan.</p>', confirmText: 'Buat akun' });
+            const ok = await window.Att.confirm({ title: `Buat ${n} akun sekarang?`, html: '<p class="att-muted">Tidak ada email yang dikirim. Password awal = NIP/NUPTK masing-masing guru, dan wajib diganti saat login pertama.</p>', confirmText: 'Buat akun' });
             if (!ok) return;
             const btn = $('accCreateAll');
             btn.disabled = true; btn.textContent = 'Membuat akun…';
@@ -203,7 +203,7 @@
                 const { results } = await api('POST', { action: 'create', staff_ids: [row.staff_id] });
                 showPasswords(results, `Akun ${row.nama}`);
             } else if (b.dataset.acc === 'reset') {
-                if (!await window.Att.confirm({ title: `Reset password ${row.nama}?`, html: '<p class="att-muted">Password lama langsung tidak berlaku.</p>', confirmText: 'Reset' })) return;
+                if (!await window.Att.confirm({ title: `Reset password ${row.nama}?`, html: '<p class="att-muted">Password lama langsung tidak berlaku. Password kembali ke NIP/NUPTK guru itu dan wajib diganti saat login berikutnya.</p>', confirmText: 'Reset' })) return;
                 const r = await api('POST', { action: 'reset_password', staff_id: row.staff_id });
                 showPasswords([{ ...r, ok: true }], `Password baru ${row.nama}`);
             } else if (b.dataset.acc === 'clearpin') {
