@@ -17,6 +17,7 @@
     const $ = (id) => document.getElementById(id);
 
     let home = null;          // hasil get_guru_home
+    let forceChange = false;  // password masih password awal → wajib ganti dulu
     let userEmail = '';
 
     // ------------------------------------------------------------------ util
@@ -123,6 +124,62 @@
         }
     });
 
+    // ------------------------------------------------------------------ ganti password
+    async function changePassword(password) {
+        const { data: { session } } = await sb.auth.getSession();
+        const res = await fetch('/api/guru-change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+            body: JSON.stringify({ password }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body?.error?.message || 'Gagal mengganti password.');
+    }
+
+    /** Password masih password awal (NIP/NUPTK)? Guru harus membuat password baru dulu. */
+    async function mustChangePassword() {
+        try {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session?.user?.id) return false;
+            const { data } = await sb.from('teacher_accounts').select('must_change_password').eq('user_id', session.user.id).maybeSingle();
+            return Boolean(data?.must_change_password);
+        } catch { return false; }
+    }
+
+    function renderForceChange() {
+        document.body.classList.add('g-sheet-open');   // sembunyikan menu bawah
+        setTop('Buat password baru', '');
+        main(`<div class="att-alert warn" style="margin-bottom:12px"><b>Password Anda masih password awal (NIP/NUPTK).</b> Demi keamanan data siswa, buat password baru dulu sebelum lanjut.</div>
+            <form class="att-card att-stack" id="gForceForm" novalidate>
+                <div class="att-field"><label for="gF1">Password baru</label><input class="att-input" id="gF1" type="password" autocomplete="new-password" minlength="8"></div>
+                <div class="att-field"><label for="gF2">Ulangi password baru</label><input class="att-input" id="gF2" type="password" autocomplete="new-password" minlength="8"></div>
+                <p class="att-muted" style="margin:0">Minimal 8 karakter, tidak boleh sama dengan NIP/NUPTK. Setelah ini buat juga PIN pemulihan di menu Akun supaya bisa reset sendiri kalau lupa.</p>
+                <div class="att-alert err g-hidden" id="gForceErr" role="alert"></div>
+                <button type="submit" class="att-btn att-btn-primary" id="gForceBtn">Simpan &amp; lanjut</button>
+            </form>
+            <button type="button" class="att-btn att-btn-ghost att-btn-block" id="gForceOut" style="margin-top:12px">Keluar</button>`);
+        $('gForceOut').addEventListener('click', logout);
+        $('gForceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fail = (m) => { const el = $('gForceErr'); el.textContent = m; el.classList.remove('g-hidden'); };
+            const a = $('gF1').value;
+            if (a.length < 8) return fail('Password baru minimal 8 karakter.');
+            if (a !== $('gF2').value) return fail('Kedua password tidak sama.');
+            const btn = $('gForceBtn');
+            btn.disabled = true; btn.textContent = 'Menyimpan…';
+            try {
+                await changePassword(a);
+                forceChange = false;
+                toast('Password baru tersimpan.');
+                location.hash = '#/';
+                route();
+            } catch (err) {
+                fail(errMessage(err));
+                btn.disabled = false; btn.textContent = 'Simpan & lanjut';
+            }
+        });
+    }
+
     // ------------------------------------------------------------------ lupa password (PIN)
     function showReset(on) {
         $('gLoginBox').classList.toggle('g-hidden', on);
@@ -177,6 +234,7 @@
         await sb.auth.signOut();
         home = null;
         staffExtra = null;
+        forceChange = false;
         pinStatus = null;
         homeDay = null;
         location.hash = '#/';
@@ -582,8 +640,7 @@
             const b = $('gPw2').value;
             if (a.length < 8) return toast('Password minimal 8 karakter.', 'err');
             if (a !== b) return toast('Kedua password tidak sama.', 'err');
-            const { error } = await sb.auth.updateUser({ password: a });
-            if (error) return toast(errMessage(error), 'err');
+            try { await changePassword(a); } catch (err) { return toast(errMessage(err), 'err'); }
             $('gPw1').value = '';
             $('gPw2').value = '';
             toast('Password berhasil diganti.');
@@ -641,6 +698,7 @@
     async function route() {
         if (!home) return;
         document.body.classList.remove('g-sheet-open');
+        if (forceChange) return renderForceChange();
         const { path, params } = parseHash();
         if (path === '/' || path === '') return renderHome();
         if (path === '/absen') return renderAbsen(params);
@@ -672,6 +730,7 @@
                 ? 'Akun ini belum terhubung ke data guru. Hubungi admin sekolah.'
                 : errMessage(err));
         }
+        forceChange = await mustChangePassword();
         $('gLogin').classList.add('g-hidden');
         $('gApp').classList.remove('g-hidden');
         await route();

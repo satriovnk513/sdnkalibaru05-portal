@@ -79,6 +79,13 @@ async function runUi() {
             if (b.pin !== '483920') return r.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Email/NIP atau PIN salah. Belum pernah membuat PIN? Hubungi admin sekolah.' } }) });
             return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
         });
+        await ctx.route('**/api/guru-change-password', async (r) => {
+            const b = JSON.parse(r.request().postData() || '{}');
+            apiCalls.push({ api: 'changepw', password: b.password, auth: r.request().headers().authorization });
+            if (b.password === '990000000000000001') return r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Password baru tidak boleh sama dengan NIP/NUPTK.' } }) });
+            await r.request().frame().page().evaluate(() => { window.__fake.tables.teacher_accounts.find((a) => a.user_id === 'u-wali').must_change_password = false; });
+            return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+        });
         await ctx.route('**/api/guru-pin', async (r) => {
             const b = JSON.parse(r.request().postData() || '{}');
             apiCalls.push({ api: 'pin', pin: b.pin, auth: r.request().headers().authorization });
@@ -174,10 +181,29 @@ async function runUi() {
         await page.waitForFunction(() => /password salah/.test(document.getElementById('gLoginErr').textContent) && !document.getElementById('gLoginErr').classList.contains('g-hidden'));
         check(/err/.test(await page.getAttribute('#gLoginErr', 'class')), 'password salah menampilkan pesan (merah, bukan pesan sukses sebelumnya)');
 
+        await page.evaluate(() => { window.__fake.tables.teacher_accounts.find((a) => a.user_id === 'u-wali').must_change_password = true; });
         await page.fill('#gPw', 'benar123');
         await page.click('#gLoginBtn');
         await page.waitForSelector('#gApp:not(.g-hidden)');
+        // Password masih password awal (NIP/NUPTK) → wajib buat password baru dulu
+        await page.waitForSelector('#gForceForm');
+        check(/password awal \(NIP\/NUPTK\)/.test(await page.textContent('#gMain')) && !(await page.isVisible('.g-nav')) && await page.$('.g-task') === null,
+            'login pertama: wajib buat password baru, menu lain belum bisa dibuka');
+        await page.evaluate(() => { location.hash = '#/siswa'; });
+        await page.waitForTimeout(200);
+        check(await page.$('#gForceForm') !== null, 'pindah halaman lewat alamat tetap ditahan di layar ganti password');
+        await page.fill('#gF1', '990000000000000001');
+        await page.fill('#gF2', '990000000000000001');
+        await page.click('#gForceBtn');
+        await page.waitForSelector('#gForceErr:not(.g-hidden)');
+        check(/tidak boleh sama dengan NIP/.test(await page.textContent('#gForceErr')), 'password baru = NIP ditolak');
+        if (OUT) await page.screenshot({ path: join(OUT, 'guru-01c-wajib-ganti-360.png'), fullPage: true });
+        await page.fill('#gF1', 'RahasiaBaru7');
+        await page.fill('#gF2', 'RahasiaBaru7');
+        await page.click('#gForceBtn');
         await page.waitForSelector('.g-task');
+        check(apiCalls.some((c) => c.api === 'changepw' && c.password === 'RahasiaBaru7' && /^Bearer /.test(c.auth || '')) && await page.isVisible('.g-nav'),
+            'setelah password diganti langsung masuk dashboard');
         check(/Selamat datang, Sunarsih/.test(await page.textContent('.g-welcome')) && /Dashboard Guru/.test(await page.textContent('#gTitle')), 'dashboard menyapa nama guru');
         check(/JADWAL MENGAJAR TERDEKAT/.test(await page.textContent('.g-hero')) && /KELAS 1\.A/.test(await page.textContent('.g-hero')) && await page.$('.g-hero-ava') !== null
             && /Mulai Absensi/.test(await page.textContent('.g-hero-btn')), 'kartu utama: foto/inisial guru, kelas, tombol Mulai Absensi');

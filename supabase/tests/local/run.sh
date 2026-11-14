@@ -44,6 +44,7 @@ run "Migration Laporan"              "$ROOT/supabase/migrations/20261113000002_a
 run "Migration absen tanggal bebas"   "$ROOT/supabase/migrations/20261113000003_attendance_any_date.sql"
 run "Migration PIN pemulihan"        "$ROOT/supabase/migrations/20261113000004_recovery_pin.sql"
 run "Migration PIN (ulang, idempotent)" "$ROOT/supabase/migrations/20261113000004_recovery_pin.sql"
+run "Migration wajib ganti password"  "$ROOT/supabase/migrations/20261114000001_must_change_password.sql"
 
 echo "→ Tes Absensi"
 {

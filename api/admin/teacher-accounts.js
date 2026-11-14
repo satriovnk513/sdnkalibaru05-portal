@@ -11,8 +11,9 @@
  *   clear_pin       { staff_id }             hapus PIN pemulihan (guru lupa PIN)
  *
  * Akun dibuat dengan email_confirm = true: TIDAK ada email undangan/verifikasi yang
- * dikirim. Password awal dikembalikan SEKALI di respons untuk dibagikan admin; tidak
- * disimpan di mana pun dan tidak dicatat di log.
+ * dikirim. Password awal = NIP/NUPTK guru itu (acak bila tidak punya NIP/NUPTK), dan
+ * guru WAJIB menggantinya saat login pertama (must_change_password). Password awal
+ * dikembalikan di respons untuk dibagikan admin; tidak dicatat di log.
  */
 import { randomInt } from 'node:crypto';
 import {
@@ -77,20 +78,28 @@ async function adminUserIds(key, userIds) {
     return new Set((r.ok ? r.json : []).map((x) => x.user_id));
 }
 
+/** Password awal: NIP/NUPTK; acak kalau guru tidak punya NIP/NUPTK. */
+export function initialPassword(loginId) {
+    return loginId ? { password: String(loginId), dari_nip: true } : { password: generatePassword(), dari_nip: false };
+}
+
 async function createOne(key, staff, req) {
-    const password = generatePassword();
+    const { password, dari_nip } = initialPassword(req.login_id);
     const created = await sb('POST', '/auth/v1/admin/users', {
         key,
         body: { email: req.email, password, email_confirm: true, user_metadata: { full_name: staff.name } },
     });
     if (!created.ok || !created.json?.id) {
-        const msg = created.status === 422 ? 'Email sudah dipakai akun lain.' : `Gagal membuat akun (HTTP ${created.status}).`;
+        const detail = `${created.json?.msg || ''} ${created.json?.error_code || ''}`;
+        const msg = created.status === 422
+            ? (/password/i.test(detail) ? 'Password awal (NIP/NUPTK) ditolak aturan password Supabase.' : 'Email sudah dipakai akun lain.')
+            : `Gagal membuat akun (HTTP ${created.status}).`;
         return { staff_id: staff.id, nama: staff.name, ok: false, pesan: msg };
     }
     const userId = created.json.id;
     const link = await sb('POST', '/rest/v1/teacher_accounts', {
         key,
-        body: { user_id: userId, staff_id: staff.id, email: req.email, login_id: req.login_id },
+        body: { user_id: userId, staff_id: staff.id, email: req.email, login_id: req.login_id, must_change_password: true },
         headers: { Prefer: 'return=minimal' },
     });
     if (!link.ok) {
@@ -105,7 +114,7 @@ async function createOne(key, staff, req) {
             headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
         });
     }
-    return { staff_id: staff.id, nama: staff.name, email: req.email, login_id: req.login_id, password, ok: true };
+    return { staff_id: staff.id, nama: staff.name, email: req.email, login_id: req.login_id, password, dari_nip, ok: true };
 }
 
 export default async function handler(req, res) {
@@ -152,10 +161,13 @@ export default async function handler(req, res) {
         case 'reset_password': {
             const acc = accBy.get(body.staff_id);
             if (!acc) return sendError(res, 404, 'not_found', 'Akun belum dibuat.');
-            const password = generatePassword();
+            const { password, dari_nip } = initialPassword(acc.login_id);
             const r = await sb('PUT', `/auth/v1/admin/users/${acc.user_id}`, { key, body: { password } });
             if (!r.ok) return sendError(res, 502, 'upstream_error', `Gagal mengganti password (HTTP ${r.status}).`);
-            return res.status(200).json({ staff_id: acc.staff_id, nama: staffBy.get(acc.staff_id)?.name, email: acc.email, login_id: acc.login_id, password });
+            await sb('PATCH', `/rest/v1/teacher_accounts?staff_id=eq.${acc.staff_id}`, {
+                key, body: { must_change_password: true, updated_at: new Date().toISOString() }, headers: { Prefer: 'return=minimal' },
+            });
+            return res.status(200).json({ staff_id: acc.staff_id, nama: staffBy.get(acc.staff_id)?.name, email: acc.email, login_id: acc.login_id, password, dari_nip });
         }
         case 'set_active': {
             const acc = accBy.get(body.staff_id);
