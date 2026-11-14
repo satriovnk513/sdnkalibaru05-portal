@@ -30,7 +30,7 @@
     const ok = (data, extra = {}) => ({ data, error: null, ...extra });
 
     function homeFor(user) {
-        const base = { today, is_school_day: true, holiday_name: null, earliest_date: today, semua_kelas: [], is_admin: false, is_pimpinan: false };
+        const base = { today, is_school_day: true, holiday_name: null, earliest_date: new Date(Date.parse(`${today}T00:00:00Z`) - 120 * 86400000).toISOString().slice(0, 10), semua_kelas: [], is_admin: false, is_pimpinan: false };
         const sess = F.sessions[`${C1A}|${today}|harian|-`];
         if (user === 'wali') {
             return { ...base, staff_id: 'st1', nama: 'Sunarsih, S.Pd.', jabatan: 'Guru Kelas',
@@ -158,6 +158,38 @@
             T.subject_assignments = T.subject_assignments.filter((a) => !(a.subject_id === args.p_subject_id && a.staff_id === args.p_staff_id));
             for (const c of [...new Set(args.p_class_ids || [])]) T.subject_assignments.push({ subject_id: args.p_subject_id, class_id: c, staff_id: args.p_staff_id });
             return Promise.resolve(ok(new Set(args.p_class_ids || []).size));
+        case 'get_class_attendance_stats': {
+            const inRange = (d) => d >= args.p_from && d <= args.p_to;
+            const harian = Object.entries(F.sessions).filter(([k]) => k.startsWith(`${args.p_class_id}|`) && k.endsWith('|harian|-') && inRange(k.split('|')[1]))
+                .sort(([a], [b]) => a.localeCompare(b));
+            const zero = () => ({ H: 0, S: 0, I: 0, A: 0, D: 0 });
+            const total = zero();
+            const perDay = harian.map(([k, v]) => {
+                const c = zero();
+                for (const r of Object.values(v.records)) if (r.status) { c[r.status] += 1; total[r.status] += 1; }
+                return { tanggal: k.split('|')[1], ...c };
+            });
+            const dow = new Date(`${args.p_from}T00:00:00Z`).getUTCDay();
+            let efektif = 0;
+            for (let d = args.p_from; d <= args.p_to && d <= today;) {
+                const w = new Date(`${d}T00:00:00Z`).getUTCDay();
+                if (w !== 0 && w !== 6) efektif += 1;
+                d = new Date(Date.parse(`${d}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+            }
+            return Promise.resolve(ok({
+                kelas: args.p_class_id === C1A ? '1 A' : '3 A', dari: args.p_from, sampai: args.p_to,
+                jumlah_siswa: (roster[args.p_class_id] || []).length, hari_efektif: efektif, hari_terisi: harian.length,
+                libur: args.p_from === args.p_to && (dow === 0 || dow === 6) ? 'Sabtu/Minggu' : null,
+                total, harian: perDay,
+                siswa: (roster[args.p_class_id] || []).map((r) => {
+                    const c = zero();
+                    for (const [, v] of harian) { const st = v.records[r.student_id]?.status; if (st) c[st] += 1; }
+                    return { student_id: r.student_id, no: r.no_urut, nama: r.nama, jk: r.jenis_kelamin, ...c };
+                }),
+            }));
+        }
+        case 'get_alpha_alerts':
+            return Promise.resolve(ok({ batas: args.p_min, dari: '2026-07-13', siswa: F.alpha || [] }));
         case 'get_my_recovery_pin':
             return Promise.resolve(ok(F.pin ? { ada: true, dibuat: '13/11/2026 15.30', terkunci: false } : { ada: false, dibuat: null, terkunci: false }));
         case 'student_summary':

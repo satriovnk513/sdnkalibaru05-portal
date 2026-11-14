@@ -234,6 +234,9 @@
         await sb.auth.signOut();
         home = null;
         staffExtra = null;
+        alphaAlerts = null;
+        alphaStale = true;
+        day.date = null; day.classId = null;
         forceChange = false;
         pinStatus = null;
         homeDay = null;
@@ -252,9 +255,28 @@
         clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
         cal: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
         chev: '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>',
+        left: '<svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>',
+        bell: '<svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
     };
     let staffExtra = null;      // { image_url, nip } dari data Guru & Staf di website
     let pinStatus = null;       // { ada, dibuat, terkunci } — PIN pemulihan milik sendiri
+    let alphaAlerts = null;     // hasil get_alpha_alerts (siswa alpa > 3 hari semester ini)
+    const day = { date: null, classId: null };   // kartu "Absensi per tanggal" di dashboard
+    const AC = window.AttCharts;
+    const ALPA_MIN = 4;         // "lebih dari 3 hari"
+
+    let alphaStale = true;      // dimuat ulang setiap kali dashboard dibuka
+
+    /** Muat peringatan alpa; gambar ulang dashboard hanya kalau isinya berubah. */
+    async function refreshAlphaAlerts() {
+        if (!alphaStale) return;
+        alphaStale = false;
+        let next = null;
+        try { next = (await rpc('get_alpha_alerts', { p_min: ALPA_MIN })) || { siswa: [] }; } catch { return; }
+        const changed = JSON.stringify(next) !== JSON.stringify(alphaAlerts);
+        alphaAlerts = next;
+        if (changed && home && parseHash().path === '/' && !forceChange) renderHome();
+    }
 
     async function loadPinStatus(force = false) {
         if (pinStatus && !force) return pinStatus;
@@ -287,6 +309,7 @@
         setNav('home');
         setTop('Dashboard Guru', fmtDate(home.today));
         loadStaffExtra();
+        refreshAlphaAlerts();
         const today = home.today;
         const monday = isoAdd(today, -((dow(today) + 6) % 7));
         const week = [0, 1, 2, 3, 4].map((i) => isoAdd(monday, i));
@@ -315,6 +338,15 @@
             ${target && home.is_school_day ? `<a class="g-hero-btn" href="${target.href}">${ICON.clip}${target.done ? 'Lihat Absensi' : 'Mulai Absensi'}</a>` : ''}
         </section>`);
 
+        if (alphaAlerts?.siswa?.length) {
+            const list = alphaAlerts.siswa;
+            parts.push(`<section class="g-alert-box" id="gAlpha" role="status" aria-label="Peringatan alpa">
+                <header><span class="g-bell">${ICON.bell}<i>${list.length}</i></span>
+                    <div><b>${list.length} siswa alpa lebih dari 3 hari</b><span class="att-muted">Semester ini, sejak ${esc(fmtDate(alphaAlerts.dari, false))}. Perlu ditindaklanjuti.</span></div></header>
+                <ul>${list.slice(0, 5).map(alphaItem).join('')}</ul>
+                ${list.length > 5 ? `<details><summary>Lihat ${list.length - 5} siswa lainnya</summary><ul>${list.slice(5).map(alphaItem).join('')}</ul></details>` : ''}
+            </section>`);
+        }
         if (pinStatus && !pinStatus.ada) {
             parts.push(`<div class="att-alert warn g-pin-nudge" style="margin-bottom:12px"><b>Buat PIN pemulihan</b> supaya kalau lupa password bisa reset sendiri tanpa admin.
                 <a href="#/akun" style="font-weight:700">Buat sekarang →</a></div>`);
@@ -335,6 +367,23 @@
                     <p class="att-muted" style="margin:0 0 12px">Anda bisa mengisi absensi harian untuk seluruh siswa di kelas ini (${esc(w.jumlah_siswa)} siswa).${t ? ` Hari ini: ${rekap.H || 0} hadir${absen ? `, ${esc(absen)}` : ''}.` : ''}</p>
                     <a class="att-btn att-btn-blue att-btn-block g-task-go" href="${href}">${ICON.clip}${t ? (t.terkunci ? `Lihat Absensi KELAS ${esc(kelasTitik(w.kelas))}` : `Lihat / Ubah Absensi KELAS ${esc(kelasTitik(w.kelas))}`) : `Absensi KELAS ${esc(kelasTitik(w.kelas))} Hari Ini`}</a>
                     <p class="att-muted" style="margin:8px 0 0">Tanggal lain bisa dipilih di dalam halaman absensi.</p>
+                </div>
+            </section>`);
+        }
+
+        if (myClasses().length) {
+            if (!day.date) day.date = today;
+            if (!day.classId || !myClasses().some((c) => c.class_id === day.classId)) day.classId = (wali0 || myClasses()[0]).class_id;
+            parts.push(`<section class="g-box g-day" id="gDay">
+                <header class="g-box-head"><span class="g-tag day">${ICON.clip}REKAP</span><b id="gDayTitle">Absensi Hari Ini</b><span class="att-muted" id="gDayLabel"></span></header>
+                <div class="g-box-body">
+                    ${myClasses().length > 1 ? `<div class="att-field" style="margin-bottom:10px"><label for="gDayKelas">Kelas</label>${classSelect('gDayKelas', day.classId)}</div>` : ''}
+                    <div class="g-day-nav">
+                        <button type="button" class="att-btn att-btn-ghost" id="gDayPrev" aria-label="Tanggal sebelumnya">${ICON.left}</button>
+                        <input type="date" class="att-input" id="gDayDate" aria-label="Pilih tanggal" value="${esc(day.date)}" min="${esc(home.earliest_date)}" max="${esc(today)}">
+                        <button type="button" class="att-btn att-btn-ghost" id="gDayNext" aria-label="Tanggal berikutnya">${ICON.chev}</button>
+                    </div>
+                    <div id="gDayBody"><div class="g-loading">Memuat…</div></div>
                 </div>
             </section>`);
         }
@@ -385,6 +434,189 @@
             window.scrollTo(0, y);
         }));
         if (keepY && staffExtra) window.scrollTo(0, keepY);
+        wireDayCard();
+    }
+
+    function alphaItem(s) {
+        return `<li><a href="#/siswa/${esc(s.student_id)}"><span><b>${esc(s.nama)}</b><small>Kelas ${esc(kelasTitik(s.kelas))} · terakhir ${esc(fmtDate(s.terakhir, false))}</small></span>
+            <span class="att-badge bad">${esc(s.alpa)} hari alpa</span></a></li>`;
+    }
+
+    // ------------------------------------------------------------------ statistik
+    const stat = { mode: 'bulan', date: null, month: null, sem: null, classId: null, komposisi: 'donat', tren: 'batang' };
+
+    function statRange() {
+        const today = home.today;
+        if (stat.mode === 'hari') return { from: stat.date, to: stat.date, label: fmtDate(stat.date) };
+        if (stat.mode === 'bulan') {
+            const [y, m] = stat.month.split('-').map(Number);
+            const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+            return { from: `${stat.month}-01`, to: `${stat.month}-${String(last).padStart(2, '0')}`, label: `${window.Att.BULAN[m - 1]} ${y}` };
+        }
+        // Semester: ganjil = awal tahun ajaran s.d. 31 Des; genap = 1 Jan s.d. akhir Juni.
+        const y0 = Number(home.earliest_date.slice(0, 4));
+        return stat.sem === 1
+            ? { from: home.earliest_date, to: `${y0}-12-31`, label: `Semester Ganjil ${y0}/${y0 + 1}` }
+            : { from: `${y0 + 1}-01-01`, to: `${y0 + 1}-06-30`, label: `Semester Genap ${y0}/${y0 + 1}`, future: today < `${y0 + 1}-01-01` };
+    }
+
+    function renderStatistik(params) {
+        setNav('statistik');
+        setTop('Statistik absensi', 'Absensi harian wali kelas');
+        const classes = myClasses();
+        if (!classes.length) return main('<div class="att-alert info">Belum ada kelas yang bisa Anda lihat.</div>');
+        const today = home.today;
+        if (!stat.date) stat.date = today;
+        if (!stat.month) stat.month = today.slice(0, 7);
+        if (!stat.sem) stat.sem = today >= `${Number(home.earliest_date.slice(0, 4)) + 1}-01-01` ? 2 : 1;
+        if (params.get('kelas')) stat.classId = params.get('kelas');
+        if (!stat.classId || !classes.some((c) => c.class_id === stat.classId)) stat.classId = (home.wali_kelas[0] || classes[0]).class_id;
+        const seg = (name, val, label, cur) => `<button type="button" role="tab" data-${name}="${val}" aria-selected="${cur === val}">${label}</button>`;
+        const months = [];
+        for (let m = home.earliest_date.slice(0, 7); m <= today.slice(0, 7);) {
+            months.push(m);
+            const [y, mm] = m.split('-').map(Number);
+            m = mm === 12 ? `${y + 1}-01` : `${y}-${String(mm + 1).padStart(2, '0')}`;
+        }
+        main(`<div id="gFloat">
+                <div class="att-field" style="margin-bottom:8px"><label for="gStKelas">Kelas</label>${classSelect('gStKelas', stat.classId)}</div>
+                <div class="g-seg" role="tablist" aria-label="Periode">${seg('mode', 'hari', 'Harian', stat.mode)}${seg('mode', 'bulan', 'Bulanan', stat.mode)}${seg('mode', 'semester', 'Semester', stat.mode)}</div>
+                <div class="g-day-nav" id="gStPick">
+                    <button type="button" class="att-btn att-btn-ghost" id="gStPrev" aria-label="Sebelumnya">${ICON.left}</button>
+                    <input type="date" class="att-input ${stat.mode === 'hari' ? '' : 'g-hidden'}" id="gStDate" aria-label="Pilih tanggal" value="${esc(stat.date)}" min="${esc(home.earliest_date)}" max="${esc(today)}">
+                    <select class="att-select ${stat.mode === 'bulan' ? '' : 'g-hidden'}" id="gStMonth" aria-label="Pilih bulan">${months.map((m) => `<option value="${m}" ${m === stat.month ? 'selected' : ''}>${window.Att.BULAN[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}</option>`).join('')}</select>
+                    <select class="att-select ${stat.mode === 'semester' ? '' : 'g-hidden'}" id="gStSem" aria-label="Pilih semester"><option value="1" ${stat.sem === 1 ? 'selected' : ''}>Semester Ganjil</option><option value="2" ${stat.sem === 2 ? 'selected' : ''}>Semester Genap</option></select>
+                    <button type="button" class="att-btn att-btn-ghost" id="gStNext" aria-label="Berikutnya">${ICON.chev}</button>
+                </div>
+            </div>
+            <div id="gStat"><div class="g-loading">Memuat…</div></div>`);
+        floatBar($('gFloat'));
+
+        const rerender = () => renderStatistik(new URLSearchParams());
+        $('gStKelas').addEventListener('change', (e) => { stat.classId = e.target.value; loadStat(); });
+        $('gMain').querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => { stat.mode = b.dataset.mode; rerender(); }));
+        $('gStDate').addEventListener('change', (e) => { if (e.target.value && e.target.value <= today && e.target.value >= home.earliest_date) { stat.date = e.target.value; loadStat(); } });
+        $('gStMonth').addEventListener('change', (e) => { stat.month = e.target.value; loadStat(); });
+        $('gStSem').addEventListener('change', (e) => { stat.sem = Number(e.target.value); loadStat(); });
+        const step = (n) => {
+            if (stat.mode === 'hari') {
+                const d = isoAdd(stat.date, n);
+                if (d > today || d < home.earliest_date) return;
+                stat.date = d; $('gStDate').value = d;
+            } else if (stat.mode === 'bulan') {
+                const i = months.indexOf(stat.month) + n;
+                if (i < 0 || i >= months.length) return;
+                stat.month = months[i]; $('gStMonth').value = stat.month;
+            } else {
+                const v = stat.sem + n;
+                if (v < 1 || v > 2) return;
+                stat.sem = v; $('gStSem').value = String(v);
+            }
+            loadStat();
+        };
+        $('gStPrev').addEventListener('click', () => step(-1));
+        $('gStNext').addEventListener('click', () => step(1));
+        loadStat();
+    }
+
+    async function loadStat() {
+        const host = $('gStat');
+        if (!host) return;
+        const range = statRange();
+        const key = `${stat.classId}|${range.from}|${range.to}`;
+        host.dataset.key = key;
+        host.style.opacity = '0.5';
+        try {
+            const r = await rpc('get_class_attendance_stats', { p_class_id: stat.classId, p_from: range.from, p_to: range.to });
+            if (!$('gStat') || $('gStat').dataset.key !== key) return;
+            drawStat(r, range);
+        } catch (err) {
+            if ($('gStat')) host.innerHTML = `<div class="att-alert err">${esc(errMessage(err))}</div>`;
+        } finally {
+            if ($('gStat')) host.style.opacity = '';
+        }
+    }
+
+    function drawStat(r, range) {
+        const host = $('gStat');
+        const t = r.total;
+        const isDay = stat.mode === 'hari';
+        const points = stat.mode === 'semester'
+            ? AC.byMonth(r.harian, window.Att.BULAN)
+            : r.harian.map((d) => ({ ...d, label: String(Number(d.tanggal.slice(8))), title: fmtDate(d.tanggal, false) }));
+        const toggle = (name, opts) => `<div class="g-seg small" role="tablist" aria-label="Bentuk grafik">${opts.map(([v, l]) =>
+            `<button type="button" role="tab" data-${name}="${v}" aria-selected="${stat[name] === v}">${l}</button>`).join('')}</div>`;
+        const info = r.libur ? `<div class="att-alert warn" style="margin-bottom:12px">${esc(range.label)} libur (${esc(r.libur)}).</div>`
+            : range.future ? '<div class="att-alert info" style="margin-bottom:12px">Semester ini belum dimulai.</div>'
+                : !r.hari_terisi ? `<div class="att-alert info" style="margin-bottom:12px">Belum ada absensi harian kelas ${esc(kelasTitik(r.kelas))} pada ${esc(range.label)}.</div>` : '';
+        const tidakHadir = r.siswa.filter((s) => s.S || s.I || s.A || s.D);
+        host.innerHTML = `
+            <h2 class="g-stat-title">Kelas ${esc(kelasTitik(r.kelas))} · ${esc(range.label)}</h2>
+            ${info}
+            <div class="g-tiles">
+                <div class="g-tile"><b>${AC.pctText(AC.pct(t))}</b><span>Kehadiran</span></div>
+                <div class="g-tile"><b>${esc(r.hari_terisi)}<small>/${esc(r.hari_efektif)}</small></b><span>Hari terisi</span></div>
+                <div class="g-tile"><b>${esc(t.A)}</b><span>Total alpa</span></div>
+                <div class="g-tile"><b>${esc(r.jumlah_siswa)}</b><span>Siswa</span></div>
+            </div>
+            <section class="g-box"><header class="g-box-head"><b>Komposisi kehadiran</b>${toggle('komposisi', [['donat', 'Donat'], ['batang', 'Batang']])}</header>
+                <div class="g-box-body" id="gStKomposisi">${stat.komposisi === 'donat' ? AC.donut(t) : AC.bars(t)}</div></section>
+            ${isDay ? `<section class="g-box"><header class="g-box-head"><b>Siswa tidak hadir / dispensasi</b><span class="att-badge mute">${tidakHadir.length} siswa</span></header>
+                <div class="g-box-body">${tidakHadir.length ? `<ul class="g-absent">${tidakHadir.map((s) => {
+        const k = ['S', 'I', 'A', 'D'].find((x) => s[x]);
+        return `<li><a href="#/siswa/${esc(s.student_id)}">${esc(s.nama)}</a><span class="att-badge" style="background:var(--att-${k.toLowerCase()}-bg);color:var(--att-${k.toLowerCase()})">${AC.LABEL[k]}</span></li>`;
+    }).join('')}</ul>` : `<div class="ac-empty">${r.hari_terisi ? 'Semua siswa hadir.' : 'Belum ada data.'}</div>`}</div></section>`
+        : `<section class="g-box"><header class="g-box-head"><b>Tren ${stat.mode === 'semester' ? 'per bulan' : 'per hari'}</b>${toggle('tren', [['batang', 'Batang'], ['garis', 'Garis %']])}</header>
+                <div class="g-box-body" id="gStTren">${stat.tren === 'batang' ? AC.stacked(points) : AC.line(points)}</div></section>
+            <section class="g-box"><header class="g-box-head"><b>Siswa paling sering tidak hadir</b></header>
+                <div class="g-box-body">${AC.students(r.siswa)}</div></section>`}
+            <p class="att-muted" style="margin:0 0 8px">Sumber: absensi harian wali kelas. Dispensasi dihitung hadir pada persentase kehadiran.</p>`;
+        host.querySelectorAll('[data-komposisi],[data-tren]').forEach((b) => b.addEventListener('click', () => {
+            if (b.dataset.komposisi) stat.komposisi = b.dataset.komposisi; else stat.tren = b.dataset.tren;
+            const y = window.scrollY;
+            drawStat(r, range);
+            window.scrollTo(0, y);
+        }));
+    }
+
+    // ------------------------------------------------------------------ kartu rekap per tanggal
+    function wireDayCard() {
+        if (!$('gDay')) return;
+        const go = (iso) => {
+            if (!iso || iso > home.today || iso < home.earliest_date) return;
+            day.date = iso;
+            $('gDayDate').value = iso;
+            loadDayCard();
+        };
+        $('gDayPrev').addEventListener('click', () => go(isoAdd(day.date, -1)));
+        $('gDayNext').addEventListener('click', () => go(isoAdd(day.date, 1)));
+        $('gDayDate').addEventListener('change', (e) => go(e.target.value));
+        $('gDayKelas')?.addEventListener('change', (e) => { day.classId = e.target.value; loadDayCard(); });
+        loadDayCard();
+    }
+
+    async function loadDayCard() {
+        const body = $('gDayBody');
+        if (!body) return;
+        const { date, classId } = day;
+        $('gDayTitle').textContent = date === home.today ? 'Absensi Hari Ini' : 'Absensi per Tanggal';
+        $('gDayLabel').textContent = fmtDate(date, false);
+        $('gDayNext').disabled = date >= home.today;
+        $('gDayPrev').disabled = date <= home.earliest_date;
+        body.style.opacity = '0.5';
+        try {
+            const r = await rpc('get_class_attendance_stats', { p_class_id: classId, p_from: date, p_to: date });
+            if (day.date !== date || day.classId !== classId || !$('gDayBody')) return;   // sudah pindah tanggal/kelas
+            const note = r.libur
+                ? `<div class="att-alert warn" style="margin-bottom:10px">${esc(fmtDate(date))} libur (${esc(r.libur)}).</div>`
+                : (!r.hari_terisi ? `<div class="att-alert info" style="margin-bottom:10px">Absensi harian kelas ${esc(kelasTitik(r.kelas))} tanggal ini belum diisi.</div>` : '');
+            body.innerHTML = `${note}${AC.rows(r.total)}${AC.badge(r.total)}
+                <p class="att-muted" style="margin:10px 0 0;text-align:center">Kelas ${esc(kelasTitik(r.kelas))} · ${esc(r.jumlah_siswa)} siswa · dispensasi dihitung hadir</p>`;
+        } catch (err) {
+            if ($('gDayBody')) body.innerHTML = `<div class="att-alert err">${esc(errMessage(err))}</div>`;
+        } finally {
+            if ($('gDayBody')) body.style.opacity = '';
+        }
     }
 
     // ------------------------------------------------------------------ absensi
@@ -700,11 +932,12 @@
         document.body.classList.remove('g-sheet-open');
         if (forceChange) return renderForceChange();
         const { path, params } = parseHash();
-        if (path === '/' || path === '') return renderHome();
+        if (path === '/' || path === '') { alphaStale = true; return renderHome(); }
         if (path === '/absen') return renderAbsen(params);
         if (path === '/siswa') return renderSiswa(params);
         if (path.startsWith('/siswa/')) return renderProfil(path.slice(7));
         if (path === '/rekap') return renderRekap(params);
+        if (path === '/statistik') return renderStatistik(params);
         if (path === '/akun') return renderAkun();
         go('/');
     }
