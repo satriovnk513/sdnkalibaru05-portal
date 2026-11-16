@@ -340,6 +340,7 @@
         if (!home.wali_kelas.length && !home.mapel.length) {
             parts.push('<div class="att-alert info" style="margin-bottom:12px">Belum ada kelas yang ditugaskan kepada Anda. Hubungi admin sekolah.</div>');
         }
+        parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/dokumen" style="margin-bottom:14px">Cetak &amp; Dokumen (daftar siswa, surat, biodata)</a>`);
         parts.push(`<p class="att-muted g-simple-help">Ketuk tombol di atas, pilih status tiap siswa, lalu tekan <b>Simpan absensi</b>. Untuk tanggal lain, ganti tanggal di halaman absensi.</p>`);
         parts.push(simpleSwitch(true));
         main(parts.join(''));
@@ -510,6 +511,136 @@
             ${wa ? `<a class="g-wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">${ICON.wa}Hubungi Orang Tua</a>`
         : '<span class="g-wa off">No. HP orang tua belum ada di data siswa</span>'}
         </li>`;
+    }
+
+    // ------------------------------------------------------------------ cetak & dokumen
+    const Dok = window.Dok;
+    const dok = { classId: null, data: null, dataFor: null, values: {} };   // isian diingat selama sesi
+
+    const DOK_ICON = {
+        Daftar: '<svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+        'Per siswa': '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 9h3M15 13h3M6 16c.5-1.5 1.7-2 3-2s2.5.5 3 2"/></svg>',
+        Surat: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
+    };
+
+    function renderDokumenList() {
+        setNav('dokumen');
+        setTop('Cetak & Dokumen', 'Buat sendiri, lalu cetak atau unduh');
+        if (!myClasses().length) return main('<div class="att-alert info">Belum ada kelas yang bisa Anda lihat.</div>');
+        const groups = [...new Set(Dok.TYPES.map((t) => t.grup))];
+        main(`<p class="att-muted" style="margin:0 0 12px">Pilih dokumen, isi seperlunya, lalu <b>Cetak / PDF</b> atau unduh <b>Word / Excel</b> untuk diedit. Data siswa terisi otomatis.</p>
+            ${groups.map((g) => `<h2 class="g-dok-h">${esc(g)}</h2><div class="g-dok-grid">${Dok.TYPES.filter((t) => t.grup === g).map((t) => `
+                <a class="g-dok" href="#/dokumen/${t.id}"><span class="g-dok-ico">${DOK_ICON[g] || DOK_ICON.Daftar}</span>
+                    <span class="g-dok-txt"><b>${esc(t.nama)}</b><small>${esc(t.ket)}</small></span>${ICON.chev}</a>`).join('')}</div>`).join('')}
+            <p class="att-muted" style="margin:16px 0 0">Butuh dokumen lain yang sering diminta ke operator? Sampaikan ke admin supaya ditambahkan di sini.</p>`);
+    }
+
+    async function loadDokData(classId) {
+        if (dok.data && dok.dataFor === classId) return dok.data;
+        dok.data = await rpc('get_class_document_data', { p_class_id: classId });
+        dok.dataFor = classId;
+        return dok.data;
+    }
+
+    function dokField(f, v, data) {
+        const id = `gDk_${f.key}`;
+        const lab = `<label for="${id}">${esc(f.label)}</label>`;
+        if (f.type === 'checks') {
+            return `<fieldset class="g-dok-checks"><legend>${esc(f.label)}</legend>${f.options.map(([k, l]) =>
+                `<label><input type="checkbox" data-dk="${f.key}" value="${esc(k)}" ${(v || []).includes(k) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</fieldset>`;
+        }
+        if (f.type === 'check') return `<label class="g-dok-check"><input type="checkbox" id="${id}" data-dk="${f.key}" ${v ? 'checked' : ''}> ${esc(f.label)}</label>`;
+        if (f.type === 'select') return `<div class="att-field">${lab}<select class="att-select" id="${id}" data-dk="${f.key}">${f.options.map(([k, l]) => `<option value="${esc(k)}" ${k === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`;
+        if (f.type === 'siswa') {
+            return `<div class="att-field">${lab}<select class="att-select" id="${id}" data-dk="${f.key}">
+                <option value="">— pilih siswa —</option>${f.all ? `<option value="*" ${v === '*' ? 'selected' : ''}>Semua siswa (satu lembar per siswa)</option>` : ''}
+                ${(data?.siswa || []).map((s) => `<option value="${esc(s.student_id)}" ${s.student_id === v ? 'selected' : ''}>${esc(s.no)}. ${esc(s.nama)}</option>`).join('')}</select></div>`;
+        }
+        if (f.type === 'textarea') return `<div class="att-field">${lab}<textarea class="att-input" id="${id}" data-dk="${f.key}" rows="5" style="min-height:120px;padding:10px 12px">${esc(v)}</textarea></div>`;
+        return `<div class="att-field">${lab}<input class="att-input" id="${id}" data-dk="${f.key}" type="${f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}"
+            value="${esc(v)}" ${f.min ? `min="${f.min}"` : ''} ${f.max ? `max="${f.max}"` : ''} ${f.type === 'number' ? 'inputmode="numeric"' : ''} placeholder="${esc(f.placeholder || '')}"></div>`;
+    }
+
+    async function renderDokumenForm(id, params) {
+        const type = Dok.typeOf(id);
+        if (!type) return go('/dokumen');
+        setNav('dokumen');
+        setTop(type.nama, 'Cetak & Dokumen', true);
+        const classes = myClasses();
+        if (!classes.length) return main('<div class="att-alert info">Belum ada kelas yang bisa Anda lihat.</div>');
+        if (params.get('kelas')) dok.classId = params.get('kelas');
+        if (!dok.classId || !classes.some((c) => c.class_id === dok.classId)) dok.classId = (home.wali_kelas[0] || classes[0]).class_id;
+        if (!dok.values[id]) dok.values[id] = Dok.defaults(type, home.today);
+        const vals = dok.values[id];
+        loading();
+        let data;
+        try { data = await loadDokData(dok.classId); } catch (err) { return main(`<div class="att-alert err">${esc(errMessage(err))}</div>`); }
+        if (parseHash().path !== `/dokumen/${id}`) return;
+        for (const f of type.fields) if (f.type === 'siswa' && vals[f.key] && vals[f.key] !== '*' && !data.siswa.some((s) => s.student_id === vals[f.key])) vals[f.key] = '';
+        const has = (k) => type.formats.includes(k);
+        main(`<p class="att-muted" style="margin:0 0 12px">${esc(type.ket)}</p>
+            <form class="att-card att-stack" id="gDokForm" novalidate>
+                <div class="att-field"><label for="gDokKelas">Kelas</label>${classSelect('gDokKelas', dok.classId)}</div>
+                ${type.fields.map((f) => dokField(f, vals[f.key], data)).join('')}
+                <div class="att-alert err g-hidden" id="gDokErr" role="alert"></div>
+                <div class="g-dok-actions">
+                    ${has('print') ? '<button type="button" class="att-btn att-btn-primary" data-out="print">Cetak / PDF</button>' : ''}
+                    ${has('word') ? '<button type="button" class="att-btn att-btn-ghost" data-out="word">Unduh Word</button>' : ''}
+                    ${has('xlsx') ? '<button type="button" class="att-btn att-btn-ghost" data-out="xlsx">Unduh Excel</button>' : ''}
+                </div>
+            </form>
+            <h2 class="g-dok-h" style="margin-top:18px">Pratinjau</h2>
+            <div class="g-dok-prev"><iframe id="gDokPrev" title="Pratinjau dokumen" sandbox=""></iframe></div>
+            <p class="att-muted" style="margin:8px 0 0">${data.siswa.length} siswa · Kelas ${esc(kelasTitik(data.kelas))}. Nomor surat boleh dikosongkan untuk diisi TU. File Word bisa diedit dulu sebelum dicetak.</p>`);
+
+        const read = () => {
+            for (const f of type.fields) {
+                if (f.type === 'checks') vals[f.key] = [...$('gDokForm').querySelectorAll(`[data-dk="${f.key}"]:checked`)].map((c) => c.value);
+                else if (f.type === 'check') vals[f.key] = $(`gDk_${f.key}`).checked;
+                else vals[f.key] = $(`gDk_${f.key}`).value;
+            }
+            return Dok.build(id, data, vals);
+        };
+        const preview = () => {
+            const doc = read();
+            // iframe dibuat baru tiap kali: mengganti srcdoc pada iframe lama menambah riwayat "kembali" di browser.
+            const box = $('gDokPrev').parentElement;
+            const frame = document.createElement('iframe');
+            frame.id = 'gDokPrev';
+            frame.title = 'Pratinjau dokumen';
+            frame.setAttribute('sandbox', '');
+            frame.srcdoc = doc ? Dok.page(doc, 'preview') : '<p style="font:14px Arial;color:#64748b;padding:16px">Pilih siswa dulu untuk melihat pratinjau.</p>';
+            $('gDokPrev').replaceWith(frame);
+            box.classList.toggle('wide', Boolean(doc?.landscape));
+            // Perkecil pratinjau supaya satu halaman muat di lebar layar HP.
+            const w = doc?.landscape ? 1123 : 794;
+            const h = doc?.landscape ? 794 : 1000;
+            const k = Math.min(1, box.clientWidth / w);
+            $('gDokPrev').style.transform = `scale(${k})`;
+            box.style.height = `${Math.round(h * k)}px`;
+            box.style.overflow = 'hidden';
+        };
+        let timer = null;
+        $('gDokForm').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(preview, 250); });
+        $('gDokKelas').addEventListener('change', (e) => { dok.classId = e.target.value; renderDokumenForm(id, new URLSearchParams()); });
+        $('gDokForm').querySelectorAll('[data-out]').forEach((b) => b.addEventListener('click', async () => {
+            const doc = read();
+            const err = $('gDokErr');
+            err.classList.add('g-hidden');
+            if (!doc) { err.textContent = 'Pilih siswa dulu.'; err.classList.remove('g-hidden'); return; }
+            const name = Dok.fileName(doc);
+            if (b.dataset.out === 'print') {
+                if (!window.RekapPrint.print(Dok.page(doc, 'print'))) toast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.', 'err');
+            } else if (b.dataset.out === 'word') {
+                window.RekapPrint.download(new TextEncoder().encode(`\ufeff${Dok.page(doc, 'word')}`), `${name}.doc`, 'application/msword');
+                toast('File Word diunduh.');
+            } else {
+                const spec = Dok.xlsx(id, data, vals);
+                window.RekapPrint.download(window.RekapPrint.buildXlsx({ ...spec, logoPng: await window.RekapPrint.loadLogo() }), `${name}.xlsx`);
+                toast('File Excel diunduh.');
+            }
+        }));
+        preview();
     }
 
     // ------------------------------------------------------------------ statistik
@@ -1008,6 +1139,8 @@
         if (path.startsWith('/siswa/')) return renderProfil(path.slice(7));
         if (path === '/rekap') return renderRekap(params);
         if (path === '/statistik') return renderStatistik(params);
+        if (path === '/dokumen') return renderDokumenList();
+        if (path.startsWith('/dokumen/')) return renderDokumenForm(path.slice(9), params);
         if (path === '/akun') return renderAkun();
         go('/');
     }
@@ -1017,6 +1150,7 @@
     });
 
     $('gBack').addEventListener('click', () => {
+        if (parseHash().path.startsWith('/dokumen/')) return go('/dokumen');
         if (history.length > 1) history.back(); else go('/');
     });
     window.addEventListener('hashchange', route);

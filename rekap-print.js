@@ -467,8 +467,8 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         return logoPromise;
     }
 
-    function download(bytes, filename) {
-        const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    function download(bytes, filename, type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+        const blob = new Blob([bytes], { type });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;

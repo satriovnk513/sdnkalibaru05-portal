@@ -190,6 +190,17 @@
         }
         case 'get_alpha_alerts':
             return Promise.resolve(ok({ batas: args.p_min, dari: '2026-07-13', siswa: F.alpha || [] }));
+        case 'get_class_document_data':
+            return Promise.resolve(ok({
+                kelas: args.p_class_id === C1A ? '1 A' : '3 A', tahun_ajaran: '2026/2027', tanggal: today,
+                wali: [{ posisi: 1, nama: 'Sunarsih, S.Pd.', nip: '990000000000000001' }],
+                kepala_sekolah: { nama: 'Kepala Fiktif, S.Pd.SD', nip: '990000000000000009' },
+                siswa: (roster[args.p_class_id] || []).map((r, i) => ({
+                    student_id: r.student_id, no: r.no_urut, nama: r.nama, jk: r.jenis_kelamin, nis: r.nis, nisn: r.nisn,
+                    nik: `317200000000000${i}`, no_kk: `317211111111111${i}`, tempat_lahir: 'Jakarta', tanggal_lahir: `2019-0${i + 1}-15`, agama: 'Islam',
+                    ayah: `Ayah Fiktif ${i + 1}`, ibu: `Ibu Fiktif ${i + 1}`, hp: `08120000000${i}`, alamat: 'Jl. Fiktif No. 1, RT 001/RW 002, Kel. Kalibaru, Kec. Cilincing',
+                })),
+            }));
         case 'get_my_recovery_pin':
             return Promise.resolve(ok(F.pin ? { ada: true, dibuat: '13/11/2026 15.30', terkunci: false } : { ada: false, dibuat: null, terkunci: false }));
         case 'student_summary':

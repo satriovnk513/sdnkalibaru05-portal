@@ -609,6 +609,27 @@ begin
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'M Hak', 'u', 'Anon tidak bisa memanggil get_alpha_alerts', 'ok', v_r = '42501');
     execute 'reset role';
 
+    -- ======================================================== N. Data dokumen guru
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_class_document_data(c1a);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'N Dokumen', 'u', 'Wali 1A: kop + 3 siswa berurutan dengan NIK, HP, nama orang tua',
+        'ok', v_j ->> 'kelas' = '1 A' and v_j ? 'kepala_sekolah' and jsonb_array_length(v_j -> 'siswa') = 3
+          and (v_j -> 'siswa' -> 0 ->> 'no')::int = 1
+          and not exists (select 1 from jsonb_array_elements(v_j -> 'siswa') x where x ->> 'nik' is null or x ->> 'hp' is null));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'N Dokumen', 'u', 'Penghasilan, akta, koordinat tidak ikut keluar',
+        'ok', v_j::text !~* 'penghasilan|akta|lintang|bujur|pekerjaan');
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_class_document_data(%L)', c3a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'N Hak', 'u', 'Wali 1A tidak bisa mengambil data dokumen 3A', 'ok', v_r = '42501');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_class_document_data(%L)', c1a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'N Hak', 'u', 'Anon tidak bisa mengambil data dokumen', 'ok', v_r = '42501');
+    execute 'reset role';
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end

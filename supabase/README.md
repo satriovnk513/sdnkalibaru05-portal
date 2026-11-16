@@ -339,3 +339,11 @@ Lupa password tanpa email: guru membuat PIN 6 angka di menu **Akun** (wajib pass
 - `get_class_attendance_stats(class, dari, sampai)` — ringkasan absensi **harian** satu rombel: total H/S/I/A/D, per hari, per siswa, hari efektif & terisi (maks. 400 hari). Dipakai kartu "Absensi per tanggal" di dashboard guru dan halaman **Statistik** (harian / bulanan / semester; grafik di `att-charts.js`, tanpa library luar).
 - `get_alpha_alerts(min = 4)` — siswa yang alpanya ≥ `min` hari pada semester berjalan ("lebih dari 3 hari"). Wali kelas melihat kelasnya; pimpinan & admin semua kelas. Kosong selama absensi belum diisi.
 - Tes: `run.sh` bagian M, `tests/att-charts.test.mjs`.
+
+## Cetak & Dokumen (20261116000001)
+
+Menu **Dokumen** di Portal Guru: guru membuat sendiri dokumen yang biasa diminta ke operator, lalu cetak/PDF atau unduh Word/Excel.
+
+- `get_class_document_data(class)` — kop (kelas, tahun ajaran, wali kelas, kepala sekolah) + siswa rombel dengan identitas, **NIK, No. KK**, orang tua, alamat, No. HP. Penghasilan, akta, koordinat tidak disertakan. Hak akses `can_view_class`.
+- `dokumen-templates.js` — template: daftar nama siswa (kolom bisa dipilih), blanko nilai, daftar hadir kegiatan / tanda terima, biodata siswa, surat keterangan aktif, surat panggilan orang tua, undangan rapat, surat pemberitahuan. Kop surat diatur di konstanta `KOP`.
+- Tes: `run.sh` bagian N, `tests/dokumen-templates.test.mjs`.
