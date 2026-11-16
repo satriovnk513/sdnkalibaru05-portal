@@ -225,8 +225,7 @@
                 ${editable ? `<div class="att-row att-bulk">
                         <button type="button" class="att-btn att-btn-hadir" data-all="H">${ICO_CHECK}Tandai semua Hadir</button>
                         <button type="button" class="att-btn att-btn-reset" data-reset>${ICO_RESET}Reset</button>
-                    </div>
-                    <p class="att-muted att-hint">Ketuk status tiap siswa. Ketuk lagi untuk mengosongkan.</p>` : ''}`;
+                    </div>` : ''}`;
             const body = `
                 ${sheet.isian_awal_dari_harian && !sheet.session ? '<div class="att-alert info" style="margin-bottom:12px">Status sudah diisi awal dari absensi harian wali kelas. Sesuaikan jika perlu.</div>' : ''}
                 ${notesHtml()}

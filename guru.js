@@ -928,7 +928,7 @@
             <form class="att-card att-stack" id="gPwForm" novalidate>
                 <div class="att-field"><label for="gPw1">Password baru</label><input class="att-input" id="gPw1" type="password" autocomplete="new-password" minlength="8"></div>
                 <div class="att-field"><label for="gPw2">Ulangi password baru</label><input class="att-input" id="gPw2" type="password" autocomplete="new-password" minlength="8"></div>
-                <p class="att-muted" style="margin:0">Minimal 8 karakter. Jangan pakai tanggal lahir atau NIP.</p>
+                <p class="att-muted" style="margin:0">Minimal 8 karakter.</p>
                 <button type="submit" class="att-btn att-btn-primary">Simpan password</button>
             </form>
             <h2 id="gPinTitle">PIN pemulihan</h2>
@@ -959,7 +959,7 @@
                 : '<span class="att-badge warn">Belum dibuat</span>';
         card.innerHTML = `
             <div class="att-row"><b>Status</b>${status}</div>
-            <p class="att-muted" style="margin:0">PIN 6 angka dipakai di halaman masuk (<i>Lupa password?</i>) untuk mengganti password sendiri tanpa admin. Simpan baik-baik, jangan dibagikan, dan jangan pakai tanggal lahir atau 123456.</p>
+            <p class="att-muted" style="margin:0">PIN 6 angka dipakai di halaman masuk (<i>Lupa password?</i>) untuk mengganti password sendiri tanpa admin. Simpan baik-baik.</p>
             <form class="att-stack" id="gPinForm" novalidate>
                 <div class="att-field"><label for="gPinPw">Password saat ini</label><input class="att-input" id="gPinPw" type="password" autocomplete="current-password"></div>
                 <div class="att-field"><label for="gPin1">${st?.ada ? 'PIN baru' : 'PIN'} (6 angka)</label><input class="att-input g-pin" id="gPin1" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off"></div>
