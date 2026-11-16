@@ -306,9 +306,50 @@
         if (parseHash().path === '/' && home) renderHome();
     }
 
+    // ------------------------------------------------------------------ mode sederhana
+    // Dashboard ringkas: hanya tombol absen besar. Pilihan disimpan di perangkat ini, per guru.
+    const simpleKey = () => `guru-sederhana:${home?.staff_id || ''}`;
+    function isSimple() { try { return localStorage.getItem(simpleKey()) === '1'; } catch { return false; } }
+    function setSimple(on) {
+        try { localStorage.setItem(simpleKey(), on ? '1' : '0'); } catch { /* abaikan */ }
+        renderHome();
+        window.scrollTo(0, 0);
+    }
+    const simpleSwitch = (on) => `<button type="button" class="g-mode" id="gMode" role="switch" aria-checked="${on}">
+        <span class="g-mode-track"><i></i></span><span><b>Mode Sederhana</b><small>${on ? 'Aktif: hanya tombol absen yang tampil' : 'Tampilkan tombol absen saja, tanpa grafik dan jadwal'}</small></span></button>`;
+
+    function renderHomeSimple() {
+        const today = home.today;
+        const big = (href, title, sub, done, locked) => `<a class="g-big ${done ? 'done' : 'todo'}" href="${href}">
+            <span class="g-big-ico">${done ? '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>' : ICON.clip}</span>
+            <span class="g-big-txt"><b>${title}</b><small>${sub}</small></span>
+            <span class="g-big-go">${done ? (locked ? 'Lihat' : 'Lihat / ubah') : 'Mulai'}${ICON.chev}</span></a>`;
+        const parts = [`<div class="g-welcome"><b>Selamat datang, ${esc(shortName(home.nama))}</b><span class="att-muted">${esc(fmtDate(today))}</span></div>`];
+        if (!home.is_school_day) {
+            parts.push(`<div class="att-alert warn" style="margin-bottom:12px">Hari ini libur${home.holiday_name ? ` (${esc(home.holiday_name)})` : ''}. Absensi tidak perlu diisi.</div>`);
+        }
+        for (const w of home.wali_kelas) {
+            const t = w.hari_ini;
+            parts.push(big(`#/absen?kelas=${w.class_id}&tanggal=${today}&jenis=harian`, `Absen Kelas ${esc(kelasTitik(w.kelas))}`,
+                t ? `Sudah diisi pukul ${esc(t.disimpan)}` : `Belum diisi · ${esc(w.jumlah_siswa)} siswa`, Boolean(t), t?.terkunci));
+        }
+        for (const m of home.mapel) {
+            parts.push(big(`#/absen?kelas=${m.class_id}&tanggal=${today}&jenis=mapel&mapel=${m.subject_id}`, `Absen ${esc(m.kode)} Kelas ${esc(kelasTitik(m.kelas))}`,
+                m.hari_ini ? 'Sudah diisi hari ini' : 'Belum diisi hari ini', Boolean(m.hari_ini), false));
+        }
+        if (!home.wali_kelas.length && !home.mapel.length) {
+            parts.push('<div class="att-alert info" style="margin-bottom:12px">Belum ada kelas yang ditugaskan kepada Anda. Hubungi admin sekolah.</div>');
+        }
+        parts.push(`<p class="att-muted g-simple-help">Ketuk tombol di atas, pilih status tiap siswa, lalu tekan <b>Simpan absensi</b>. Untuk tanggal lain, ganti tanggal di halaman absensi.</p>`);
+        parts.push(simpleSwitch(true));
+        main(parts.join(''));
+        $('gMode').addEventListener('click', () => setSimple(false));
+    }
+
     function renderHome() {
         setNav('home');
         setTop('Dashboard Guru', fmtDate(home.today));
+        if (isSimple()) return renderHomeSimple();
         loadStaffExtra();
         refreshAlphaAlerts();
         const today = home.today;
@@ -426,8 +467,10 @@
         if (!home.wali_kelas.length && !home.mapel.length && !home.is_pimpinan) {
             parts.push('<div class="att-alert info">Belum ada kelas yang ditugaskan kepada Anda. Hubungi admin sekolah.</div>');
         }
+        parts.push(simpleSwitch(false));
         const keepY = window.scrollY;
         main(parts.join(''));
+        $('gMode').addEventListener('click', () => setSimple(true));
         $('gMain').querySelectorAll('[data-day]').forEach((b) => b.addEventListener('click', () => {
             homeDay = b.dataset.day;
             const y = window.scrollY;

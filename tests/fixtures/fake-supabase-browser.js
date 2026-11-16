@@ -277,7 +277,7 @@
             return single ? { data: rows[0] ?? null, error: null } : { data: rows, error: null };
         }
         if (table === 'attendance_sessions') {
-            const rows = Object.keys(F.sessions).map((k) => ({ id: F.sessions[k].id, session_date: k.split('|')[1], archived_at: null }));
+            const rows = Object.keys(F.sessions).map((k) => ({ id: F.sessions[k].id, class_id: k.split('|')[0], session_date: k.split('|')[1], kind: k.split('|')[2], archived_at: null, created_at: new Date().toISOString() }));
             const hit = rows.filter((r) => matches(r, ops));
             return { data: q._count?.head ? null : hit, error: null, count: hit.length };
         }

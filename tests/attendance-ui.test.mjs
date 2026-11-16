@@ -218,6 +218,23 @@ async function runUi() {
         await shot(page, 'guru-02-beranda-360.png');
 
         await shot(page, 'guru-02-dashboard-360.png');
+        // Mode Sederhana: hanya tombol absen besar
+        check(await page.getAttribute('#gMode', 'aria-checked') === 'false', 'sakelar Mode Sederhana ada di dashboard (mati)');
+        await page.click('#gMode');
+        await page.waitForSelector('.g-big');
+        check(await page.$('.g-hero') === null && await page.$('#gDay') === null && await page.$('.g-days') === null && await page.getAttribute('#gMode', 'aria-checked') === 'true',
+            'Mode Sederhana: kartu jadwal, rekap, dan pilihan hari disembunyikan');
+        check(/Absen Kelas 1\.A/.test(await page.textContent('.g-big')) && /Belum diisi/.test(await page.textContent('.g-big'))
+            && (await page.getAttribute('.g-big', 'href')).includes('jenis=harian'), 'Mode Sederhana: tombol besar "Absen Kelas 1.A" + status');
+        check(await page.$eval('.g-big', (b) => b.getBoundingClientRect().height) >= 88, 'tombol absen Mode Sederhana tinggi (mudah diketuk)');
+        check(await overflow(page) <= 0, 'Mode Sederhana tidak bergeser ke samping');
+        await shot(page, 'guru-02a-mode-sederhana-360.png');
+        await page.reload();
+        await page.waitForSelector('.g-big');
+        check(true, 'Mode Sederhana diingat setelah halaman dimuat ulang');
+        await page.click('#gMode');
+        await page.waitForSelector('.g-hero');
+        check(await page.$('.g-big') === null, 'sakelar mengembalikan dashboard lengkap');
         // Kartu Guru Mapel: pilih hari Senin–Jumat, lalu buka absen PAI
         check((await page.$$('.g-days [data-day]')).length === 5, 'kartu jadwal punya pilihan hari Senin–Jumat');
         await page.click('.g-days [data-day]:first-child');
@@ -249,6 +266,10 @@ async function runUi() {
         await page.evaluate(() => window.scrollTo(0, 400));
         const stuck = await page.evaluate(() => ({ top: document.getElementById('gFloat').getBoundingClientRect().top, head: document.querySelector('.g-top').getBoundingClientRect().bottom }));
         check(Math.abs(stuck.top - stuck.head) <= 1, `saat digulir panel tetap tepat di bawah header (${Math.round(stuck.top)} vs ${Math.round(stuck.head)})`);
+        {
+            const fh = await page.$eval('#gFloat', (el) => el.getBoundingClientRect().height);
+            check(fh <= 250, `panel yang menempel ringkas (${Math.round(fh)} px, maks. 250)`);
+        }
         if (OUT) await page.screenshot({ path: join(OUT, 'guru-03a-absen-floating-360.png') });
         await page.click('#gFloat .att-float-toggle');
         check(await page.$eval('#gFloat', (el) => !el.classList.contains('is-floating') && getComputedStyle(el).position !== 'sticky'), 'tombol panah melepas panel (tidak menempel lagi)');
@@ -256,7 +277,10 @@ async function runUi() {
         await page.evaluate(() => window.scrollTo(0, 0));
         check(/Dispensasi<\/b> pada absensi siswa berlaku hanya untuk/.test(await page.innerHTML('#gSheet')) && /tetap dihitung hadir/.test(await page.innerHTML('#gSheet')), 'keterangan Dispensasi tampil di lembar absensi');
         check(!/Non-Muslim/.test(await page.innerHTML('#gSheet')), 'keterangan Non-Muslim tidak tampil di absensi harian');
-        check(await page.$eval('.att-btn-hadir', (b) => getComputedStyle(b).backgroundColor) === 'rgb(220, 252, 231)', 'tombol Tandai semua Hadir berwarna hijau');
+        check(await page.$eval('.att-btn-hadir', (b) => getComputedStyle(b).backgroundColor === 'rgb(22, 163, 74)' && b.querySelector('svg') !== null && getComputedStyle(b).boxShadow !== 'none'),
+            'tombol Tandai semua Hadir: hijau pekat, ada ikon centang, tampak bisa ditekan');
+        check(await page.$eval('#gSheet details.att-ket summary', (s) => /Keterangan status Dispensasi/.test(s.textContent) && s.querySelector('svg') !== null)
+            && await page.evaluate(() => localStorage.getItem('att-ket')) === '1', 'keterangan dilipat jadi satu baris berikon "i"');
         check(await page.$eval('.att-btn-reset', (b) => b.getBoundingClientRect().left > document.querySelector('.att-btn-hadir').getBoundingClientRect().right - 1 && getComputedStyle(b).backgroundColor === 'rgb(226, 232, 240)'), 'tombol Reset abu-abu di kanan Tandai semua Hadir');
         check(await page.$eval('#gSheet .att-back', (a) => a.textContent.trim() === 'Kembali ke Menu Utama' && a.getAttribute('href') === '#/'
             && a.getBoundingClientRect().top >= document.querySelector('#attSave').getBoundingClientRect().top), 'tombol Kembali ke Menu Utama ada di bawah tombol Simpan');
@@ -489,6 +513,41 @@ async function runUi() {
         await page.evaluate(() => showTab('tabAttendance'));
         await page.waitForSelector('#attSheet .att-list');
         check(await overflow(page) <= 0, `[${vp.tag}] tab Kelola Absensi tidak bergeser ke samping`);
+        {
+            // Kelas yang belum absen: pakai hari sekolah terakhir supaya tes tidak bergantung hari.
+            const cek = await page.evaluate(() => {
+                let d = new Date(`${new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())}T00:00:00Z`);
+                while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d = new Date(d.getTime() - 86400000);
+                return d.toISOString().slice(0, 10);
+            });
+            await page.evaluate((d) => { for (const k of Object.keys(window.__fake.sessions)) if (k.includes(`|${d}|harian|`)) delete window.__fake.sessions[k]; }, cek);
+            await page.fill('#attCekTanggal', cek);
+            await page.click('#attCekReload');
+            await page.waitForSelector('#attBelum .att-status-item');
+            check(/0 dari 2 kelas/.test(await page.textContent('#attStatus')) && (await page.$$('#attBelum .att-status-item')).length === 2,
+                `[${vp.tag}] daftar kelas yang belum absen: 0 dari 2 kelas, dua kelas tercantum`);
+            check(/Kelas 1 A/.test(await page.textContent('#attBelum')) && /Sunarsih/.test(await page.textContent('#attBelum')), `[${vp.tag}] tiap kelas menampilkan nama wali kelas`);
+            const wa = await page.getAttribute('#attWa', 'href');
+            const msg = decodeURIComponent(wa.split('text=')[1] || '');
+            check(/^https:\/\/wa\.me\/\?text=/.test(wa) && /Pengingat Absensi Siswa/.test(msg) && /1\. Kelas 1 A — Sunarsih/.test(msg) && /0 dari 2 kelas/.test(msg) && /sdnkalibaru05\.sch\.id\/guru/.test(msg),
+                `[${vp.tag}] tombol WhatsApp berisi pesan pengingat siap kirim`);
+            check(await overflow(page) <= 0, `[${vp.tag}] kartu kelas belum absen tidak bergeser ke samping`);
+            await shot(page, `admin-03a-belum-absen-${vp.tag}.png`);
+            await page.evaluate((d) => { window.__fake.sessions[`00000000-0000-4000-8000-0000000000c1|${d}|harian|-`] = { id: 'sess-cek', records: {} }; }, cek);
+            await page.click('#attCekReload');
+            await page.waitForFunction(() => /1 dari 2 kelas/.test(document.getElementById('attStatus').textContent));
+            check((await page.$$('#attBelum .att-status-item')).length === 1 && /Sudah absen \(1\)/.test(await page.textContent('#attStatus')), `[${vp.tag}] kelas yang sudah absen pindah ke daftar "Sudah absen"`);
+            await page.evaluate((d) => { delete window.__fake.sessions[`00000000-0000-4000-8000-0000000000c1|${d}|harian|-`]; }, cek);
+            await page.click('#attBelum .att-status-item');
+            await page.waitForFunction((d) => document.getElementById('attTanggal').value === d, cek);
+            check(true, `[${vp.tag}] ketuk nama kelas membuka absensi kelas itu di formulir`);
+            await page.fill('#attTanggal', await page.evaluate(() => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())));
+            await page.waitForSelector('#attSheet .att-list');
+            await page.evaluate(() => { document.querySelector('#attSheet .att-list').dataset.old = '1'; });
+            await page.selectOption('#attKelas', { index: 0 });
+            await page.click('#attShow');
+            await page.waitForSelector('#attSheet .att-list:not([data-old])');
+        }
         await page.click('[data-all="H"]');
         check(await page.$('.att-sheet') === null && /Semua 3 siswa sudah diabsen/.test(await page.textContent('.att-progress')),
             `[${vp.tag}] Tandai semua Hadir langsung mengisi semua tanpa konfirmasi`);
