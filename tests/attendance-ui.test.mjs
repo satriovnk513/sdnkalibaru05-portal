@@ -663,6 +663,13 @@ async function runUi() {
         const pop = await popupFrom(page, () => page.click('#lpBlnPrint'));
         const txt = await pop.textContent('body');
         check(/DAFTAR HADIR SISWA/.test(txt) && /BULAN : /.test(txt) && /Laki-laki = 1/.test(txt) && /Perempuan = 2/.test(txt), `${T} cetak bulanan: kop, bulan, jumlah L/P`);
+        {
+            const [y, m] = (await page.inputValue('#lpBlnBulan')).split('-').map(Number);
+            const akhir = new Date(Date.UTC(y, m, 0)).getUTCDate();
+            const BUL = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            check(txt.includes(`Jakarta, ${akhir} ${BUL[m - 1]} ${y}`), `${T} tanda tangan bulanan di tanggal akhir bulan (${akhir} ${BUL[m - 1]} ${y})`);
+            check(/>✓</.test(await pop.content()) && !/•/.test(txt), `${T} hadir ditandai ✓ (bukan titik)`);
+        }
         if (vp.tag === '1366') {
             await pop.emulateMedia({ media: 'print' });
             await pop.setViewportSize({ width: 1123, height: 794 });
@@ -671,7 +678,7 @@ async function runUi() {
         await pop.close();
         await page.check('#lpBlnBlank');
         const popB = await popupFrom(page, () => page.click('#lpBlnPrint'));
-        check(!(/>•</.test(await popB.content())), `${T} blanko kosong tanpa isian`);
+        check(!(/>✓</.test(await popB.content())), `${T} blanko kosong tanpa isian`);
         await popB.close();
         await page.uncheck('#lpBlnBlank');
         const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#lpBlnXlsx')]);
@@ -687,6 +694,7 @@ async function runUi() {
         const popS = await popupFrom(page, () => page.click('#lpSemPrint'));
         const ts = await popS.textContent('body');
         check(/REKAP ABSENSI SEMESTER/.test(ts) && /% KEHADIRAN/.test(ts), `${T} cetak rekap semester`);
+        check(/REKAP ABSENSI SEMESTER GANJIL/.test(ts) ? /Jakarta, 31 Desember \d{4}/.test(ts) : /Jakarta, 30 Juni \d{4}/.test(ts), `${T} tanda tangan semester di akhir Desember (ganjil) / akhir Juni (genap)`);
         if (vp.tag === '1366') {
             await popS.emulateMedia({ media: 'print' });
             await popS.setViewportSize({ width: 1123, height: 794 });

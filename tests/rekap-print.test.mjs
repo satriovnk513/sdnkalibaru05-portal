@@ -46,21 +46,35 @@ test('HTML bulanan: kop, kelas Romawi, kolom libur merah, total, tanda tangan', 
     assert.match(h, /NIP\. 990000000000000009/);
     assert.match(h, /SISWA FIKTIF &lt;SATU&gt; &amp; &quot;DUA&quot;/, 'nama di-escape');
     assert.doesNotMatch(h, /<SATU>/);
+    assert.match(h, />✓</, 'hadir ditandai centang');
+    assert.doesNotMatch(h, /•/, 'tidak ada titik lagi');
+});
+
+test('tanggal tanda tangan bulanan = tanggal terakhir bulan yang dipilih', () => {
+    assert.equal(RP.akhirBulan(2026, 11), '2026-11-30');
+    assert.equal(RP.akhirBulan(2026, 12), '2026-12-31');
+    assert.equal(RP.akhirBulan(2027, 2), '2027-02-28');
+    assert.equal(RP.akhirBulan(2028, 2), '2028-02-29');
+    const nov = { ...month, bulan: 11, hari: month.hari.slice(0, 13) };
+    assert.match(RP.monthlyHtml(nov, header, {}), /Jakarta, 30 November 2026/, 'walau data hari tidak lengkap');
 });
 
 test('HTML bulanan: blanko kosong dan pilihan wali 2 tanpa NIP', () => {
     const h = RP.monthlyHtml(month, header, { wali: 2, showNip: false, blank: true });
-    assert.doesNotMatch(h, />•</);
+    assert.doesNotMatch(h, />✓</);
     assert.match(h, /GURU PENDAMPING, S\.Pd\./);
     assert.doesNotMatch(h, /NIP\./);
 });
 
-test('HTML semester: persentase dan tanggal tanda tangan = hari ini bila semester berjalan', () => {
+test('HTML semester: persentase; tanda tangan ganjil 31 Desember, genap 30 Juni (tahun semester itu)', () => {
     const h = RP.semesterHtml(sem, header, {});
     assert.match(h, /REKAP ABSENSI SEMESTER GANJIL/);
     assert.match(h, /80%/);
     assert.match(h, /<td>–<\/td>/);
-    assert.match(h, /Jakarta, 13 November 2026/);
+    assert.match(h, /Jakarta, 31 Desember 2026/);
+    const genap = { ...sem, semester: 2, mulai: '2027-01-01', selesai: '2027-07-10', sampai_hari_ini: '2026-11-13' };
+    assert.match(RP.semesterHtml(genap, header, {}), /Jakarta, 30 Juni 2027/);
+    assert.equal(RP.ttdSemester({ semester: 2, mulai: '2028-01-01' }), '2028-06-30');
 });
 
 test('pct dan namaTtd', () => {
@@ -97,7 +111,7 @@ for f in sys.argv[1:3]:
         const [l1, l2, i1, i2] = r.stdout.trim().split('\n').map((l) => l.split(' | '));
         assert.deepEqual(i1, [String(logoPng.length), 'True'], 'logo tertanam di Excel bulanan');
         assert.deepEqual(i2, [String(logoPng.length), 'True'], 'logo tertanam di Excel semester');
-        assert.deepEqual(l1.slice(0, 9), ['III.A Desember 2026', 'DAFTAR HADIR SISWA', 'KELAS : III.A', 'SISWA FIKTIF <SATU> & "DUA"', '•', 'S', '1', 'BULAN : DESEMBER 2026', 'FFFF0000']);
+        assert.deepEqual(l1.slice(0, 9), ['III.A Desember 2026', 'DAFTAR HADIR SISWA', 'KELAS : III.A', 'SISWA FIKTIF <SATU> & "DUA"', '✓', 'S', '1', 'BULAN : DESEMBER 2026', 'FFFF0000']);
         assert.equal(Number(l1[9]), 9);
         assert.deepEqual(l2, ['Semester GANJIL III.A', 'REKAP ABSENSI SEMESTER GANJIL', 'SISWA FIKTIF SATU', '8', '80', '–']);
     } finally {

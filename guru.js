@@ -812,7 +812,7 @@
             const head = days.map((d) => `<th class="${d.libur ? 'libur' : ''}">${Number(d.tanggal.slice(8))}</th>`).join('');
             const body = rows.map((s) => `<tr><td>${esc(s.no)}</td><td class="nm">${esc(s.nama)}</td><td>${esc(s.jk || '')}</td>${days.map((d) => {
                 const v = s.status[d.tanggal];
-                return `<td class="${d.libur ? 'libur' : ''} ${v ? `c-${v}` : ''}">${v && v !== 'H' ? v : (v ? '•' : '')}</td>`;
+                return `<td class="${d.libur ? 'libur' : ''} ${v ? `c-${v}` : ''}">${v && v !== 'H' ? v : (v ? '✓' : '')}</td>`;
             }).join('')}<td>${s.t.S}</td><td>${s.t.I}</td><td>${s.t.A}</td></tr>`).join('');
             $('gRkInfo').innerHTML = `<div class="att-alert info">Kelas ${esc(romawi(r.kelas))} · ${esc(window.Att.BULAN[m - 1])} ${y}: absensi diisi ${filled} dari ${esc(r.hari_efektif)} hari sekolah.</div>`;
             $('gRekap').innerHTML = `
@@ -821,7 +821,7 @@
                     <div class="att-recap-wrap" style="margin-top:10px"><table class="att-recap">
                         <thead><tr><th>No</th><th>Nama</th><th>L/P</th>${head}<th>S</th><th>I</th><th>A</th></tr></thead>
                         <tbody>${body}</tbody></table></div>
-                    <p class="att-muted">• = hadir. Kolom merah = Sabtu, Minggu, atau hari libur.</p>
+                    <p class="att-muted">✓ = hadir. Kolom merah = Sabtu, Minggu, atau hari libur.</p>
                 </details>
                 <h2>Cetak &amp; unduh</h2>
                 <div class="att-card att-stack">
