@@ -136,7 +136,7 @@ async function runUi() {
     async function popupFrom(page, click) {
         const [pop] = await Promise.all([page.context().waitForEvent('page'), click()]);
         await pop.waitForLoadState();
-        await pop.waitForFunction(() => document.querySelector('.page'));
+        await pop.waitForFunction(() => document.querySelector('.page, .kertas'));
         return pop;
     }
 
@@ -431,7 +431,8 @@ async function runUi() {
         // Statistik
         await page.click('.g-nav a[data-nav="statistik"]');
         await page.waitForSelector('#gStat .g-tiles');
-        check((await page.$$('.g-nav a')).length === 5 && await overflow(page) <= 0, 'menu bawah 5 tombol (ada Statistik) muat di 360 px');
+        check((await page.$$('.g-nav a')).length === 6 && await overflow(page) <= 0
+            && await page.$$eval('.g-nav a', (a) => a.every((x) => x.scrollWidth <= x.clientWidth + 1)), 'menu bawah 6 tombol (Statistik, Dokumen) muat di 360 px tanpa terpotong');
         check(await page.$('#gStKomposisi .ac-donut svg') !== null && await page.$('#gStTren svg rect') !== null, 'statistik bulanan: donat komposisi + batang tren');
         await page.click('[data-komposisi="batang"]');
         check(await page.$('#gStKomposisi .ac-bars') !== null && await page.$('#gStKomposisi .ac-donut') === null, 'komposisi bisa diganti ke grafik batang');
@@ -447,6 +448,60 @@ async function runUi() {
         check(await page.$('#gFloat.att-float #gStKelas') !== null, 'filter statistik ada di panel yang bisa menempel');
         check(await overflow(page) <= 0, 'halaman statistik tidak bergeser ke samping');
         await shot(page, 'guru-09b-statistik-hari-360.png');
+
+        // Cetak & Dokumen
+        await page.click('.g-nav a[data-nav="dokumen"]');
+        await page.waitForSelector('.g-dok');
+        check((await page.$$('.g-dok')).length >= 8 && /Surat keterangan aktif/.test(await page.textContent('#gMain')) && await overflow(page) <= 0,
+            'menu Cetak & Dokumen: daftar jenis dokumen tampil, tidak bergeser ke samping');
+        await shot(page, 'guru-10-dokumen-360.png');
+        await page.click('.g-dok[href="#/dokumen/daftar"]');
+        await page.waitForSelector('#gDokForm');
+        await page.waitForFunction(() => /SISWA FIKTIF/i.test(document.getElementById('gDokPrev').srcdoc || ''));
+        check(!/3172000000000000/.test(await page.getAttribute('#gDokPrev', 'srcdoc')), 'daftar siswa: NIK tidak tampil sebelum dicentang');
+        await page.check('[data-dk="kolom"][value="nik"]');
+        await page.waitForFunction(() => /3172000000000000/.test(document.getElementById('gDokPrev').srcdoc || ''));
+        check(true, 'mencentang kolom NIK langsung memperbarui pratinjau');
+        check(await page.$eval('.g-dok-prev', (b) => b.getBoundingClientRect().width <= window.innerWidth) && await overflow(page) <= 0, 'pratinjau diperkecil supaya muat di layar HP');
+        {
+            const pop = await popupFrom(page, () => page.click('[data-out="print"]'));
+            const txt = await pop.textContent('body');
+            check(/DAFTAR NAMA SISWA/.test(txt) && /Kelas : I\.A/.test(txt) && /Kepala Fiktif/.test(txt) && /Sunarsih/.test(txt), 'cetak daftar siswa: judul, kelas, tanda tangan kepsek & wali kelas');
+            await pop.close();
+            const [dlx] = await Promise.all([page.waitForEvent('download'), page.click('[data-out="xlsx"]')]);
+            const vx = await xlsxCells(dlx, ['D1', 'B7']);
+            check(/\.xlsx$/.test(dlx.suggestedFilename()) && (!vx || (vx[0] === 'DAFTAR NAMA SISWA' && /SISWA FIKTIF/i.test(vx[1]) && vx[2] === 'logo')), `daftar siswa: Excel valid + logo (${vx})`);
+            const [dlw] = await Promise.all([page.waitForEvent('download'), page.click('[data-out="word"]')]);
+            const wp = join(dlDir, 'tes-word.doc');
+            await dlw.saveAs(wp);
+            const word = readFileSync(wp, 'utf8');
+            check(/\.doc$/.test(dlw.suggestedFilename()) && /schemas-microsoft-com:office:word/.test(word) && /DAFTAR NAMA SISWA/.test(word), 'daftar siswa: file Word bisa diunduh dan berisi dokumennya');
+        }
+        await shot(page, 'guru-10a-dokumen-daftar-360.png');
+        await page.click('#gBack');
+        await page.waitForSelector('.g-dok');
+        await page.click('.g-dok[href="#/dokumen/aktif"]');
+        await page.waitForSelector('#gDokForm');
+        await page.click('[data-out="print"]');
+        await page.waitForSelector('#gDokErr:not(.g-hidden)');
+        check(/Pilih siswa/.test(await page.textContent('#gDokErr')), 'surat keterangan: diminta memilih siswa dulu');
+        await page.selectOption('#gDk_siswa', { index: 1 });
+        await page.fill('#gDk_keperluan', 'persyaratan KJP');
+        {
+            const pop = await popupFrom(page, () => page.click('[data-out="print"]'));
+            const txt = await pop.textContent('body');
+            check(/SURAT KETERANGAN AKTIF SEKOLAH/.test(txt) && /SEKOLAH DASAR NEGERI KALIBARU 05 PAGI/.test(txt) && /persyaratan KJP/.test(txt) && /Kepala Sekolah/.test(txt),
+                'cetak surat keterangan aktif: kop, isi, keperluan, tanda tangan kepala sekolah');
+            if (OUT) { await pop.emulateMedia({ media: 'print' }); await pop.setViewportSize({ width: 794, height: 1123 }); await pop.screenshot({ path: join(OUT, 'dokumen-surat-aktif.png') }); }
+            await pop.close();
+        }
+        await page.click('#gBack');
+        await page.waitForSelector('.g-dok');
+        await page.click('.g-dok[href="#/dokumen/aktif"]');
+        await page.waitForSelector('#gDokForm');
+        check((await page.inputValue('#gDk_keperluan')) === 'persyaratan KJP', 'isian formulir diingat saat kembali ke dokumen yang sama');
+        await page.click('.g-nav a[data-nav="home"]');
+        await page.waitForSelector('.g-task');
 
         // Akun
         await page.click('.g-nav a[data-nav="akun"]');
