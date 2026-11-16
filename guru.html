@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="attendance.css?v=5">
+    <link rel="stylesheet" href="attendance.css?v=6">
     <link rel="icon" href="/favicon.ico" sizes="any">
     <style>
         * { box-sizing: border-box; }
@@ -110,6 +110,27 @@
         .g-sched-txt svg { width: 14px; height: 14px; }
         .g-time { background: #dcfce7; color: #166534; border-radius: 999px; padding: 1px 8px; font-weight: 600; font-size: 0.74rem; }
         .g-soon { border-style: dashed; }
+
+        /* Mode Sederhana */
+        .g-big { display: flex; align-items: center; gap: 14px; min-height: 96px; padding: 16px; margin-bottom: 14px; border-radius: 18px; text-decoration: none; color: #fff; background: #e11d48; box-shadow: 0 5px 0 #9f1239; }
+        .g-big:active { transform: translateY(3px); box-shadow: 0 2px 0 #9f1239; }
+        .g-big.done { background: #16a34a; box-shadow: 0 5px 0 #166534; }
+        .g-big.done:active { box-shadow: 0 2px 0 #166534; }
+        .g-big svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+        .g-big-ico { flex: none; width: 52px; height: 52px; border-radius: 14px; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; }
+        .g-big-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .g-big-txt b { font-size: 1.25rem; line-height: 1.2; overflow-wrap: anywhere; }
+        .g-big-txt small { font-size: 0.9rem; opacity: .95; }
+        .g-big-go { flex: none; display: flex; align-items: center; gap: 2px; font-weight: 700; font-size: 0.9rem; }
+        .g-big-go svg { width: 18px; height: 18px; }
+        .g-simple-help { margin: 4px 0 18px; font-size: 0.95rem; line-height: 1.5; }
+        .g-mode { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; min-height: 64px; padding: 10px 14px; margin: 4px 0 14px; border-radius: 14px; border: 1px solid var(--att-line); background: #fff; cursor: pointer; font-family: 'Inter', sans-serif; color: var(--att-ink); }
+        .g-mode > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+        .g-mode small { color: var(--att-muted); font-size: 0.8rem; }
+        .g-mode-track { flex: none; width: 46px; height: 28px; border-radius: 999px; background: #cbd5e1; position: relative; transition: background .15s; }
+        .g-mode-track i { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: left .15s; }
+        .g-mode[aria-checked="true"] .g-mode-track { background: #16a34a; }
+        .g-mode[aria-checked="true"] .g-mode-track i { left: 21px; }
 
         /* Rekap per tanggal, peringatan alpa, statistik */
         .g-tag.day { background: #dbeafe; color: #1d4ed8; }
@@ -264,9 +285,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="attendance-sheet.js?v=5"></script>
+    <script src="attendance-sheet.js?v=6"></script>
     <script src="rekap-print.js?v=3"></script>
     <script src="att-charts.js?v=1"></script>
-    <script src="guru.js?v=10"></script>
+    <script src="guru.js?v=11"></script>
 </body>
 </html>

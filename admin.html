@@ -11,7 +11,7 @@
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <link rel="stylesheet" href="attendance.css?v=5">
+    <link rel="stylesheet" href="attendance.css?v=6">
     <style>
         /* ── Reset & Base ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -977,6 +977,16 @@
                 <!-- ═══ TAB KELOLA ABSENSI ═══ -->
                 <div id="tabAttendance" class="tab-content">
                     <div class="section-header"><h2>Kelola Absensi</h2></div>
+                    <div class="admin-card" id="attStatusCard" style="margin-bottom:16px">
+                        <div class="att-row" style="justify-content:space-between;margin-bottom:10px">
+                            <h3 style="margin:0;font-size:1.05rem">Kelas yang belum absen</h3>
+                            <div class="att-row" style="flex-wrap:nowrap">
+                                <input type="date" class="att-input" id="attCekTanggal" aria-label="Tanggal yang dicek" style="min-height:40px;width:auto">
+                                <button type="button" class="att-btn att-btn-ghost att-btn-sm" id="attCekReload">Muat ulang</button>
+                            </div>
+                        </div>
+                        <div id="attStatus"><div class="att-muted">Memuat…</div></div>
+                    </div>
                     <div class="admin-card">
                         <p class="att-muted" style="margin:0 0 12px">Admin bisa mengisi atau mengoreksi absensi rombel mana pun. Koreksi wajib menyertakan alasan dan tercatat di riwayat.</p>
                         <div class="att-table-tools">
@@ -1387,8 +1397,8 @@
     <script src="student-fields.js?v=1"></script>
     <script src="admin-students.js?v=2"></script>
     <script src="admin.js?v=4"></script>
-    <script src="attendance-sheet.js?v=5"></script>
-    <script src="admin-attendance.js?v=4"></script>
+    <script src="attendance-sheet.js?v=6"></script>
+    <script src="admin-attendance.js?v=5"></script>
     <script src="admin-akademik.js?v=1"></script>
     <script src="rekap-print.js?v=3"></script>
     <script src="admin-laporan.js?v=3"></script>

@@ -243,6 +243,89 @@
             + subjects.map((x) => `<option value="${esc(x.id)}">${esc(x.code)} · ${esc(x.name)}</option>`).join('');
         $('attTanggal').value = todayJakarta();
         $('attTanggal').max = todayJakarta();
+        $('attCekTanggal').value = todayJakarta();
+        $('attCekTanggal').max = todayJakarta();
+        loadStatus();
+    }
+
+    // ---------------------------------------------------------- kelas yang belum absen
+    let statusData = null;
+
+    const sapaan = (nama) => String(nama || '').split(',')[0].trim();
+
+    /** Pesan pengingat untuk grup WhatsApp guru. */
+    function reminderText(d) {
+        const lines = d.belum.map((c, i) => `${i + 1}. Kelas ${c.name}${c.wali.length ? ` — ${c.wali.map(sapaan).join(' / ')}` : ''}`);
+        return `*Pengingat Absensi Siswa*\n${fmtDate(d.date)}\n\n`
+            + `Bapak/Ibu wali kelas berikut mohon segera mengisi absensi harian:\n${lines.join('\n')}\n\n`
+            + `Isi di: https://sdnkalibaru05.sch.id/guru\n`
+            + `Sudah mengisi: ${d.sudah.length} dari ${d.total} kelas. Terima kasih.`;
+    }
+
+    async function loadStatus() {
+        const host = $('attStatus');
+        const date = $('attCekTanggal').value || todayJakarta();
+        host.style.opacity = '0.5';
+        try {
+            const [ses, hr, st, hol] = await Promise.all([
+                sb.from('attendance_sessions').select('class_id,created_at').eq('session_date', date).eq('kind', 'harian').is('archived_at', null),
+                sb.from('homeroom_assignments').select('class_id,staff_id,position'),
+                sb.from('staff').select('id,name'),
+                sb.from('school_holidays').select('name').eq('holiday_date', date),
+            ]);
+            const err = ses.error || hr.error || st.error || hol.error;
+            if (err) throw new Error(err.message);
+            const staffName = new Map(st.data.map((x) => [x.id, x.name]));
+            const filled = new Map(ses.data.map((x) => [x.class_id, x.created_at]));
+            const rows = classes.map((c) => ({
+                id: c.id, name: c.name,
+                wali: hr.data.filter((h) => h.class_id === c.id).sort((a, b) => a.position - b.position).map((h) => staffName.get(h.staff_id)).filter(Boolean),
+                jam: filled.has(c.id) ? new Date(filled.get(c.id)).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }) : null,
+            }));
+            const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
+            const libur = hol.data[0]?.name || (dow === 0 ? 'Minggu' : dow === 6 ? 'Sabtu' : null);
+            statusData = { date, libur, total: rows.length, belum: rows.filter((r) => !r.jam), sudah: rows.filter((r) => r.jam) };
+            drawStatus();
+        } catch (e) {
+            host.innerHTML = `<div class="att-alert err">${esc(errMessage(e))}</div>`;
+        } finally {
+            host.style.opacity = '';
+        }
+    }
+
+    function drawStatus() {
+        const d = statusData;
+        const host = $('attStatus');
+        if (d.libur) {
+            host.innerHTML = `<div class="att-alert warn">${esc(fmtDate(d.date))} libur (${esc(d.libur)}). Tidak ada absensi yang perlu diisi.</div>`;
+            return;
+        }
+        if (!d.total) { host.innerHTML = '<div class="att-alert info">Belum ada kelas pada tahun ajaran aktif.</div>'; return; }
+        const pct = Math.round((d.sudah.length / d.total) * 100);
+        const item = (c) => `<li><button type="button" class="att-status-item ${c.jam ? 'ok' : 'no'}" data-open="${esc(c.id)}">
+            <b>Kelas ${esc(c.name)}</b><span>${esc(c.wali.map(sapaan).join(' / ') || 'Wali kelas belum ditetapkan')}</span>
+            <i>${c.jam ? `Diisi ${esc(c.jam)}` : 'Belum diisi'}</i></button></li>`;
+        host.innerHTML = `
+            <div class="att-status-sum"><b>${d.sudah.length} dari ${d.total} kelas</b> sudah absen · ${esc(fmtDate(d.date))}
+                <div class="att-status-bar" role="img" aria-label="${pct}% kelas sudah absen"><i style="width:${pct}%"></i></div></div>
+            ${d.belum.length ? `<ul class="att-status-list" id="attBelum">${d.belum.map(item).join('')}</ul>
+                <div class="att-row" style="margin-top:12px">
+                    <a class="att-btn att-btn-wa" id="attWa" href="https://wa.me/?text=${encodeURIComponent(reminderText(d))}" target="_blank" rel="noopener noreferrer">Kirim pengingat lewat WhatsApp</a>
+                    <button type="button" class="att-btn att-btn-ghost" id="attCopy">Salin pesan</button>
+                </div>
+                <p class="att-muted" style="margin:8px 0 0">Tombol WhatsApp membuka pesan siap kirim; pilih grup guru sebagai tujuan. Ketuk nama kelas untuk membuka absensinya di bawah.</p>`
+        : '<div class="att-alert ok">Semua kelas sudah mengisi absensi harian.</div>'}
+            ${d.sudah.length ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600">Sudah absen (${d.sudah.length})</summary><ul class="att-status-list" style="margin-top:8px">${d.sudah.map(item).join('')}</ul></details>` : ''}`;
+        $('attCopy')?.addEventListener('click', async () => {
+            try { await navigator.clipboard.writeText(reminderText(d)); toast('Pesan disalin. Tempel di grup WhatsApp guru.'); } catch { toast('Tidak bisa menyalin otomatis.', 'err'); }
+        });
+        host.querySelectorAll('[data-open]').forEach((b) => b.addEventListener('click', () => {
+            $('attKelas').value = b.dataset.open;
+            $('attJenis').value = 'harian';
+            $('attTanggal').value = d.date;
+            loadSheet();
+            $('attSheet').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }));
     }
 
     async function loadSheet() {
@@ -265,6 +348,7 @@
                 onSave: async (entries, reason) => {
                     await rpc('save_attendance', { p_class_id: classId, p_date: date, p_kind: kind, p_subject_id: subjectId, p_entries: entries, p_reason: reason });
                     setTimeout(loadSheet, 300);
+                    setTimeout(loadStatus, 400);
                 },
             });
             if (sheet.session) {
@@ -343,6 +427,8 @@
     document.addEventListener('DOMContentLoaded', () => {
         $('tabTeacherAccounts')?.addEventListener('click', onAccClick);
         $('attShow')?.addEventListener('click', loadSheet);
+        $('attCekReload')?.addEventListener('click', loadStatus);
+        $('attCekTanggal')?.addEventListener('change', loadStatus);
         $('accReload')?.addEventListener('click', loadAccounts);
     });
     sb.auth.onAuthStateChange((event) => {

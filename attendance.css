@@ -208,23 +208,65 @@
 
 /* Tombol massal di lembar absensi */
 .att-bulk { margin: 10px 0 0; flex-wrap: nowrap; }
-.att-btn-hadir { background: var(--att-h-bg); color: #166534; border: 1px solid #bbf7d0; flex: 1 1 auto; }
-.att-btn-hadir:hover { background: #bbf7d0; }
-.att-btn-reset { background: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; flex: 0 0 auto; min-width: 84px; }
+.att-bulk .att-btn { min-height: 46px; gap: 8px; font-weight: 700; border-radius: 12px; transition: transform .05s, box-shadow .05s; }
+.att-bulk .att-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.att-bulk .att-btn:active { transform: translateY(2px); box-shadow: none; }
+.att-btn-hadir { background: #16a34a; color: #fff; border: 1px solid #15803d; box-shadow: 0 3px 0 #166534; flex: 1 1 auto; }
+.att-btn-hadir:hover { background: #15803d; }
+.att-btn-reset { background: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; box-shadow: 0 3px 0 #94a3b8; flex: 0 0 auto; min-width: 96px; }
+.att-btn-reset svg { stroke-width: 2.4 !important; width: 18px !important; height: 18px !important; }
 .att-btn-reset:hover { background: #cbd5e1; }
+/* Keterangan yang dilipat (ikon i) */
+.att-ket { margin: 0 0 8px; border: 1px solid #bfdbfe; background: #eff6ff; border-radius: 12px; font-size: 0.84rem; }
+.att-ket summary { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; cursor: pointer; color: #1e40af; font-weight: 600; list-style: none; }
+.att-ket summary::-webkit-details-marker { display: none; }
+.att-ket summary::after { content: "Lihat"; margin-left: auto; font-weight: 500; font-size: 0.78rem; text-decoration: underline; }
+.att-ket[open] summary::after { content: "Tutup"; }
+.att-ket summary svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex: none; }
+.att-ket-body { padding: 0 12px 10px; line-height: 1.45; color: #1e293b; }
+.att-ket-body p { margin: 0 0 6px; }
+.att-ket-body p.warn { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 6px 8px; }
 .att-hint { margin: 6px 0 0; }
-.att-keterangan { margin: 0 0 8px; font-size: 0.82rem; line-height: 1.4; padding: 10px 12px; }
 .att-back { margin-top: 12px; }
 
 /* Panel yang menempel di atas saat digulir (bisa dilepas dengan tombol panah) */
 .att-float { position: relative; background: var(--att-bg); padding: 12px 0 6px; margin-bottom: 12px; }
 .att-float.is-floating { position: sticky; top: var(--att-float-top, 0px); z-index: 25; background: #fff; box-shadow: 0 10px 14px -12px rgba(15, 23, 42, 0.45); border-bottom: 1px solid var(--att-line); }
 .att-float > :first-child { margin-top: 0; }
+/* Saat menempel, panel diringkas supaya daftar siswa tetap lega di HP */
+.att-float.is-floating { padding-top: 8px !important; padding-bottom: 4px !important; }
+.att-float.is-floating .g-date-row { margin-bottom: 6px; }
+.att-float.is-floating .g-date-row .att-field { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; }
+.att-float.is-floating .g-date-row label { margin: 0; flex: none; }
+.att-float.is-floating .g-date-row .att-input { min-height: 40px; flex: 1 1 auto; }
+.att-float.is-floating #gSheetHead > p.att-muted, .att-float.is-floating .att-hint { display: none; }
+.att-float.is-floating #gSheetHead > .att-row:first-of-type { margin: 0 0 6px !important; }
+.att-float.is-floating .att-count { padding: 3px 2px; border-radius: 9px; display: flex; align-items: baseline; justify-content: center; gap: 4px; }
+.att-float.is-floating .att-count b { font-size: 0.95rem; display: inline; }
+.att-float.is-floating .att-count span { display: none; }
+.att-float.is-floating .att-count::after { content: attr(data-k); font-size: 0.72rem; font-weight: 600; color: #334155; }
+.att-float.is-floating .att-progress { margin-top: 6px; padding: 4px 10px; font-size: 0.8rem; }
+.att-float.is-floating .att-bulk { margin-top: 6px; }
+.att-float.is-floating .att-bulk .att-btn { min-height: 40px; }
+.att-float.is-floating .att-float-toggle { margin-top: 4px; min-height: 26px; }
 .att-float .g-date-row, .att-float .att-table-tools { margin-bottom: 8px; }
 .att-float-toggle { display: flex; align-items: center; gap: 4px; margin: 8px auto 0; min-height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--att-line); background: #f1f5f9; color: #475569; font: 600 0.76rem 'Inter', sans-serif; cursor: pointer; }
 .att-float-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 /* Layar pendek (HP miring): panel tidak menempel supaya daftar tetap terlihat */
 @media (max-height: 560px) { .att-float.is-floating { position: relative; top: auto; box-shadow: none; } }
+
+/* Admin: kelas yang belum absen */
+.att-status-sum { font-size: 0.95rem; margin-bottom: 12px; }
+.att-status-bar { height: 10px; border-radius: 999px; background: #fee2e2; overflow: hidden; margin-top: 6px; }
+.att-status-bar i { display: block; height: 100%; background: #16a34a; border-radius: 999px; }
+.att-status-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.att-status-item { width: 100%; text-align: left; display: grid; gap: 1px; min-height: 64px; padding: 8px 12px; border-radius: 12px; border: 1px solid #fecaca; background: #fff5f5; cursor: pointer; font-family: 'Inter', sans-serif; color: var(--att-ink); }
+.att-status-item.ok { border-color: #bbf7d0; background: var(--att-h-bg); }
+.att-status-item span { font-size: 0.82rem; color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att-status-item i { font-style: normal; font-size: 0.76rem; font-weight: 700; color: #b91c1c; }
+.att-status-item.ok i { color: #166534; }
+.att-btn-wa { background: #16a34a; color: #fff; text-decoration: none; }
+.att-btn-wa:hover { background: #15803d; }
 
 @media print {
     .att-noprint { display: none !important; }

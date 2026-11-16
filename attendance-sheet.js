@@ -162,7 +162,7 @@
         function countsHtml() {
             const c = counts();
             return `<div id="attCounts"><div class="att-counts">${ORDER.map((k) =>
-                `<div class="att-count ${k}"><b>${c[k]}</b><span>${STATUS[k]}</span></div>`).join('')}</div>
+                `<div class="att-count ${k}" data-k="${k}" title="${STATUS[k]}"><b>${c[k]}</b><span>${STATUS[k]}</span></div>`).join('')}</div>
                 ${editable ? `<p class="att-progress ${c.kosong ? 'todo' : 'done'}" aria-live="polite">${c.kosong
                     ? `<b>${c.kosong}</b> dari ${students.length} siswa belum diabsen`
                     : `Semua ${students.length} siswa sudah diabsen`}</p>` : ''}</div>`;
@@ -185,7 +185,22 @@
             </li>`;
         }
 
-        const NOTE_D = `<div class="att-alert info att-keterangan"><b>Dispensasi</b> pada absensi siswa berlaku hanya untuk <b>kegiatan resmi yang mendapat persetujuan atau penugasan dari pihak sekolah.</b> Berbeda dengan izin pribadi atau sakit, siswa yang mendapat status dispensasi <b>tetap dihitung hadir</b> pada rekap KBM.</div>`;
+        const NOTE_D = `<p><b>Dispensasi</b> pada absensi siswa berlaku hanya untuk <b>kegiatan resmi yang mendapat persetujuan atau penugasan dari pihak sekolah.</b> Berbeda dengan izin pribadi atau sakit, siswa yang mendapat status dispensasi <b>tetap dihitung hadir</b> pada rekap KBM.</p>`;
+        const ICO_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+        const ICO_RESET = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>';
+        const ICO_INFO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>';
+
+        /** Keterangan dilipat jadi satu baris berikon "i". Terbuka sendiri hanya saat pertama kali dilihat di perangkat ini. */
+        function notesHtml() {
+            const extra = opts.notes || [];
+            const key = extra.length ? 'att-ket-pai' : 'att-ket';
+            let seen = true;
+            try { seen = localStorage.getItem(key) === '1'; localStorage.setItem(key, '1'); } catch { /* abaikan */ }
+            return `<details class="att-ket" ${seen ? '' : 'open'}>
+                <summary>${ICO_INFO}<span>${extra.length ? 'Keterangan: Dispensasi &amp; siswa Non-Muslim' : 'Keterangan status Dispensasi'}</span></summary>
+                <div class="att-ket-body">${extra.map((n) => `<p class="warn">${n}</p>`).join('')}${NOTE_D}</div>
+            </details>`;
+        }
 
         function backHtml() {
             return opts.back ? `<a class="att-btn att-btn-ghost att-btn-block att-back att-noprint" href="${esc(opts.back.href)}">${esc(opts.back.label)}</a>` : '';
@@ -208,14 +223,13 @@
                 ${headerHtml()}
                 ${countsHtml()}
                 ${editable ? `<div class="att-row att-bulk">
-                        <button type="button" class="att-btn att-btn-sm att-btn-hadir" data-all="H">Tandai semua Hadir</button>
-                        <button type="button" class="att-btn att-btn-sm att-btn-reset" data-reset>Reset</button>
+                        <button type="button" class="att-btn att-btn-hadir" data-all="H">${ICO_CHECK}Tandai semua Hadir</button>
+                        <button type="button" class="att-btn att-btn-reset" data-reset>${ICO_RESET}Reset</button>
                     </div>
                     <p class="att-muted att-hint">Ketuk status tiap siswa. Ketuk lagi untuk mengosongkan.</p>` : ''}`;
             const body = `
                 ${sheet.isian_awal_dari_harian && !sheet.session ? '<div class="att-alert info" style="margin-bottom:12px">Status sudah diisi awal dari absensi harian wali kelas. Sesuaikan jika perlu.</div>' : ''}
-                ${NOTE_D}
-                ${(opts.notes || []).map((n) => `<div class="att-alert warn att-keterangan">${n}</div>`).join('')}
+                ${notesHtml()}
                 <div class="att-alert err att-hidden" id="attMissing" role="alert" style="margin:8px 0"></div>
                 <ul class="att-list">${students.map(itemHtml).join('')}</ul>
                 ${editable ? `<div class="att-savebar att-noprint">
