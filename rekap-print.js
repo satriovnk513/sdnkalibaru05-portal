@@ -96,6 +96,7 @@
         th { font-weight: bold; }
         td.nm { text-align: left; text-overflow: ellipsis; }
         .libur { background: #ff0000 !important; }
+        td.h { font-weight: 700; font-family: 'Segoe UI Symbol', 'DejaVu Sans', 'Arial Unicode MS', Arial, sans-serif; }
         .ket { font-size: 6.5pt; line-height: 3mm; height: 3mm; margin-top: 0.5mm; overflow: hidden; white-space: nowrap; }
         .foot { display: flex; justify-content: space-between; margin-top: 1mm; font-size: 8pt; line-height: 3.4mm; break-inside: avoid; page-break-inside: avoid; }
         .ttd { width: 52mm; white-space: nowrap; }
@@ -113,6 +114,21 @@
             <div class="t"><div>${esc(title)}</div><div>TAHUN PELAJARAN ${esc(tpLabel(header.tahun_ajaran))}</div><div>${SCHOOL}</div></div>
             <div class="k">${esc(right)}</div>
         </div>`;
+    }
+
+    /** Tanda hadir di daftar hadir & Excel. */
+    const HADIR = '✓';
+
+    /** Tanggal terakhir bulan itu (ISO), mis. 2026-11 → 2026-11-30, 2027-02 → 2027-02-28. */
+    function akhirBulan(tahun, bulan) {
+        const d = new Date(Date.UTC(Number(tahun), Number(bulan), 0)).getUTCDate();
+        return `${tahun}-${String(bulan).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+
+    /** Tanggal tanda tangan rekap semester: ganjil 31 Desember, genap 30 Juni (tahun sesuai semester). */
+    function ttdSemester(recap) {
+        const y = Number(String(recap.mulai).slice(0, 4));
+        return recap.semester === 1 ? `${y}-12-31` : `${y}-06-30`;
     }
 
     function ttdHtml(header, opts, tanggal) {
@@ -147,11 +163,11 @@
             const t = blank ? { S: '', I: '', A: '' } : counts(s.status);
             const cells = days.map((d) => {
                 const v = blank ? '' : (s.status || {})[d.tanggal];
-                return `<td class="${d.libur ? 'libur' : ''}">${d.libur || !v ? '' : (v === 'H' ? '•' : v)}</td>`;
+                return `<td class="${d.libur ? 'libur' : (v === 'H' ? 'h' : '')}">${d.libur || !v ? '' : (v === 'H' ? HADIR : v)}</td>`;
             }).join('');
             return `<tr><td>${esc(s.no)}</td><td>${esc(s.nis || '')}</td><td>${esc(s.nisn || '')}</td><td class="nm">${esc(String(s.nama || '').toUpperCase())}</td><td>${esc(s.jk || '')}</td>${cells}<td>${t.S || (blank ? '' : 0)}</td><td>${t.I || (blank ? '' : 0)}</td><td>${t.A || (blank ? '' : 0)}</td></tr>`;
         }).join('');
-        const last = days.length ? days[days.length - 1].tanggal : `${recap.tahun}-${String(recap.bulan).padStart(2, '0')}-28`;
+        const last = akhirBulan(recap.tahun, recap.bulan);
         const dayW = days.length ? `calc((100% - 92mm - 18mm) / ${days.length})` : 'auto';
         const body = `${kopHtml('DAFTAR HADIR SISWA', header, `KELAS : ${romawi(header.kelas || recap.kelas)}`)}
             <table>
@@ -162,7 +178,7 @@
                 </thead>
                 <tbody>${rows || `<tr><td colspan="${days.length + 8}">Belum ada siswa.</td></tr>`}</tbody>
             </table>
-            <div class="ket">${blank ? 'Kolom merah = Sabtu, Minggu, atau hari libur.' : '• = hadir, S = sakit, I = izin, A = alpa, D = dispensasi. Kolom merah = Sabtu, Minggu, atau hari libur. Kolom kosong = absensi belum diisi.'}</div>
+            <div class="ket">${blank ? 'Kolom merah = Sabtu, Minggu, atau hari libur.' : '✓ = hadir, S = sakit, I = izin, A = alpa, D = dispensasi. Kolom merah = Sabtu, Minggu, atau hari libur. Kolom kosong = absensi belum diisi.'}</div>
             <div class="foot"><div>Laki-laki = ${g.L}<br>Perempuan = ${g.P}</div>${ttdHtml(header, opts, last)}</div>`;
         return wrapDoc(`Daftar Hadir ${romawi(header.kelas || recap.kelas)} ${BULAN[recap.bulan - 1]} ${recap.tahun}`, body, fit(Math.max(siswa.length, 1) + 2, 144, 4.6));
     }
@@ -176,7 +192,7 @@
             return `<tr><td>${esc(s.no)}</td><td>${esc(s.nis || '')}</td><td>${esc(s.nisn || '')}</td><td class="nm">${esc(String(s.nama || '').toUpperCase())}</td><td>${esc(s.jk || '')}</td>
                 <td>${s.H}</td><td>${s.S}</td><td>${s.I}</td><td>${s.A}</td><td>${s.D}</td><td>${p === null ? '–' : `${String(p).replace('.', ',')}%`}</td><td></td></tr>`;
         }).join('');
-        const tanggal = recap.sampai_hari_ini < recap.selesai ? recap.sampai_hari_ini : recap.selesai;
+        const tanggal = ttdSemester(recap);
         const body = `${kopHtml(`REKAP ABSENSI SEMESTER ${nama}`, header, `KELAS : ${romawi(header.kelas)}`)}
             <div class="sub">Periode ${esc(tglPanjang(recap.mulai))} s.d. ${esc(tglPanjang(recap.selesai))} · Hari efektif s.d. ${esc(tglPanjang(recap.sampai_hari_ini))}: <b>${esc(recap.hari_efektif)}</b> hari · Absensi terisi: <b>${esc(recap.hari_terisi)}</b> hari</div>
             <table>
@@ -366,14 +382,13 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
                 { v: s.no, s: 4 }, { v: s.nis || '', s: 4 }, { v: s.nisn || '', s: 4 }, { v: String(s.nama || '').toUpperCase(), s: 3 }, { v: s.jk || '', s: 4 },
                 ...days.map((d) => {
                     const v = (s.status || {})[d.tanggal];
-                    return { v: d.libur || !v ? '' : (v === 'H' ? '•' : v), s: d.libur ? 5 : 4 };
+                    return { v: d.libur || !v ? '' : (v === 'H' ? HADIR : v), s: d.libur ? 5 : 4 };
                 }),
                 { v: t.S, s: 4 }, { v: t.I, s: 4 }, { v: t.A, s: 4 },
             ]);
         }
-        rows.push([{ v: '• = hadir, S = sakit, I = izin, A = alpa, D = dispensasi. Kolom merah = Sabtu, Minggu, atau hari libur.' }]);
-        const lastDay = days.length ? days[days.length - 1].tanggal : `${recap.tahun}-${String(recap.bulan).padStart(2, '0')}-28`;
-        rows.push(...footerRows(header, opts, lastDay, genderTotals(siswa), width));
+        rows.push([{ v: '✓ = hadir, S = sakit, I = izin, A = alpa, D = dispensasi. Kolom merah = Sabtu, Minggu, atau hari libur.' }]);
+        rows.push(...footerRows(header, opts, akhirBulan(recap.tahun, recap.bulan), genderTotals(siswa), width));
         const d0 = colName(5);
         const dN = colName(4 + Math.max(days.length, 1));
         return buildXlsx({
@@ -405,7 +420,7 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
                 { v: s.H, s: 4 }, { v: s.S, s: 4 }, { v: s.I, s: 4 }, { v: s.A, s: 4 }, { v: s.D, s: 4 }, { v: p === null ? '–' : p, s: 4 }, { v: '', s: 3 }]);
         }
         rows.push(['% kehadiran = (hadir + dispensasi) ÷ hari yang terisi. Dispensasi (kegiatan resmi sekolah) dihitung hadir.']);
-        const tanggal = recap.sampai_hari_ini < recap.selesai ? recap.sampai_hari_ini : recap.selesai;
+        const tanggal = ttdSemester(recap);
         rows.push(...footerRows(header, opts, tanggal, genderTotals(siswa), width));
         return buildXlsx({
             sheet: `Semester ${nama} ${romawi(header.kelas)}`,
@@ -468,7 +483,7 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         return `${kind} ${romawi(header.kelas)} ${extra}`.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_');
     }
 
-    const api = { monthlyHtml, semesterHtml, monthlyXlsx, semesterXlsx, buildXlsx, crc32, print: printDoc, download, loadLogo, fileName, romawi, namaTtd, pct, BULAN };
+    const api = { monthlyHtml, semesterHtml, monthlyXlsx, semesterXlsx, buildXlsx, crc32, print: printDoc, download, loadLogo, fileName, akhirBulan, ttdSemester, HADIR, romawi, namaTtd, pct, BULAN };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.RekapPrint = Object.freeze(api);
 })(typeof window !== 'undefined' ? window : globalThis);

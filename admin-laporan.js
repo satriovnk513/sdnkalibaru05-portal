@@ -70,7 +70,7 @@
             for (const v of Object.values(s.status || {})) t[v] += 1;
             return `<tr><td>${esc(s.no)}</td><td>${esc(s.nis || '')}</td><td class="nm">${esc(s.nama)}</td><td>${esc(s.jk || '')}</td>${days.map((d) => {
                 const v = (s.status || {})[d.tanggal];
-                return `<td class="${d.libur ? 'libur' : ''} ${v ? `c-${v}` : ''}">${d.libur || !v ? '' : (v === 'H' ? '•' : v)}</td>`;
+                return `<td class="${d.libur ? 'libur' : ''} ${v ? `c-${v}` : ''}">${d.libur || !v ? '' : (v === 'H' ? '✓' : v)}</td>`;
             }).join('')}<td>${t.S}</td><td>${t.I}</td><td>${t.A}</td><td>${t.D}</td></tr>`;
         }).join('');
         $('lpBlnOut').innerHTML = `
@@ -79,7 +79,7 @@
             <div class="att-recap-wrap"><table class="att-recap">
                 <thead><tr><th>No</th><th>NIS</th><th>Nama</th><th>L/P</th>${head}<th>S</th><th>I</th><th>A</th><th>D</th></tr></thead>
                 <tbody>${body || `<tr><td colspan="${days.length + 8}">Belum ada siswa.</td></tr>`}</tbody></table></div>
-            <p class="att-muted" style="margin:8px 0 0">• hadir · S sakit · I izin · A alpa · D dispensasi · kolom merah = Sabtu, Minggu, atau libur.</p>`;
+            <p class="att-muted" style="margin:8px 0 0">✓ hadir · S sakit · I izin · A alpa · D dispensasi · kolom merah = Sabtu, Minggu, atau libur.</p>`;
     }
 
     async function ensureMonth() {
