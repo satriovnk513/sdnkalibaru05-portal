@@ -213,8 +213,130 @@
         case 'archive_attendance_session':
             return Promise.resolve(args.p_reason ? ok(null) : err('Alasan wajib diisi.'));
         default:
+            if (fn.startsWith('inv_')) return Promise.resolve(invRpc(fn, args, user));
             return Promise.resolve(ok(null));
         }
+    }
+
+    // ------------------------------------------------------------------ inventaris tiruan
+    const isoDay = (n) => new Date(Date.parse(`${today}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
+    const INV = F.inv = F.inv || {
+        seq: 10,
+        items: [
+            { id: 'i-lap1', kode: 'LAP-001', nama: 'Laptop Acer Aspire 3', kategori: 'Laptop', merk: 'Acer A314', nomor_seri: 'SN-ACER-1', lokasi: 'Ruang TU', kondisi: 'baik', jenis_pinjam: 'jangka_panjang', tahun_perolehan: 2024, catatan: null, aktif: true, qr_token: 'toklap001aaa' },
+            { id: 'i-spk1', kode: 'SPK-01', nama: 'Speaker Aktif Portable', kategori: 'Speaker', merk: 'Polytron', nomor_seri: null, lokasi: 'Gudang', kondisi: 'baik', jenis_pinjam: 'harian', tahun_perolehan: 2023, catatan: null, aktif: true, qr_token: 'tokspk01bbbb' },
+            { id: 'i-pro1', kode: 'PRO-001', nama: 'Proyektor Epson EB-X500', kategori: 'Proyektor', merk: 'Epson', nomor_seri: null, lokasi: 'Ruang TU', kondisi: 'rusak_ringan', jenis_pinjam: 'harian', tahun_perolehan: 2022, catatan: null, aktif: true, qr_token: 'tokpro001ccc' },
+            { id: 'i-meb1', kode: 'MEB-001', nama: 'Lemari Arsip Besi', kategori: 'Mebel', merk: null, nomor_seri: null, lokasi: 'Ruang Kepala Sekolah', kondisi: 'baik', jenis_pinjam: 'tidak_dipinjam', tahun_perolehan: 2019, catatan: null, aktif: true, qr_token: 'tokmeb001ddd' },
+        ],
+        loans: [
+            { id: 'l1', item: 'i-spk1', peminjam: 'Susy Nurhayati', sejak: `${today}T00:30:00Z`, sampai: today, keperluan: 'Upacara', kembali: null, kondisi: null, catatan: null },
+            { id: 'l2', item: 'i-pro1', peminjam: 'Sunarsih, S.Pd.', sejak: `${isoDay(-3)}T01:00:00Z`, sampai: isoDay(-1), keperluan: 'Mengajar kelas 1A', kembali: null, kondisi: null, catatan: null },
+            { id: 'l0', item: 'i-lap1', peminjam: 'Sunarsih, S.Pd.', sejak: `${isoDay(-40)}T01:00:00Z`, sampai: null, keperluan: 'Rapor', kembali: `${isoDay(-20)}T01:00:00Z`, kondisi: 'baik', catatan: null },
+        ],
+    };
+    const openLoan = (id) => INV.loans.find((l) => l.item === id && !l.kembali);
+    const invJson = (it) => {
+        const l = openLoan(it.id);
+        return { ...it, pinjaman: l ? { id: l.id, staff_id: l.peminjam, peminjam: l.peminjam, sejak: l.sejak, sampai: l.sampai, keperluan: l.keperluan, terlambat: Boolean(l.sampai && l.sampai < today) } : null };
+    };
+    const findItem = (code) => INV.items.find((i) => i.qr_token === code || i.kode.toUpperCase() === String(code || '').trim().toUpperCase());
+    function nextKode(kat) {
+        let pre = String(kat || '').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
+        if (pre.length < 2) pre = 'BRG';
+        const n = Math.max(0, ...INV.items.map((i) => (new RegExp(`^${pre}-(\\d+)$`).exec(i.kode) || [])[1] || 0).map(Number)) + 1;
+        return `${pre}-${String(n).padStart(3, '0')}`;
+    }
+    const KOND = { baik: 'baik', 'rusak ringan': 'rusak_ringan', rusak_ringan: 'rusak_ringan', 'rusak berat': 'rusak_berat', rusak_berat: 'rusak_berat' };
+    const JEN = { harian: 'harian', 'jangka panjang': 'jangka_panjang', jangka_panjang: 'jangka_panjang', 'tidak dipinjam': 'tidak_dipinjam', tidak_dipinjam: 'tidak_dipinjam' };
+    function clean(r) {
+        const kondisi = KOND[String(r.kondisi || 'baik').toLowerCase()];
+        const jenis = JEN[String(r.jenis_pinjam || 'harian').toLowerCase()];
+        if (!kondisi) throw new Error('Kondisi harus Baik, Rusak ringan, atau Rusak berat.');
+        if (!jenis) throw new Error('Jenis pinjam harus Harian, Jangka panjang, atau Tidak dipinjam.');
+        return { nama: r.nama, kategori: r.kategori || null, merk: r.merk || null, nomor_seri: r.nomor_seri || null, lokasi: r.lokasi || null, kondisi, jenis_pinjam: jenis, tahun_perolehan: r.tahun_perolehan ? Number(r.tahun_perolehan) : null, catatan: r.catatan || null };
+    }
+    function invRpc(fn, a, user) {
+        const me = user === 'admin' ? 'Paroji' : 'Sunarsih, S.Pd.';
+        try {
+            switch (fn) {
+            case 'inv_scan': {
+                const it = findItem(a.p_code);
+                if (!it || !it.aktif) return err('Barang dengan kode itu tidak ditemukan.');
+                const j = invJson(it);
+                return ok({ ...j, milik_saya: j.pinjaman?.peminjam === me });
+            }
+            case 'inv_borrow': case 'inv_admin_lend': {
+                const it = fn === 'inv_borrow' ? findItem(a.p_code) : INV.items.find((i) => i.id === a.p_item);
+                const holder = openLoan(it.id);
+                if (holder) return err(`${it.nama} sedang dipinjam oleh ${holder.peminjam}.`);
+                if (it.jenis_pinjam === 'tidak_dipinjam') return err(`${it.nama} tidak untuk dipinjam.`);
+                const who = fn === 'inv_borrow' ? me : T.staff.find((x) => x.id === a.p_staff)?.name;
+                INV.loans.push({ id: `l${INV.seq++}`, item: it.id, peminjam: who, sejak: new Date().toISOString(), sampai: a.p_sampai || (it.jenis_pinjam === 'harian' ? today : null), keperluan: a.p_keperluan, kembali: null });
+                return ok(invJson(it));
+            }
+            case 'inv_return': case 'inv_admin_return': {
+                const it = fn === 'inv_return' ? findItem(a.p_code) : INV.items.find((i) => i.id === a.p_item);
+                const l = openLoan(it.id);
+                if (!l) return err('Barang ini tidak sedang dipinjam.');
+                if (fn === 'inv_return' && user !== 'admin' && l.peminjam !== me) return err('Hanya peminjam atau admin yang bisa mengembalikan.');
+                Object.assign(l, { kembali: new Date().toISOString(), kondisi: a.p_kondisi || 'baik', catatan: a.p_catatan || null });
+                it.kondisi = a.p_kondisi || 'baik';
+                return ok(invJson(it));
+            }
+            case 'inv_my_loans': {
+                const mine = INV.loans.filter((l) => l.peminjam === me);
+                const item = (l) => INV.items.find((i) => i.id === l.item);
+                return ok({
+                    aktif: mine.filter((l) => !l.kembali).map((l) => ({ kode: item(l).kode, nama: item(l).nama, kategori: item(l).kategori, qr_token: item(l).qr_token, sejak: l.sejak, sampai: l.sampai, keperluan: l.keperluan, terlambat: Boolean(l.sampai && l.sampai < today) })),
+                    riwayat: mine.filter((l) => l.kembali).map((l) => ({ kode: item(l).kode, nama: item(l).nama, sejak: l.sejak, kembali: l.kembali, kondisi: l.kondisi })),
+                });
+            }
+            case 'inv_admin_overview':
+                if (user !== 'admin') return err('Hanya admin atau kepala sekolah yang bisa melihat inventaris.');
+                return ok({ hari_ini: today, items: INV.items.map(invJson) });
+            case 'inv_save_item': {
+                const c = clean(a.p_item);
+                const kode = a.p_item.kode ? a.p_item.kode.toUpperCase() : null;
+                if (kode && INV.items.some((i) => i.kode === kode && i.id !== a.p_item.id)) return err(`Kode ${kode} sudah dipakai barang lain.`);
+                let it = INV.items.find((i) => i.id === a.p_item.id);
+                if (it) Object.assign(it, c, { kode: kode || it.kode, aktif: a.p_item.aktif ?? it.aktif });
+                else { it = { id: `i-${INV.seq++}`, ...c, kode: kode || nextKode(c.kategori), aktif: true, qr_token: `tok${String(INV.seq).padStart(9, '0')}` }; INV.items.push(it); }
+                return ok(invJson(it));
+            }
+            case 'inv_import_items': {
+                let ditambah = 0; let diperbarui = 0;
+                const cleaned = a.p_rows.map((r, ix) => { try { return clean(r); } catch (e) { throw new Error(`Baris ${ix + 1}: ${e.message}`); } });
+                a.p_rows.forEach((r, ix) => {
+                    const c = cleaned[ix];
+                    const n = Number(r.jumlah) || 1;
+                    for (let k = 1; k <= n; k++) {
+                        const kode = r.kode ? (n > 1 ? `${r.kode.toUpperCase()}-${String(k).padStart(2, '0')}` : r.kode.toUpperCase()) : null;
+                        const ex = kode && INV.items.find((i) => i.kode === kode);
+                        if (ex) { Object.assign(ex, c, { aktif: true }); diperbarui++; } else {
+                            INV.items.push({ id: `i-${INV.seq++}`, ...c, kode: kode || nextKode(c.kategori), aktif: true, qr_token: `tok${String(INV.seq).padStart(9, '0')}` });
+                            ditambah++;
+                        }
+                    }
+                });
+                F.imported = a.p_rows;
+                return ok({ ditambah, diperbarui });
+            }
+            case 'inv_delete_item': {
+                const it = INV.items.find((i) => i.id === a.p_id);
+                if (openLoan(it.id)) return err('Barang masih dipinjam. Tandai sudah kembali dulu.');
+                if (INV.loans.some((l) => l.item === it.id)) { it.aktif = false; return ok('diarsipkan'); }
+                INV.items = INV.items.filter((i) => i !== it);
+                return ok('dihapus');
+            }
+            case 'inv_loan_history':
+                return ok(INV.loans.map((l) => {
+                    const it = INV.items.find((i) => i.id === l.item);
+                    return { id: l.id, item_id: it.id, kode: it.kode, nama: it.nama, kategori: it.kategori, peminjam: l.peminjam, sejak: l.sejak, sampai: l.sampai, keperluan: l.keperluan, kembali: l.kembali, kondisi: l.kondisi, catatan: l.catatan, terlambat: !l.kembali && Boolean(l.sampai && l.sampai < today) };
+                }).sort((x, y) => String(y.sejak).localeCompare(String(x.sejak))));
+            default:
+                return ok(null);
+            }
+        } catch (e) { return err(e.message); }
     }
 
     // ------------------------------------------------------------------ tabel tiruan (stateful)

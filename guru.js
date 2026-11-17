@@ -7,6 +7,8 @@
 //   #/siswa/<id>               profil siswa (lihat saja)
 //   #/rekap[?kelas=&bulan=YYYY-MM]
 //   #/akun                     ganti password, keluar
+//   #/pinjam                   pinjam barang: scan QR, pinjaman saya
+//   #/pinjam/<token|kode>      halaman barang hasil scan stiker QR (pinjam / kembalikan)
 // Semua data lewat RPC yang memeriksa hak akses di database.
 // =============================================================================
 (function () {
@@ -240,6 +242,8 @@
         forceChange = false;
         pinStatus = null;
         homeDay = null;
+        myLoans = null;
+        loansStale = true;
         location.hash = '#/';
         showLogin('');
     }
@@ -258,6 +262,8 @@
         left: '<svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>',
         wa: '<svg viewBox="0 0 24 24" class="fill"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.6-.3Z"/></svg>',
         bell: '<svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
+        box: '<svg viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>',
+        qr: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>',
     };
     let staffExtra = null;      // { image_url, nip } dari data Guru & Staf di website
     let pinStatus = null;       // { ada, dibuat, terkunci } — PIN pemulihan milik sendiri
@@ -267,6 +273,18 @@
     const ALPA_MIN = 4;         // "lebih dari 3 hari"
 
     let alphaStale = true;      // dimuat ulang setiap kali dashboard dibuka
+    let myLoans = null;         // hasil inv_my_loans (barang yang sedang saya pinjam)
+    let loansStale = true;
+
+    async function refreshMyLoans() {
+        if (!loansStale) return;
+        loansStale = false;
+        let next = null;
+        try { next = await rpc('inv_my_loans'); } catch { return; }
+        const changed = JSON.stringify(next) !== JSON.stringify(myLoans);
+        myLoans = next;
+        if (changed && home && parseHash().path === '/' && !forceChange) renderHome();
+    }
 
     /** Muat peringatan alpa; gambar ulang dashboard hanya kalau isinya berubah. */
     async function refreshAlphaAlerts() {
@@ -319,6 +337,7 @@
         <span class="g-mode-track"><i></i></span><span><b>Mode Sederhana</b><small>${on ? 'Aktif: hanya tombol absen yang tampil' : 'Tampilkan tombol absen saja, tanpa grafik dan jadwal'}</small></span></button>`;
 
     function renderHomeSimple() {
+        refreshMyLoans();
         const today = home.today;
         const big = (href, title, sub, done, locked) => `<a class="g-big ${done ? 'done' : 'todo'}" href="${href}">
             <span class="g-big-ico">${done ? '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>' : ICON.clip}</span>
@@ -340,7 +359,8 @@
         if (!home.wali_kelas.length && !home.mapel.length) {
             parts.push('<div class="att-alert info" style="margin-bottom:12px">Belum ada kelas yang ditugaskan kepada Anda. Hubungi admin sekolah.</div>');
         }
-        parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/dokumen" style="margin-bottom:14px">Cetak &amp; Dokumen (daftar siswa, surat, biodata)</a>`);
+        parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/dokumen" style="margin-bottom:10px">Cetak &amp; Dokumen (daftar siswa, surat, biodata)</a>`);
+        parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/pinjam" style="margin-bottom:14px">${myLoans?.aktif?.length ? `Barang yang saya pinjam (${myLoans.aktif.length})` : 'Pinjam / kembalikan barang (scan QR)'}</a>`);
         parts.push(`<p class="att-muted g-simple-help">Ketuk tombol di atas, pilih status tiap siswa, lalu tekan <b>Simpan absensi</b>. Untuk tanggal lain, ganti tanggal di halaman absensi.</p>`);
         parts.push(simpleSwitch(true));
         main(parts.join(''));
@@ -353,6 +373,7 @@
         if (isSimple()) return renderHomeSimple();
         loadStaffExtra();
         refreshAlphaAlerts();
+        refreshMyLoans();
         const today = home.today;
         const monday = isoAdd(today, -((dow(today) + 6) % 7));
         const week = [0, 1, 2, 3, 4].map((i) => isoAdd(monday, i));
@@ -397,6 +418,7 @@
         if (!home.is_school_day) {
             parts.push(`<div class="att-alert warn" style="margin-bottom:12px">Hari ini libur${home.holiday_name ? ` (${esc(home.holiday_name)})` : ''}. Absensi tidak perlu diisi.</div>`);
         }
+        if (myLoans?.aktif?.length) parts.push(loansBox(myLoans.aktif));
 
         for (const w of home.wali_kelas) {
             const t = w.hari_ini;
@@ -455,6 +477,11 @@
             </section>`);
         }
 
+        if (!myLoans?.aktif?.length) {
+            parts.push(`<a class="g-sched g-chip g-pinjam-link" href="#/pinjam"><span class="g-sched-ico">${ICON.qr}</span>
+                <span class="g-sched-txt"><b>Pinjam barang</b><span>Laptop, proyektor, speaker — scan stiker QR</span></span>${ICON.chev}</a>`);
+        }
+
         parts.push(`<section class="g-box g-soon">
             <header class="g-box-head"><span class="g-tag soon">${ICON.cal}JADWAL KELAS</span><b>Jadwal pelajaran</b><span class="att-badge warn">Segera hadir</span></header>
             <div class="g-box-body"><p class="att-muted" style="margin:0">Jadwal pelajaran per kelas lengkap dengan jam mengajar akan tampil di sini.</p></div>
@@ -511,6 +538,164 @@
             ${wa ? `<a class="g-wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">${ICON.wa}Hubungi Orang Tua</a>`
         : '<span class="g-wa off">No. HP orang tua belum ada di data siswa</span>'}
         </li>`;
+    }
+
+    // ------------------------------------------------------------------ pinjam barang (inventaris)
+    const Inv = window.Inv;
+
+    function loanLine(l) {
+        const batas = l.sampai ? `kembali ${Inv.tgl(l.sampai)}` : 'tanpa batas';
+        return `<a class="inv-loan" href="#/pinjam/${encodeURIComponent(l.qr_token)}"><div><b>${esc(l.nama)}</b>
+            <small>${esc(l.kode)} · sejak ${esc(Inv.tgl(l.sejak))} · ${esc(batas)}</small></div>
+            ${l.terlambat ? '<span class="att-badge bad">Terlambat</span>' : '<span class="att-badge info">Kembalikan</span>'}</a>`;
+    }
+
+    function loansBox(list) {
+        const late = list.filter((l) => l.terlambat).length;
+        return `<section class="g-box" id="gLoans">
+            <header class="g-box-head"><span class="g-tag mapel">${ICON.box}INVENTARIS</span><b>Barang yang saya pinjam</b>
+                <span class="att-badge ${late ? 'bad' : 'mute'}">${late ? `${late} terlambat` : `${list.length} barang`}</span></header>
+            <div class="g-box-body">${list.map(loanLine).join('')}
+                <a class="att-btn att-btn-ghost att-btn-block" href="#/pinjam" style="margin-top:10px">${ICON.qr} Pinjam barang lain</a></div>
+        </section>`;
+    }
+
+    async function renderPinjamList() {
+        setNav('');
+        setTop('Pinjam Barang', 'Scan stiker QR di barang', true);
+        loansStale = true;
+        main(`<button type="button" class="att-btn att-btn-primary att-btn-block inv-scan-btn" id="gScan">${ICON.qr}Scan QR barang</button>
+            <p class="att-muted" style="margin:8px 0 14px">Bisa juga buka aplikasi <b>Kamera</b> HP, arahkan ke stiker QR di barang, lalu ketuk tautannya.</p>
+            <form class="att-row" id="gKodeForm" style="margin-bottom:16px" novalidate>
+                <input class="att-input" id="gKode" placeholder="Atau ketik kode barang, mis. LAP-001" autocomplete="off" autocapitalize="characters" style="flex:1;min-width:0">
+                <button type="submit" class="att-btn att-btn-ghost">Cari</button></form>
+            <section class="inv-card" id="gMyLoans"><h3>Sedang saya pinjam</h3><div class="g-loading">Memuat…</div></section>
+            <section class="inv-card" id="gMyHist"></section>`);
+        $('gScan').addEventListener('click', openScanner);
+        $('gKodeForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const k = Inv.codeFromScan($('gKode').value);
+            if (k) go(`/pinjam/${encodeURIComponent(k)}`);
+        });
+        await refreshMyLoans();
+        if (parseHash().path !== '/pinjam' || !$('gMyLoans')) return;
+        if (!myLoans) { $('gMyLoans').innerHTML = '<h3>Sedang saya pinjam</h3><div class="att-alert err">Daftar pinjaman tidak bisa dimuat.</div>'; return; }
+        $('gMyLoans').innerHTML = `<h3>Sedang saya pinjam</h3>${myLoans.aktif.length ? myLoans.aktif.map(loanLine).join('')
+            : '<p class="att-muted" style="margin:6px 0 0">Tidak ada barang yang sedang Anda pinjam.</p>'}`;
+        $('gMyHist').innerHTML = myLoans.riwayat.length ? `<h3>Riwayat terakhir</h3>${myLoans.riwayat.map((r) => `<div class="inv-loan"><div><b>${esc(r.nama)}</b>
+            <small>${esc(r.kode)} · ${esc(Inv.tgl(r.sejak))} – ${esc(Inv.tgl(r.kembali))}</small></div>${r.kondisi && r.kondisi !== 'baik' ? `<span class="att-badge ${Inv.KONDISI_BADGE[r.kondisi]}">${esc(Inv.KONDISI[r.kondisi])}</span>` : ''}</div>`).join('')}` : '';
+        $('gMyHist').classList.toggle('g-hidden', !myLoans.riwayat.length);
+    }
+
+    /** Pemindai QR di dalam portal (Chrome Android). Browser lain: pakai aplikasi Kamera. */
+    async function openScanner() {
+        const fallback = () => window.Att.confirm({
+            title: 'Scan pakai Kamera HP',
+            html: '<p class="att-muted">Buka aplikasi <b>Kamera</b> bawaan HP, arahkan ke stiker QR di barang, lalu ketuk tautan yang muncul. Halaman pinjam akan terbuka otomatis.</p><p class="att-muted">Kalau stiker rusak, ketik kode barang yang tercetak di bawah QR.</p>',
+            confirmText: 'Mengerti', cancelText: 'Tutup',
+        });
+        if (!('BarcodeDetector' in window) || !navigator.mediaDevices?.getUserMedia) return fallback();
+        let stream;
+        try {
+            const formats = await window.BarcodeDetector.getSupportedFormats?.();
+            if (formats && !formats.includes('qr_code')) return fallback();
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        } catch { return fallback(); }
+        const det = new window.BarcodeDetector({ formats: ['qr_code'] });
+        const ov = document.createElement('div');
+        ov.className = 'inv-cam';
+        ov.innerHTML = `<video playsinline muted></video><div class="inv-cam-frame"></div>
+            <div class="inv-cam-bar"><b>Arahkan ke stiker QR barang</b><button type="button" class="att-btn att-btn-ghost">Batal</button></div>`;
+        document.body.appendChild(ov);
+        const video = ov.querySelector('video');
+        video.srcObject = stream;
+        let done = false;
+        const stop = () => { done = true; stream.getTracks().forEach((t) => t.stop()); ov.remove(); };
+        ov.querySelector('button').addEventListener('click', stop);
+        try { await video.play(); } catch { /* abaikan */ }
+        const tick = async () => {
+            if (done) return;
+            try {
+                const [hit] = await det.detect(video);
+                if (hit?.rawValue) { stop(); go(`/pinjam/${encodeURIComponent(Inv.codeFromScan(hit.rawValue))}`); return; }
+            } catch { /* frame belum siap */ }
+            setTimeout(tick, 250);
+        };
+        tick();
+    }
+
+    async function renderPinjamItem(code) {
+        setNav('');
+        setTop('Pinjam Barang', 'Hasil scan', true);
+        loading();
+        let it;
+        try { it = await rpc('inv_scan', { p_code: code }); } catch (err) {
+            return main(`<div class="att-alert err" style="margin-bottom:12px">${esc(errMessage(err))}</div>
+                <a class="att-btn att-btn-ghost att-btn-block" href="#/pinjam">Kembali ke Pinjam Barang</a>`);
+        }
+        if (parseHash().path !== `/pinjam/${code}` && parseHash().path !== `/pinjam/${encodeURIComponent(code)}`) return;
+        setTop(it.nama, it.kode, true);
+        const p = it.pinjaman;
+        const today = home.today;
+        const maxHarian = isoAdd(today, 30);
+        let state; let action = '';
+        if (it.milik_saya) {
+            state = `<div class="inv-state mine"><b>Sedang Anda pinjam</b> sejak ${esc(Inv.tgl(p.sejak, true))}.
+                ${p.sampai ? `Batas kembali <b>${esc(Inv.tgl(p.sampai))}</b>${p.terlambat ? ' — <b>sudah lewat</b>' : ''}.` : 'Tanpa batas tanggal.'}</div>`;
+            action = `<form class="att-stack" id="gInvForm" novalidate>
+                <div class="att-field"><label for="gInvKond">Kondisi saat dikembalikan</label>
+                    <select class="att-select" id="gInvKond">${Object.entries(Inv.KONDISI).map(([v, l]) => `<option value="${v}" ${v === it.kondisi ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+                <div class="att-field"><label for="gInvNote">Catatan (opsional)</label><input class="att-input" id="gInvNote" maxlength="300" placeholder="Mis. charger ikut dikembalikan"></div>
+                <button type="submit" class="att-btn att-btn-primary att-btn-block" id="gInvBtn">Kembalikan sekarang</button></form>`;
+        } else if (p) {
+            state = `<div class="inv-state busy"><b>Sedang dipinjam ${esc(p.peminjam)}</b> sejak ${esc(Inv.tgl(p.sejak))}.
+                ${p.sampai ? `Rencana kembali ${esc(Inv.tgl(p.sampai))}.` : ''} Minta beliau mengembalikan lewat portal, atau hubungi operator.</div>`;
+        } else if (it.jenis_pinjam === 'tidak_dipinjam' || it.kondisi === 'rusak_berat') {
+            state = `<div class="inv-state off">${it.kondisi === 'rusak_berat' ? 'Barang ini sedang <b>rusak berat</b>' : 'Barang ini <b>tidak untuk dipinjam</b>'}. Hubungi operator kalau perlu.</div>`;
+        } else {
+            const harian = it.jenis_pinjam === 'harian';
+            state = '<div class="inv-state ok"><b>Tersedia.</b> Isi keperluan lalu tekan Pinjam sekarang.</div>';
+            action = `<form class="att-stack" id="gInvForm" novalidate>
+                <div class="att-field"><label for="gInvKeperluan">Keperluan</label><input class="att-input" id="gInvKeperluan" maxlength="200" placeholder="Mis. Mengajar kelas 4A"></div>
+                <div class="att-field"><label for="gInvSampai">${harian ? 'Dikembalikan paling lambat' : 'Dipakai sampai (opsional)'}</label>
+                    <input class="att-input" type="date" id="gInvSampai" value="${harian ? esc(today) : ''}" min="${esc(today)}" ${harian ? `max="${esc(maxHarian)}"` : ''}>
+                    <span class="att-muted" style="font-size:.78rem">${harian ? 'Barang harian dikembalikan hari ini, kecuali disepakati lain.' : 'Kosongkan kalau dipegang sampai diminta kembali (mis. laptop wali kelas).'}</span></div>
+                <button type="submit" class="att-btn att-btn-primary att-btn-block" id="gInvBtn">Pinjam sekarang</button></form>`;
+        }
+        main(`<section class="inv-card">
+                <h3>${esc(it.nama)}</h3><span class="inv-kode att-muted">${esc(it.kode)}</span>
+                <dl class="inv-meta">
+                    ${it.kategori ? `<dt>Kategori</dt><dd>${esc(it.kategori)}</dd>` : ''}
+                    ${it.merk ? `<dt>Merk / tipe</dt><dd>${esc(it.merk)}</dd>` : ''}
+                    ${it.lokasi ? `<dt>Lokasi simpan</dt><dd>${esc(it.lokasi)}</dd>` : ''}
+                    <dt>Kondisi</dt><dd><span class="att-badge ${Inv.KONDISI_BADGE[it.kondisi]}">${esc(Inv.KONDISI[it.kondisi])}</span></dd>
+                    <dt>Cara pinjam</dt><dd>${esc(Inv.JENIS[it.jenis_pinjam])}</dd>
+                </dl>
+                ${state}${action}
+            </section>
+            <a class="att-btn att-btn-ghost att-btn-block" href="#/pinjam">Lihat pinjaman saya</a>`);
+        $('gInvForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = $('gInvBtn');
+            const label = btn.textContent;
+            btn.disabled = true; btn.textContent = 'Menyimpan…';
+            try {
+                if (it.milik_saya) {
+                    await rpc('inv_return', { p_code: it.qr_token, p_kondisi: $('gInvKond').value, p_catatan: $('gInvNote').value.trim() || null });
+                    toast(`${it.nama} sudah dikembalikan. Terima kasih!`);
+                } else {
+                    const sampai = $('gInvSampai').value || null;
+                    if (sampai && sampai < today) throw new Error('Tanggal kembali tidak boleh sebelum hari ini.');
+                    await rpc('inv_borrow', { p_code: it.qr_token, p_keperluan: $('gInvKeperluan').value.trim() || null, p_sampai: sampai });
+                    toast(`${it.nama} tercatat Anda pinjam.`);
+                }
+                loansStale = true;
+                renderPinjamItem(code);
+            } catch (err) {
+                toast(errMessage(err), 'err');
+                btn.disabled = false; btn.textContent = label;
+            }
+        });
     }
 
     // ------------------------------------------------------------------ cetak & dokumen
@@ -1052,6 +1237,8 @@
         if (path === '/dokumen') return renderDokumenList();
         if (path.startsWith('/dokumen/')) return renderDokumenForm(path.slice(9), params);
         if (path === '/akun') return renderAkun();
+        if (path === '/pinjam') return renderPinjamList();
+        if (path.startsWith('/pinjam/')) return renderPinjamItem(decodeURIComponent(path.slice(8)));
         go('/');
     }
 
@@ -1061,6 +1248,8 @@
 
     $('gBack').addEventListener('click', () => {
         if (parseHash().path.startsWith('/dokumen/')) return go('/dokumen');
+        if (parseHash().path.startsWith('/pinjam/')) return go('/pinjam');
+        if (parseHash().path === '/pinjam') return go('/');
         if (history.length > 1) history.back(); else go('/');
     });
     window.addEventListener('hashchange', route);

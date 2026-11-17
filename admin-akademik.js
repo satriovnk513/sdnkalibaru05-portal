@@ -137,6 +137,8 @@
         });
     }
 
+    window.AdminForm = Object.freeze({ formSheet });
+
     function makeTable(key, host, cfg) {
         if (tables[key] && tables[key].host === host && host.querySelector('[data-body]')) { tables[key].setRows(cfg.rows); return tables[key]; }
         tables[key] = new window.Att.DataTable(host, { storageKey: `admin-${key}`, ...cfg });
