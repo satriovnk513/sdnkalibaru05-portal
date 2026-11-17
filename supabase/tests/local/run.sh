@@ -52,6 +52,8 @@ run "Migration nomor surat & NIK profil" "$ROOT/supabase/migrations/202611170000
 run "Migration nomor surat (ulang, idempotent)" "$ROOT/supabase/migrations/20261117000001_letter_numbers_profile_nik.sql"
 run "Migration inventaris"          "$ROOT/supabase/migrations/20261118000001_inventory.sql"
 run "Migration inventaris (ulang, idempotent)" "$ROOT/supabase/migrations/20261118000001_inventory.sql"
+run "Migration status inventaris"   "$ROOT/supabase/migrations/20261118000002_inventory_status.sql"
+run "Migration status inventaris (ulang, idempotent)" "$ROOT/supabase/migrations/20261118000002_inventory_status.sql"
 
 echo "→ Tes Absensi"
 {

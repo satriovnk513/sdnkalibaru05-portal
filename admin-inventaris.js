@@ -1,6 +1,8 @@
 // =============================================================================
 // Panel Admin — menu Inventaris & Peminjaman.
-//   Barang     : tambah/edit/hapus, impor Excel, cetak stiker QR, export Excel.
+//   Monitoring : terlambat, barang rusak, catatan guru, aktivitas hari ini,
+//                statistik bulanan (paling sering dipinjam, peminjam teraktif).
+//   Barang     : tambah/edit/hapus, status Berfungsi/Rusak, impor Excel, stiker QR.
 //   Dipinjam   : siapa memegang apa, yang terlambat, tandai sudah kembali.
 //   Riwayat    : semua pinjaman, export Excel.
 // Data lewat RPC inv_* (cek hak akses di database). Guru meminjam sendiri
@@ -13,7 +15,7 @@
     const { esc, errMessage, toast } = window.Att;
     const Inv = window.Inv;
     const $ = (id) => document.getElementById(id);
-    const st = { items: [], staff: [], history: null, view: 'barang', filter: 'aktif', kategori: '', pick: new Set(), loaded: false, today: '' };
+    const st = { items: [], staff: [], history: null, view: 'monitor', month: '', filter: 'aktif', kategori: '', pick: new Set(), loaded: false, today: '' };
     const tables = {};
 
     async function rpc(fn, args) {
@@ -30,6 +32,7 @@
         ]);
         st.items = ov.items || [];
         st.today = ov.hari_ini;
+        if (!st.month) st.month = st.today.slice(0, 7);
         st.staff = staff;
         st.history = null;
         for (const id of [...st.pick]) if (!st.items.some((i) => i.id === id && i.aktif)) st.pick.delete(id);
@@ -40,13 +43,13 @@
         const aktif = st.items.filter((i) => i.aktif);
         const dipinjam = aktif.filter((i) => i.pinjaman);
         const telat = dipinjam.filter((i) => i.pinjaman.terlambat);
-        const rusak = aktif.filter((i) => i.kondisi !== 'baik');
+        const rusak = aktif.filter((i) => i.kondisi === 'rusak');
         const card = (n, label, cls, view, filter) => `<button type="button" class="inv-stat ${cls}" data-go="${view}" data-filter="${filter}">
             <b>${n}</b><span>${label}</span></button>`;
         $('invStats').innerHTML = card(aktif.length, 'Barang tercatat', '', 'barang', 'aktif')
             + card(dipinjam.length, 'Sedang dipinjam', 'info', 'dipinjam', '')
             + card(telat.length, 'Lewat batas kembali', telat.length ? 'bad' : '', 'dipinjam', '')
-            + card(rusak.length, 'Rusak', rusak.length ? 'warn' : '', 'barang', 'rusak');
+            + card(rusak.length, 'Barang rusak', rusak.length ? 'warn' : '', 'barang', 'rusak');
     }
 
     function setView(view) {
@@ -57,9 +60,81 @@
 
     function render() {
         renderStats();
+        if (st.view === 'monitor') return renderMonitor();
         if (st.view === 'barang') return renderBarang();
         if (st.view === 'dipinjam') return renderDipinjam();
         return renderRiwayat();
+    }
+
+    // ------------------------------------------------------------------ monitoring
+    const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const jam = (iso) => new Date(iso).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' });
+
+    function bars(list, empty) {
+        if (!list.length) return `<p class="att-muted inv-empty">${empty}</p>`;
+        const max = Math.max(...list.map((x) => x.n));
+        return `<ol class="inv-bars">${list.map((x) => `<li><span class="inv-bar-l">${esc(x.k)}</span>
+            <span class="inv-bar"><i style="width:${Math.max(6, Math.round((x.n / max) * 100))}%"></i></span><b>${x.n}×</b></li>`).join('')}</ol>`;
+    }
+
+    async function renderMonitor() {
+        const host = $('invBody');
+        host.dataset.view = 'monitor';
+        if (!st.history) {
+            host.innerHTML = '<div class="att-muted">Memuat monitoring…</div>';
+            try { st.history = await rpc('inv_loan_history', {}); } catch (err) { host.innerHTML = `<div class="att-alert err">${esc(errMessage(err))}</div>`; return; }
+            if (st.view !== 'monitor') return;
+        }
+        const m = Inv.monitor(st.history, st.items, st.month, st.today);
+        const [y, mo] = st.month.split('-').map(Number);
+        const isNow = st.month === st.today.slice(0, 7);
+        const itemByKode = new Map(st.items.map((i) => [i.kode, i]));
+        const maxDay = Math.max(1, ...m.perHari.map((d) => d.n));
+        const card = (title, body, extra = '') => `<section class="inv-mon-card ${extra}"><h3>${title}</h3>${body}</section>`;
+
+        const late = m.late.length ? `<ul class="inv-list">${m.late.map((l) => `<li><div><b>${esc(l.nama)}</b> <span class="inv-kode att-muted">${esc(l.kode)}</span>
+                <small>${esc(l.peminjam)} · batas ${esc(Inv.tgl(l.sampai))}</small></div>
+                <span class="att-badge bad">Telat ${l.telat} hari</span>
+                <button type="button" class="att-btn att-btn-ghost att-btn-sm" data-back="${esc(l.item_id)}">Tandai kembali</button></li>`).join('')}</ul>`
+            : '<p class="inv-empty ok">✓ Semua pinjaman masih dalam batas waktu.</p>';
+        const rusak = m.rusak.length ? `<ul class="inv-list">${m.rusak.map((i) => `<li><div><b>${esc(i.nama)}</b> <span class="inv-kode att-muted">${esc(i.kode)}</span>
+                <small>${esc(i.keterangan_rusak || 'Tanpa keterangan')}${i.lokasi ? ` · ${esc(i.lokasi)}` : ''}</small></div>
+                <button type="button" class="att-btn att-btn-ghost att-btn-sm" data-fixed="${esc(i.id)}">Tandai berfungsi</button></li>`).join('')}</ul>`
+            : '<p class="inv-empty ok">✓ Tidak ada barang rusak.</p>';
+        const notes = m.notes.length ? `<ul class="inv-list">${m.notes.slice(0, 8).map((l) => {
+            const it = itemByKode.get(l.kode);
+            return `<li><div><b>${esc(l.nama)}</b> <span class="inv-kode att-muted">${esc(l.kode)}</span>
+                <span class="inv-note">“${esc(l.catatan)}”</span><small>${esc(l.peminjam)} · ${esc(Inv.tgl(l.kembali, true))}</small></div>
+                ${it && it.aktif && it.kondisi === 'baik' ? `<button type="button" class="att-btn att-btn-ghost att-btn-sm" data-broken="${esc(it.id)}">Tandai rusak</button>`
+        : it?.kondisi === 'rusak' ? '<span class="att-badge bad">Sudah ditandai rusak</span>' : ''}</li>`;
+        }).join('')}</ul>` : '<p class="att-muted inv-empty">Belum ada catatan dari guru dalam 30 hari terakhir.</p>';
+        const events = m.events.length ? `<ul class="inv-timeline">${m.events.slice(0, 12).map((e) => `<li class="${e.jenis}">
+                <time>${esc(jam(e.t))}</time><span><b>${esc(e.l.peminjam)}</b> ${e.jenis === 'pinjam' ? 'meminjam' : 'mengembalikan'} ${esc(e.l.nama)}
+                <span class="inv-kode att-muted">${esc(e.l.kode)}</span></span></li>`).join('')}</ul>`
+            : '<p class="att-muted inv-empty">Belum ada pinjam / kembali hari ini.</p>';
+
+        host.innerHTML = `<div class="inv-mon-head">
+                <button type="button" class="att-btn att-btn-ghost att-btn-sm" data-mon="-1" aria-label="Bulan sebelumnya">‹</button>
+                <b id="invMonth">${BULAN[mo - 1]} ${y}</b>
+                <button type="button" class="att-btn att-btn-ghost att-btn-sm" data-mon="1" aria-label="Bulan berikutnya" ${isNow ? 'disabled' : ''}>›</button>
+            </div>
+            <div class="inv-kpi">
+                <div><b>${m.total}</b><span>Pinjaman bulan ini</span></div>
+                <div><b>${m.dikembalikan}</b><span>Sudah dikembalikan</span></div>
+                <div><b>${m.rataHari === null ? '–' : `${String(m.rataHari).replace('.', ',')} hari`}</b><span>Rata-rata lama pinjam</span></div>
+                <div><b>${m.sedang}</b><span>Sedang dipinjam sekarang</span></div>
+            </div>
+            <div class="inv-mon-grid">
+                ${card(`Lewat batas kembali <span class="att-badge ${m.late.length ? 'bad' : 'ok'}">${m.late.length}</span>`, late, m.late.length ? 'alert' : '')}
+                ${card(`Barang rusak <span class="att-badge ${m.rusak.length ? 'warn' : 'ok'}">${m.rusak.length}</span>`, rusak)}
+                ${card('Catatan dari guru saat mengembalikan', notes)}
+                ${card('Aktivitas hari ini', events)}
+                ${card(`Pinjaman per hari — ${BULAN[mo - 1]}`, `<div class="inv-days" role="img" aria-label="Grafik jumlah pinjaman per hari">${m.perHari.map((d) => `<span title="${esc(Inv.tgl(d.d))}: ${d.n} pinjaman" class="${d.d === st.today ? 'today' : ''}"><i style="height:${Math.round((d.n / maxDay) * 100)}%"></i></span>`).join('')}</div>
+                    <div class="inv-days-axis"><span>1</span><span>${m.perHari.length}</span></div>`, 'wide')}
+                ${card('Paling sering dipinjam', bars(m.topBarang, 'Belum ada pinjaman bulan ini.'))}
+                ${card('Peminjam teraktif', bars(m.topPeminjam, 'Belum ada pinjaman bulan ini.'))}
+            </div>
+            <div class="inv-tools-row" style="margin-top:12px"><button type="button" class="att-btn att-btn-ghost att-btn-sm" data-goto="riwayat">Lihat semua riwayat →</button></div>`;
     }
 
     // ------------------------------------------------------------------ barang
@@ -70,6 +145,7 @@
                 <div class="att-muted inv-sub">${esc(it.pinjaman.peminjam)} · sejak ${esc(Inv.tgl(it.pinjaman.sejak))}</div>`;
         }
         if (it.jenis_pinjam === 'tidak_dipinjam') return '<span class="att-badge mute">Tidak dipinjam</span>';
+        if (it.kondisi === 'rusak') return '<span class="att-badge mute">Tidak bisa dipinjam</span>';
         return '<span class="att-badge ok">Tersedia</span>';
     };
 
@@ -78,9 +154,9 @@
             if (st.kategori && (it.kategori || '') !== st.kategori) return false;
             switch (st.filter) {
                 case 'aktif': return it.aktif;
-                case 'tersedia': return it.aktif && !it.pinjaman && it.jenis_pinjam !== 'tidak_dipinjam' && it.kondisi !== 'rusak_berat';
+                case 'tersedia': return it.aktif && !it.pinjaman && it.jenis_pinjam !== 'tidak_dipinjam' && it.kondisi === 'baik';
                 case 'dipinjam': return it.aktif && it.pinjaman;
-                case 'rusak': return it.aktif && it.kondisi !== 'baik';
+                case 'rusak': return it.aktif && it.kondisi === 'rusak';
                 case 'arsip': return !it.aktif;
                 default: return true;
             }
@@ -100,7 +176,7 @@
         const kategori = [...new Set(st.items.map((i) => i.kategori).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'id'));
         const rows = filteredItems().map((it) => ({
             ...it, barang: `${it.nama} ${it.kategori || ''} ${it.merk || ''}`, peminjam: it.pinjaman?.peminjam || '',
-            kondisiLabel: Inv.KONDISI[it.kondisi], status: it.pinjaman ? 'dipinjam' : 'tersedia',
+            kondisiLabel: `${Inv.KONDISI[it.kondisi]} ${it.keterangan_rusak || ''}`, status: it.pinjaman ? 'dipinjam' : 'tersedia',
         }));
         const cfg = {
             rows,
@@ -124,12 +200,14 @@
                 { key: 'kode', label: 'Kode', sort: true, render: (r) => `<b class="inv-kode">${esc(r.kode)}</b>` },
                 { key: 'nama', label: 'Barang', sort: true, render: (r) => `<b>${esc(r.nama)}</b><div class="att-muted inv-sub">${esc([r.kategori, r.merk, r.tahun_perolehan].filter(Boolean).join(' · ') || '–')}</div>` },
                 { key: 'lokasi', label: 'Lokasi', sort: true, render: (r) => esc(r.lokasi || '–') },
-                { key: 'kondisi', label: 'Kondisi', sort: true, render: (r) => `<span class="att-badge ${Inv.KONDISI_BADGE[r.kondisi]}">${esc(Inv.KONDISI[r.kondisi])}</span><div class="att-muted inv-sub">${esc(Inv.JENIS_PENDEK[r.jenis_pinjam])}</div>` },
+                { key: 'kondisi', label: 'Status barang', sort: true, render: (r) => `<span class="att-badge ${Inv.KONDISI_BADGE[r.kondisi] || 'mute'}">${esc(Inv.KONDISI[r.kondisi] || r.kondisi)}</span><div class="att-muted inv-sub">${esc(r.kondisi === 'rusak' ? (r.keterangan_rusak || 'Tanpa keterangan') : Inv.JENIS_PENDEK[r.jenis_pinjam])}</div>` },
                 { key: 'status', label: 'Status', sort: true, render: statusHtml },
                 {
                     key: 'aksi', label: 'Aksi', className: 'att-actions', render: (r) => `<button type="button" class="att-btn att-btn-ghost att-btn-sm" data-edit="${esc(r.id)}">Edit</button>
                     ${r.aktif && r.pinjaman ? `<button type="button" class="att-btn att-btn-blue att-btn-sm" data-back="${esc(r.id)}">Tandai kembali</button>` : ''}
-                    ${r.aktif && !r.pinjaman && r.jenis_pinjam !== 'tidak_dipinjam' && r.kondisi !== 'rusak_berat' ? `<button type="button" class="att-btn att-btn-ghost att-btn-sm" data-lend="${esc(r.id)}">Pinjamkan</button>` : ''}
+                    ${r.aktif && !r.pinjaman && r.jenis_pinjam !== 'tidak_dipinjam' && r.kondisi === 'baik' ? `<button type="button" class="att-btn att-btn-ghost att-btn-sm" data-lend="${esc(r.id)}">Pinjamkan</button>` : ''}
+                    ${r.aktif ? (r.kondisi === 'rusak' ? `<button type="button" class="att-btn att-btn-ghost att-btn-sm" data-fixed="${esc(r.id)}">Tandai berfungsi</button>`
+        : `<button type="button" class="att-btn att-btn-ghost att-btn-sm" data-broken="${esc(r.id)}">Tandai rusak</button>`) : ''}
                     ${r.aktif ? `<button type="button" class="att-btn att-btn-danger att-btn-sm" data-del="${esc(r.id)}">Hapus</button>`
         : `<button type="button" class="att-btn att-btn-ghost att-btn-sm" data-restore="${esc(r.id)}">Aktifkan lagi</button>`}`,
                 },
@@ -211,7 +289,7 @@
                 { key: 'peminjam', label: 'Peminjam', sort: true, render: (r) => `${esc(r.peminjam)}${r.keperluan ? `<div class="att-muted inv-sub">${esc(r.keperluan)}</div>` : ''}` },
                 {
                     key: 'kembaliSort', label: 'Dikembalikan', sort: true, render: (r) => (r.kembali
-                        ? `${esc(Inv.tgl(r.kembali, true))}${r.kondisi && r.kondisi !== 'baik' ? ` <span class="att-badge ${Inv.KONDISI_BADGE[r.kondisi]}">${esc(Inv.KONDISI[r.kondisi])}</span>` : ''}${r.catatan ? `<div class="att-muted inv-sub">${esc(r.catatan)}</div>` : ''}`
+                        ? `${esc(Inv.tgl(r.kembali, true))}${r.kondisi === 'rusak' ? ' <span class="att-badge bad">Rusak</span>' : ''}${r.catatan ? `<div class="inv-sub inv-note">“${esc(r.catatan)}”</div>` : ''}`
                         : `<span class="att-badge ${r.terlambat ? 'bad' : 'info'}">${r.terlambat ? 'Belum · terlambat' : 'Belum kembali'}</span>`),
                 },
             ],
@@ -236,7 +314,8 @@
                 { id: 'merk', label: 'Merk / tipe', value: it?.merk, max: 80 },
                 { id: 'nomor_seri', label: 'Nomor seri', value: it?.nomor_seri, max: 80 },
                 { id: 'lokasi', label: 'Lokasi simpan', value: it?.lokasi, max: 80, placeholder: 'Mis. Ruang TU' },
-                { id: 'kondisi', label: 'Kondisi', type: 'select', options: KONDISI_OPTS, value: it?.kondisi || 'baik' },
+                { id: 'kondisi', label: 'Status barang', type: 'select', options: KONDISI_OPTS, value: it?.kondisi || 'baik', hint: 'Barang rusak tidak bisa dipinjam guru.' },
+                { id: 'keterangan_rusak', label: 'Keterangan rusak (opsional)', value: it?.keterangan_rusak, max: 300, placeholder: 'Mis. lampu proyektor mati — diisi kalau statusnya Rusak' },
                 { id: 'jenis_pinjam', label: 'Cara pinjam', type: 'select', options: JENIS_OPTS, value: it?.jenis_pinjam || 'harian', hint: 'Harian: harus kembali hari itu juga (bisa diatur sampai 30 hari). Jangka panjang: mis. laptop dipegang guru berbulan-bulan.' },
                 { id: 'tahun_perolehan', label: 'Tahun perolehan', value: it?.tahun_perolehan ?? '', max: 4, placeholder: 'Mis. 2024' },
                 { id: 'catatan', label: 'Catatan', value: it?.catatan, max: 300 },
@@ -274,14 +353,37 @@
             title: `${it.nama} sudah kembali`,
             submitText: 'Tandai kembali',
             fields: [
-                { id: 'kondisi', label: `Kondisi saat dikembalikan oleh ${it.pinjaman.peminjam}`, type: 'select', options: KONDISI_OPTS, value: it.kondisi },
-                { id: 'catatan', label: 'Catatan (opsional)', max: 300, placeholder: 'Mis. charger tidak ikut' },
+                { id: 'kondisi', label: `Status barang setelah dikembalikan oleh ${it.pinjaman.peminjam}`, type: 'select', options: KONDISI_OPTS, value: it.kondisi },
+                { id: 'keterangan_rusak', label: 'Keterangan rusak (kalau Rusak)', value: it.keterangan_rusak, max: 300, placeholder: 'Mis. kabel power putus' },
+                { id: 'catatan', label: 'Catatan pengembalian (opsional)', max: 300, placeholder: 'Mis. charger tidak ikut' },
             ],
         });
         if (!v) return;
         try {
-            await rpc('inv_admin_return', { p_item: it.id, p_kondisi: v.kondisi, p_catatan: v.catatan || null });
+            await rpc('inv_admin_return', { p_item: it.id, p_kondisi: v.kondisi, p_catatan: v.catatan || null, p_keterangan_rusak: v.keterangan_rusak || null });
             toast(`${it.nama} ditandai sudah kembali.`);
+            await refresh();
+        } catch (err) { toast(errMessage(err), 'err'); }
+    }
+
+    async function markBroken(it) {
+        const v = await form({
+            title: `Tandai ${it.nama} rusak`,
+            submitText: 'Tandai rusak',
+            fields: [{ id: 'ket', label: 'Keterangan kerusakan (opsional)', max: 300, value: it.keterangan_rusak, placeholder: 'Mis. layar bergaris, tombol power macet' }],
+        });
+        if (!v) return;
+        try {
+            await rpc('inv_set_status', { p_item: it.id, p_kondisi: 'rusak', p_keterangan: v.ket || null });
+            toast(`${it.kode} ditandai rusak. Guru tidak bisa meminjamnya sampai ditandai berfungsi.`);
+            await refresh();
+        } catch (err) { toast(errMessage(err), 'err'); }
+    }
+
+    async function markFixed(it) {
+        try {
+            await rpc('inv_set_status', { p_item: it.id, p_kondisi: 'baik', p_keterangan: null });
+            toast(`${it.kode} ditandai berfungsi dan bisa dipinjam lagi.`);
             await refresh();
         } catch (err) { toast(errMessage(err), 'err'); }
     }
@@ -406,6 +508,7 @@
             setView(b.dataset.go);
         });
         $('invAdd').addEventListener('click', () => itemForm(null));
+        $('dashInvAlert')?.addEventListener('click', () => { st.view = 'monitor'; showTab('tabInventaris', document.querySelector('[data-tab="tabInventaris"]')); });
         $('invTemplate').addEventListener('click', downloadTemplate);
         $('invImport').addEventListener('click', () => $('invFile').click());
         $('invFile').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) importFile(f); });
@@ -416,11 +519,23 @@
             pickLabel();
         });
         body.addEventListener('click', (e) => {
-            const b = e.target.closest('[data-edit],[data-lend],[data-back],[data-del],[data-restore]');
+            const nav = e.target.closest('[data-mon]');
+            if (nav) {
+                const [y, m] = st.month.split('-').map(Number);
+                const d = new Date(Date.UTC(y, m - 1 + Number(nav.dataset.mon), 1));
+                st.month = d.toISOString().slice(0, 7);
+                renderMonitor();
+                return;
+            }
+            const goto = e.target.closest('[data-goto]');
+            if (goto) { setView(goto.dataset.goto); return; }
+            const b = e.target.closest('[data-edit],[data-lend],[data-back],[data-del],[data-restore],[data-broken],[data-fixed]');
             if (!b) return;
-            const it = byId(b.dataset.edit || b.dataset.lend || b.dataset.back || b.dataset.del || b.dataset.restore);
+            const it = byId(b.dataset.edit || b.dataset.lend || b.dataset.back || b.dataset.del || b.dataset.restore || b.dataset.broken || b.dataset.fixed);
             if (!it) return;
-            if (b.dataset.edit) itemForm(it);
+            if (b.dataset.broken) markBroken(it);
+            else if (b.dataset.fixed) markFixed(it);
+            else if (b.dataset.edit) itemForm(it);
             else if (b.dataset.lend) lend(it);
             else if (b.dataset.back) giveBack(it);
             else if (b.dataset.del) remove(it);
@@ -428,9 +543,36 @@
         });
     });
 
+    // ------------------------------------------------------------------ kartu di Dashboard utama
+    async function dashAlert() {
+        const box = $('dashInvAlert');
+        if (!box) return;
+        try {
+            const ov = await rpc('inv_admin_overview');
+            const items = (ov.items || []).filter((i) => i.aktif);
+            const late = items.filter((i) => i.pinjaman?.terlambat).length;
+            const lent = items.filter((i) => i.pinjaman).length;
+            const broken = items.filter((i) => i.kondisi === 'rusak').length;
+            if (!items.length) { box.hidden = true; return; }
+            box.className = `inv-dash ${late ? 'bad' : ''}`;
+            box.innerHTML = `<span class="inv-dash-ico">📦</span><span><b>Inventaris:</b> ${late ? `<b>${late} barang lewat batas kembali</b> · ` : ''}${lent} sedang dipinjam${broken ? ` · ${broken} rusak` : ''}</span>
+                <span class="inv-dash-go">Buka monitoring →</span>`;
+            box.hidden = false;
+        } catch { box.hidden = true; }
+    }
+    const prevLoadDash = window.loadDashboardStats;
+    if (typeof prevLoadDash === 'function') {
+        window.loadDashboardStats = async function (...a) {
+            const r = await prevLoadDash.apply(this, a);
+            dashAlert();
+            return r;
+        };
+    }
+
     const prevShowTab = window.showTab;
     window.showTab = function (tabId, navEl) {
         prevShowTab(tabId, navEl);
+        if (tabId === 'tabDashboard') dashAlert();
         if (tabId !== 'tabInventaris') return;
         $('topbarTitle').textContent = 'Inventaris';
         open();

@@ -583,7 +583,7 @@
         $('gMyLoans').innerHTML = `<h3>Sedang saya pinjam</h3>${myLoans.aktif.length ? myLoans.aktif.map(loanLine).join('')
             : '<p class="att-muted" style="margin:6px 0 0">Tidak ada barang yang sedang Anda pinjam.</p>'}`;
         $('gMyHist').innerHTML = myLoans.riwayat.length ? `<h3>Riwayat terakhir</h3>${myLoans.riwayat.map((r) => `<div class="inv-loan"><div><b>${esc(r.nama)}</b>
-            <small>${esc(r.kode)} · ${esc(Inv.tgl(r.sejak))} – ${esc(Inv.tgl(r.kembali))}</small></div>${r.kondisi && r.kondisi !== 'baik' ? `<span class="att-badge ${Inv.KONDISI_BADGE[r.kondisi]}">${esc(Inv.KONDISI[r.kondisi])}</span>` : ''}</div>`).join('')}` : '';
+            <small>${esc(r.kode)} · ${esc(Inv.tgl(r.sejak))} – ${esc(Inv.tgl(r.kembali))}</small></div></div>`).join('')}` : '';
         $('gMyHist').classList.toggle('g-hidden', !myLoans.riwayat.length);
     }
 
@@ -638,20 +638,26 @@
         const p = it.pinjaman;
         const today = home.today;
         const maxHarian = isoAdd(today, 30);
+        const rusak = it.kondisi === 'rusak';
+        const ketRusak = it.keterangan_rusak ? `<div class="inv-ket">Keterangan: ${esc(it.keterangan_rusak)}</div>` : '';
         let state; let action = '';
         if (it.milik_saya) {
             state = `<div class="inv-state mine"><b>Sedang Anda pinjam</b> sejak ${esc(Inv.tgl(p.sejak, true))}.
-                ${p.sampai ? `Batas kembali <b>${esc(Inv.tgl(p.sampai))}</b>${p.terlambat ? ' — <b>sudah lewat</b>' : ''}.` : 'Tanpa batas tanggal.'}</div>`;
+                ${p.sampai ? `Batas kembali <b>${esc(Inv.tgl(p.sampai))}</b>${p.terlambat ? ' — <b>sudah lewat</b>' : ''}.` : 'Tanpa batas tanggal.'}</div>
+                ${rusak ? `<div class="inv-state broken"><b>Operator menandai barang ini rusak.</b> Silakan kembalikan.${ketRusak}</div>` : ''}`;
             action = `<form class="att-stack" id="gInvForm" novalidate>
-                <div class="att-field"><label for="gInvKond">Kondisi saat dikembalikan</label>
-                    <select class="att-select" id="gInvKond">${Object.entries(Inv.KONDISI).map(([v, l]) => `<option value="${v}" ${v === it.kondisi ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-                <div class="att-field"><label for="gInvNote">Catatan (opsional)</label><input class="att-input" id="gInvNote" maxlength="300" placeholder="Mis. charger ikut dikembalikan"></div>
+                <div class="att-field"><label for="gInvNote">Ada kerusakan atau catatan? (opsional)</label>
+                    <textarea class="att-input" id="gInvNote" maxlength="300" rows="2" placeholder="Mis. lampu proyektor berkedip, charger tidak ikut"></textarea>
+                    <span class="att-muted" style="font-size:.78rem">Catatan dikirim ke operator. Operator yang menentukan barang rusak atau tidak.</span></div>
                 <button type="submit" class="att-btn att-btn-primary att-btn-block" id="gInvBtn">Kembalikan sekarang</button></form>`;
+        } else if (rusak) {
+            state = `<div class="inv-state broken"><b>Barang ini rusak — tidak bisa dipinjam.</b>${ketRusak}
+                <div style="margin-top:6px">Silakan scan barang lain yang berfungsi.</div></div>`;
         } else if (p) {
             state = `<div class="inv-state busy"><b>Sedang dipinjam ${esc(p.peminjam)}</b> sejak ${esc(Inv.tgl(p.sejak))}.
                 ${p.sampai ? `Rencana kembali ${esc(Inv.tgl(p.sampai))}.` : ''} Minta beliau mengembalikan lewat portal, atau hubungi operator.</div>`;
-        } else if (it.jenis_pinjam === 'tidak_dipinjam' || it.kondisi === 'rusak_berat') {
-            state = `<div class="inv-state off">${it.kondisi === 'rusak_berat' ? 'Barang ini sedang <b>rusak berat</b>' : 'Barang ini <b>tidak untuk dipinjam</b>'}. Hubungi operator kalau perlu.</div>`;
+        } else if (it.jenis_pinjam === 'tidak_dipinjam') {
+            state = '<div class="inv-state off">Barang ini <b>tidak untuk dipinjam</b>. Hubungi operator kalau perlu.</div>';
         } else {
             const harian = it.jenis_pinjam === 'harian';
             state = '<div class="inv-state ok"><b>Tersedia.</b> Isi keperluan lalu tekan Pinjam sekarang.</div>';
@@ -668,12 +674,15 @@
                     ${it.kategori ? `<dt>Kategori</dt><dd>${esc(it.kategori)}</dd>` : ''}
                     ${it.merk ? `<dt>Merk / tipe</dt><dd>${esc(it.merk)}</dd>` : ''}
                     ${it.lokasi ? `<dt>Lokasi simpan</dt><dd>${esc(it.lokasi)}</dd>` : ''}
-                    <dt>Kondisi</dt><dd><span class="att-badge ${Inv.KONDISI_BADGE[it.kondisi]}">${esc(Inv.KONDISI[it.kondisi])}</span></dd>
+                    <dt>Status</dt><dd><span class="att-badge ${Inv.KONDISI_BADGE[it.kondisi] || 'mute'}">${esc(Inv.KONDISI[it.kondisi] || it.kondisi)}</span></dd>
                     <dt>Cara pinjam</dt><dd>${esc(Inv.JENIS[it.jenis_pinjam])}</dd>
                 </dl>
                 ${state}${action}
             </section>
-            <a class="att-btn att-btn-ghost att-btn-block" href="#/pinjam">Lihat pinjaman saya</a>`);
+            ${!it.milik_saya && it.alternatif?.length ? `<section class="inv-card" id="gInvAlt"><h3>Barang sejenis yang bisa dipinjam</h3>
+                ${it.alternatif.map((a) => `<a class="inv-loan" href="#/pinjam/${encodeURIComponent(a.kode)}"><div><b>${esc(a.nama)}</b>
+                    <small>${esc(a.kode)}${a.lokasi ? ` · ${esc(a.lokasi)}` : ''}</small></div><span class="att-badge ok">Tersedia</span></a>`).join('')}</section>` : ''}
+            <a class="att-btn att-btn-ghost att-btn-block" href="#/pinjam">${ICON.qr} Scan barang lain</a>`);
         $('gInvForm')?.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = $('gInvBtn');
@@ -681,7 +690,7 @@
             btn.disabled = true; btn.textContent = 'Menyimpan…';
             try {
                 if (it.milik_saya) {
-                    await rpc('inv_return', { p_code: it.qr_token, p_kondisi: $('gInvKond').value, p_catatan: $('gInvNote').value.trim() || null });
+                    await rpc('inv_return', { p_code: it.qr_token, p_catatan: $('gInvNote').value.trim() || null });
                     toast(`${it.nama} sudah dikembalikan. Terima kasih!`);
                 } else {
                     const sampai = $('gInvSampai').value || null;

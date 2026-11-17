@@ -7,8 +7,8 @@
     'use strict';
 
     const SITE = 'https://sdnkalibaru05.sch.id';
-    const KONDISI = { baik: 'Baik', rusak_ringan: 'Rusak ringan', rusak_berat: 'Rusak berat' };
-    const KONDISI_BADGE = { baik: 'ok', rusak_ringan: 'warn', rusak_berat: 'bad' };
+    const KONDISI = { baik: 'Berfungsi', rusak: 'Rusak' };
+    const KONDISI_BADGE = { baik: 'ok', rusak: 'bad' };
     const JENIS = { harian: 'Harian (sekali pakai)', jangka_panjang: 'Jangka panjang', tidak_dipinjam: 'Tidak dipinjam' };
     const JENIS_PENDEK = { harian: 'Harian', jangka_panjang: 'Jangka panjang', tidak_dipinjam: 'Tidak dipinjam' };
     const BULAN3 = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -50,18 +50,19 @@
         ['merk', /merk|merek|tipe|type|model/],
         ['nomor_seri', /seri|serial|s\/n/],
         ['lokasi', /lokasi|ruang|tempat/],
-        ['kondisi', /kondisi/],
+        ['keterangan_rusak', /kerusakan|ket\.? ?rusak|keterangan rusak/],
+        ['kondisi', /kondisi|status/],
         ['jenis_pinjam', /pinjam/],
         ['tahun_perolehan', /tahun/],
         ['jumlah', /jumlah|qty|unit|banyak/],
         ['catatan', /catatan|keterangan|^ket/],
     ];
     const TEMPLATE_HEAD = ['Kode (kosongkan = otomatis)', 'Nama barang *', 'Kategori', 'Merk / Tipe', 'No. Seri', 'Lokasi',
-        'Kondisi (Baik / Rusak ringan / Rusak berat)', 'Jenis pinjam (Harian / Jangka panjang / Tidak dipinjam)', 'Tahun perolehan', 'Jumlah', 'Catatan'];
+        'Status (Berfungsi / Rusak)', 'Keterangan rusak', 'Jenis pinjam (Harian / Jangka panjang / Tidak dipinjam)', 'Tahun perolehan', 'Jumlah', 'Catatan'];
     const TEMPLATE_CONTOH = [
-        ['', 'Laptop Acer Aspire 3', 'Laptop', 'Acer A314', 'NXK6TSN001', 'Ruang TU', 'Baik', 'Jangka panjang', 2024, 1, 'Untuk wali kelas'],
-        ['SPK', 'Speaker Aktif Portable', 'Speaker', 'Polytron', '', 'Gudang', 'Baik', 'Harian', 2023, 2, 'Jumlah 2 → SPK-01 dan SPK-02'],
-        ['', 'Proyektor Epson', 'Proyektor', 'EB-X500', '', 'Ruang TU', 'Rusak ringan', 'Harian', 2022, 1, ''],
+        ['', 'Laptop Acer Aspire 3', 'Laptop', 'Acer A314', 'NXK6TSN001', 'Ruang TU', 'Berfungsi', '', 'Jangka panjang', 2024, 1, 'Untuk wali kelas'],
+        ['SPK', 'Speaker Aktif Portable', 'Speaker', 'Polytron', '', 'Gudang', 'Berfungsi', '', 'Harian', 2023, 2, 'Jumlah 2 → SPK-01 dan SPK-02'],
+        ['', 'Proyektor Epson', 'Proyektor', 'EB-X500', '', 'Ruang TU', 'Rusak', 'Lampu proyektor mati', 'Harian', 2022, 1, ''],
     ];
 
     /**
@@ -99,25 +100,25 @@
         return buildXlsx({
             sheet: 'Impor Inventaris',
             rows: [TEMPLATE_HEAD.map((v) => ({ v, s: 2 })), ...TEMPLATE_CONTOH.map((r) => r.map((v) => ({ v, s: 3 })))],
-            widths: [16, 28, 14, 16, 16, 14, 18, 22, 10, 8, 28],
+            widths: [16, 28, 14, 16, 16, 14, 16, 24, 22, 10, 8, 28],
             landscape: true,
         });
     }
 
     function itemsXlsx(buildXlsx, items, logoPng) {
-        const head = ['No', 'Kode', 'Nama barang', 'Kategori', 'Merk / Tipe', 'No. Seri', 'Lokasi', 'Tahun', 'Kondisi', 'Jenis pinjam', 'Status', 'Peminjam', 'Sejak', 'Catatan'];
+        const head = ['No', 'Kode', 'Nama barang', 'Kategori', 'Merk / Tipe', 'No. Seri', 'Lokasi', 'Tahun', 'Status barang', 'Keterangan rusak', 'Jenis pinjam', 'Ketersediaan', 'Peminjam', 'Sejak', 'Catatan'];
         const rows = [
             [{ v: 'DAFTAR INVENTARIS BARANG — SDN KALIBARU 05 PAGI', s: 6 }], [], head.map((v) => ({ v, s: 2 })),
             ...items.map((it, i) => [i + 1, it.kode, it.nama, it.kategori || '', it.merk || '', it.nomor_seri || '', it.lokasi || '',
-                it.tahun_perolehan || '', KONDISI[it.kondisi] || it.kondisi, JENIS_PENDEK[it.jenis_pinjam] || it.jenis_pinjam,
+                it.tahun_perolehan || '', KONDISI[it.kondisi] || it.kondisi, it.keterangan_rusak || '', JENIS_PENDEK[it.jenis_pinjam] || it.jenis_pinjam,
                 !it.aktif ? 'Diarsipkan' : it.pinjaman ? (it.pinjaman.terlambat ? 'Dipinjam (terlambat)' : 'Dipinjam') : 'Tersedia',
                 it.pinjaman?.peminjam || '', it.pinjaman ? tgl(it.pinjaman.sejak) : '', it.catatan || ''].map((v, ci) => ({ v, s: ci === 0 ? 4 : 3 }))),
         ];
-        return buildXlsx({ sheet: 'Inventaris', rows, merges: ['A1:N1'], widths: [5, 11, 30, 14, 16, 16, 14, 7, 12, 14, 18, 24, 13, 24], landscape: true, logoPng, logoPx: 40 });
+        return buildXlsx({ sheet: 'Inventaris', rows, merges: ['A1:O1'], widths: [5, 11, 30, 14, 16, 16, 14, 7, 12, 22, 14, 18, 24, 13, 24], landscape: true, logoPng, logoPx: 40 });
     }
 
     function historyXlsx(buildXlsx, loans, logoPng) {
-        const head = ['No', 'Kode', 'Barang', 'Peminjam', 'Keperluan', 'Dipinjam', 'Rencana kembali', 'Dikembalikan', 'Kondisi kembali', 'Catatan'];
+        const head = ['No', 'Kode', 'Barang', 'Peminjam', 'Keperluan', 'Dipinjam', 'Rencana kembali', 'Dikembalikan', 'Status saat kembali', 'Catatan pengembalian'];
         const rows = [
             [{ v: 'RIWAYAT PEMINJAMAN BARANG — SDN KALIBARU 05 PAGI', s: 6 }], [], head.map((v) => ({ v, s: 2 })),
             ...loans.map((l, i) => [i + 1, l.kode, l.nama, l.peminjam, l.keperluan || '', tgl(l.sejak, true), l.sampai ? tgl(l.sampai) : '–',
@@ -125,6 +126,55 @@
                 .map((v, ci) => ({ v, s: ci === 0 ? 4 : 3 }))),
         ];
         return buildXlsx({ sheet: 'Riwayat Pinjam', rows, merges: ['A1:J1'], widths: [5, 11, 28, 24, 24, 16, 14, 18, 14, 24], landscape: true, logoPng, logoPx: 40 });
+    }
+
+    // ------------------------------------------------------------------ monitoring
+    const dayOf = (iso) => (iso ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date(iso)) : '');
+    const daysBetween = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
+
+    /**
+     * Ringkasan monitoring dari riwayat pinjam (inv_loan_history) untuk satu bulan.
+     * month = 'YYYY-MM'. today = 'YYYY-MM-DD' (Jakarta).
+     */
+    function monitor(loans, items, month, today) {
+        const inMonth = loans.filter((l) => dayOf(l.sejak).startsWith(month));
+        const open = loans.filter((l) => !l.kembali);
+        const late = open.filter((l) => l.terlambat).map((l) => ({ ...l, telat: daysBetween(l.sampai, today) }))
+            .sort((a, b) => b.telat - a.telat);
+        const count = (arr, key) => {
+            const m = new Map();
+            for (const l of arr) m.set(key(l), (m.get(key(l)) || 0) + 1);
+            return [...m.entries()].map(([k, n]) => ({ k, n })).sort((a, b) => b.n - a.n || String(a.k).localeCompare(String(b.k), 'id'));
+        };
+        const returned = inMonth.filter((l) => l.kembali);
+        const durasi = returned.map((l) => Math.max(0, daysBetween(dayOf(l.sejak), dayOf(l.kembali))));
+        const [y, m] = month.split('-').map(Number);
+        const nDays = new Date(Date.UTC(y, m, 0)).getUTCDate();
+        const perHari = Array.from({ length: nDays }, (_, i) => {
+            const d = `${month}-${String(i + 1).padStart(2, '0')}`;
+            return { d, n: inMonth.filter((l) => dayOf(l.sejak) === d).length };
+        });
+        const events = [];
+        for (const l of loans) {
+            if (dayOf(l.sejak) === today) events.push({ t: l.sejak, jenis: 'pinjam', l });
+            if (l.kembali && dayOf(l.kembali) === today) events.push({ t: l.kembali, jenis: 'kembali', l });
+        }
+        events.sort((a, b) => String(b.t).localeCompare(String(a.t)));
+        const notes = loans.filter((l) => l.kembali && l.catatan && daysBetween(dayOf(l.kembali), today) <= 30)
+            .sort((a, b) => String(b.kembali).localeCompare(String(a.kembali)));
+        return {
+            total: inMonth.length,
+            dikembalikan: returned.length,
+            sedang: open.length,
+            rataHari: durasi.length ? Math.round((durasi.reduce((a, b) => a + b, 0) / durasi.length) * 10) / 10 : null,
+            rusak: items.filter((i) => i.aktif && i.kondisi === 'rusak'),
+            late,
+            topBarang: count(inMonth, (l) => `${l.nama} (${l.kode})`).slice(0, 5),
+            topPeminjam: count(inMonth, (l) => l.peminjam).slice(0, 5),
+            perHari,
+            events,
+            notes,
+        };
     }
 
     // ------------------------------------------------------------------ stiker QR
@@ -166,7 +216,7 @@ html, body { margin: 0; background: #fff; color: #000; font-family: Arial, Helve
 </style></head><body>${pages.map((p) => `<div class="kertas">${p.map(cell).join('')}</div>`).join('')}</body></html>`;
     }
 
-    const api = { SITE, KONDISI, KONDISI_BADGE, JENIS, JENIS_PENDEK, qrUrl, codeFromScan, tgl, parseImport, templateXlsx, itemsXlsx, historyXlsx, stickerHtml, TEMPLATE_HEAD };
+    const api = { SITE, KONDISI, KONDISI_BADGE, JENIS, JENIS_PENDEK, qrUrl, codeFromScan, tgl, dayOf, parseImport, templateXlsx, itemsXlsx, historyXlsx, stickerHtml, monitor, TEMPLATE_HEAD };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.Inv = api;
 }(typeof window !== 'undefined' ? window : globalThis));
