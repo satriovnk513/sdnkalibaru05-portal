@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="attendance.css?v=6">
+    <link rel="stylesheet" href="attendance.css?v=8">
     <link rel="icon" href="/favicon.ico" sizes="any">
     <style>
         * { box-sizing: border-box; }
@@ -110,29 +110,6 @@
         .g-sched-txt svg { width: 14px; height: 14px; }
         .g-time { background: #dcfce7; color: #166534; border-radius: 999px; padding: 1px 8px; font-weight: 600; font-size: 0.74rem; }
         .g-soon { border-style: dashed; }
-
-        /* Cetak & Dokumen */
-        .g-dok-h { margin: 14px 0 8px; font-size: 0.95rem; color: #334155; }
-        .g-dok-grid { display: grid; gap: 8px; }
-        @media (min-width: 640px) { .g-dok-grid { grid-template-columns: 1fr 1fr; } }
-        .g-dok { display: flex; align-items: center; gap: 12px; min-height: 72px; padding: 12px; border: 1px solid var(--att-line); border-radius: 14px; background: #fff; text-decoration: none; color: var(--att-ink); }
-        .g-dok svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-        .g-dok > svg { color: var(--att-muted); width: 18px; height: 18px; }
-        .g-dok-ico { flex: none; width: 44px; height: 44px; border-radius: 12px; background: #ffe4e6; color: #be123c; display: flex; align-items: center; justify-content: center; }
-        .g-dok-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-        .g-dok-txt small { color: var(--att-muted); font-size: 0.8rem; line-height: 1.35; }
-        .g-dok-checks { border: 1px solid var(--att-line); border-radius: 12px; padding: 8px 12px 10px; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; }
-        .g-dok-checks legend { font-size: 0.82rem; font-weight: 600; color: #334155; padding: 0 4px; }
-        .g-dok-checks label, .g-dok-check { display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: 0.9rem; }
-        .g-dok-checks input, .g-dok-check input { width: 20px; height: 20px; flex: none; accent-color: var(--att-brand); }
-        .g-dok-nomor { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-        .g-dok-nomor .att-input { width: 84px; flex: none; text-align: center; font-variant-numeric: tabular-nums; }
-        .g-dok-nomor span { font-weight: 600; }
-        .g-dok-actions { display: grid; gap: 8px; }
-        @media (min-width: 480px) { .g-dok-actions { grid-auto-flow: column; grid-auto-columns: 1fr; } }
-        .g-dok-prev { border: 1px solid var(--att-line); border-radius: 12px; background: #e2e8f0; overflow: auto; -webkit-overflow-scrolling: touch; }
-        .g-dok-prev iframe { display: block; width: 794px; height: 1000px; border: 0; background: #fff; transform-origin: 0 0; }
-        .g-dok-prev.wide iframe { width: 1123px; height: 794px; }
 
         /* Mode Sederhana */
         .g-big { display: flex; align-items: center; gap: 14px; min-height: 96px; padding: 16px; margin-bottom: 14px; border-radius: 18px; text-decoration: none; color: #fff; background: #e11d48; box-shadow: 0 5px 0 #9f1239; }
@@ -312,7 +289,8 @@
     <script src="attendance-sheet.js?v=7"></script>
     <script src="rekap-print.js?v=4"></script>
     <script src="att-charts.js?v=1"></script>
-    <script src="dokumen-templates.js?v=5"></script>
-    <script src="guru.js?v=16"></script>
+    <script src="dokumen-templates.js?v=6"></script>
+    <script src="dokumen-ui.js?v=2"></script>
+    <script src="guru.js?v=17"></script>
 </body>
 </html>

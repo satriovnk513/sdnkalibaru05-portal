@@ -838,6 +838,44 @@ async function runUi() {
         const v2 = await xlsxCells(dl2, ['D1', 'D7']);
         check(!v2 || (/REKAP ABSENSI SEMESTER/.test(v2[0]) && v2[1] === 'SISWA FIKTIF DUA'), `${T} Excel semester valid (${v2})`);
         check(errors.length === 0, `${T} tidak ada error JavaScript di Laporan (${errors.join(' | ').slice(0, 160)})`);
+
+        // ---------------------------------------------------- Cetak & Dokumen (admin)
+        await page.evaluate(() => showTab('tabDokumen', document.querySelector('[data-tab="tabDokumen"]')));
+        await page.waitForSelector('#dkHost #gDokForm');
+        check(/Cetak & Dokumen/.test(await page.textContent('#topbarTitle')) && (await page.$$('#dkTypes option')).length >= 8,
+            `${T} menu Cetak & Dokumen ada di admin dengan semua jenis dokumen`);
+        check((await page.$$('#dkHost #gDokKelas option')).length >= 2, `${T} admin bisa memilih semua kelas`);
+        await page.waitForFunction(() => /SISWA FIKTIF/i.test(document.querySelector('#dkHost iframe')?.srcdoc || ''));
+        // Pilih sebagian siswa untuk daftar
+        await page.click('#dkHost .g-dok-multi summary');
+        await page.click('#dkHost [data-multi="none"]');
+        await page.waitForFunction(() => /Pilih minimal satu siswa/.test(document.querySelector('#dkHost iframe')?.srcdoc || ''));
+        await page.check('#dkHost [data-dk="pilih"] >> nth=1');
+        await page.waitForFunction(() => /1 dari \d+ siswa/.test(document.getElementById('gDkPilihInfo').textContent));
+        {
+            const pop = await popupFrom(page, () => page.click('#dkHost [data-out="print"]'));
+            const rows = await pop.$$eval('.grid tbody tr', (r) => r.map((x) => x.textContent.replace(/\s+/g, ' ').trim()));
+            const dipilih = await page.$eval('#dkHost [data-dk="pilih"]:checked + span', (x) => x.textContent.replace(/^\d+\.\s*/, ''));
+            check(rows.length === 1 && rows[0].startsWith(`1${dipilih}`), `${T} daftar hanya berisi siswa yang dipilih, nomor urut mulai 1 (${rows.join(' / ')})`);
+            await pop.close();
+        }
+        await page.click('#dkHost [data-multi="all"]');
+        // Ganti kelas
+        const kelas2 = await page.$eval('#dkHost #gDokKelas option:nth-child(2)', (o) => o.value);
+        await page.selectOption('#dkHost #gDokKelas', kelas2);
+        await page.waitForFunction((v) => document.querySelector('#dkHost #gDokKelas')?.value === v && document.querySelector('#dkHost iframe'), kelas2);
+        check(await page.evaluate((v) => window.__fake.calls.some((c) => c.fn === 'get_class_document_data' && c.args?.p_class_id === v), kelas2), `${T} ganti kelas memuat data kelas itu`);
+        // Surat per siswa
+        await page.selectOption('#dkTypes', 'aktif');
+        await page.waitForSelector('#dkHost #gDk_siswa');
+        await page.selectOption('#dkHost #gDk_siswa', { index: 1 });
+        await page.selectOption('#dkHost #gDk_kop', 'dinas');
+        await page.waitForFunction(() => /Kop surat Dinas Pendidikan/.test(document.querySelector('#dkHost iframe')?.srcdoc || ''));
+        check(/SURAT KETERANGAN AKTIF SEKOLAH/.test(await page.getAttribute('#dkHost iframe', 'srcdoc')), `${T} admin membuat surat keterangan aktif untuk siswa yang dipilih, kop Dinas`);
+        check(await overflow(page) <= 0, `${T} tab Cetak & Dokumen tidak bergeser ke samping`);
+        check(!(await page.isVisible('#dkHost #gDokErr')), `${T} kotak pesan galat tersembunyi saat tidak ada galat`);
+        await shot(page, `admin-05-dokumen-${T.replace(/\W/g, '')}.png`);
+        check(errors.length === 0, `${T} tidak ada error JavaScript di Cetak & Dokumen (${errors.join(' | ').slice(0, 160)})`);
         await ctx.close();
     }
 }

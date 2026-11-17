@@ -11,7 +11,7 @@
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <link rel="stylesheet" href="attendance.css?v=6">
+    <link rel="stylesheet" href="attendance.css?v=8">
     <style>
         /* ── Reset & Base ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -711,6 +711,10 @@
                     <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
                     Rekap Semester
                 </a>
+                <a class="nav-item" data-tab="tabDokumen" onclick="showTab('tabDokumen', this)">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+                    Cetak &amp; Dokumen
+                </a>
 
                 <div class="nav-section-label">AKADEMIK</div>
                 <a class="nav-item" data-tab="tabClasses" onclick="showTab('tabClasses', this)">
@@ -913,6 +917,16 @@
                         </div>
                         <div id="lpBlnOut"></div>
                     </div>
+                </div>
+
+                <!-- ═══ TAB CETAK & DOKUMEN ═══ -->
+                <div id="tabDokumen" class="tab-content">
+                    <div class="section-header ak-head"><div><h2>Cetak &amp; Dokumen</h2>
+                        <p class="att-muted" style="margin:4px 0 0">Buatkan daftar, biodata, atau surat untuk kelas mana pun, lalu cetak atau unduh Word/Excel untuk diedit.</p></div></div>
+                    <div class="admin-card" style="margin-bottom:16px">
+                        <div class="att-field" style="max-width:480px"><label for="dkTypes">Jenis dokumen</label><select class="att-select" id="dkTypes"></select></div>
+                    </div>
+                    <div class="admin-card g-dok-host" id="dkHost"><div class="att-muted">Memuat…</div></div>
                 </div>
 
                 <!-- ═══ TAB REKAP SEMESTER ═══ -->
@@ -1393,7 +1407,7 @@
     </script>
 
     <!-- Custom Scripts -->
-    <script src="ai-service.js?v=2"></script>
+    <script src="ai-service.js?v=3"></script>
     <script src="student-fields.js?v=1"></script>
     <script src="admin-students.js?v=2"></script>
     <script src="admin.js?v=4"></script>
@@ -1402,6 +1416,9 @@
     <script src="admin-akademik.js?v=1"></script>
     <script src="rekap-print.js?v=4"></script>
     <script src="admin-laporan.js?v=3"></script>
+    <script src="dokumen-templates.js?v=6"></script>
+    <script src="dokumen-ui.js?v=2"></script>
+    <script src="admin-dokumen.js?v=1"></script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>
