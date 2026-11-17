@@ -350,7 +350,14 @@
         @media print { .tbar { display: none; } }`;
 
     /** Dokumen HTML lengkap untuk dicetak (mode: 'print'), pratinjau ('preview'), atau diunduh sebagai Word ('word'). */
-    function page(doc, mode = 'print') {
+    function page(doc, mode = 'print', assets = null) {
+        // Untuk cetak & pratinjau, gambar kop/logo ditanam langsung (data URI) supaya tidak bergantung
+        // pada kecepatan internet saat dialog cetak muncul. Word tetap memakai alamat gambar.
+        if (assets && mode !== 'word') {
+            let body = doc.body;
+            for (const [file, uri] of Object.entries(assets)) if (uri) body = body.split(`${ORIGIN}/${file}`).join(uri);
+            doc = { ...doc, body };
+        }
         const head = `<meta charset="utf-8"><title>${esc(doc.title)}</title><style>${CSS(doc.landscape)}</style>`;
         if (mode === 'word') {
             return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head>${head}
@@ -395,5 +402,5 @@
 
     const fileName = (doc) => String(doc.title || 'Dokumen').replace(/[^\w.\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
 
-    return { TYPES, KOLOM, KOP, typeOf, defaults, build, page, xlsx, fileName, tgl, hariTgl, romawi, nomorSurat, kotaTgl };
+    return { TYPES, KOLOM, KOP, typeOf, defaults, build, page, xlsx, fileName, tgl, hariTgl, romawi, nomorSurat, kotaTgl, ASSETS: ['kop-surat.png', 'logo-cetak.png'] };
 }));

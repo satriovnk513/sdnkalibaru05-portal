@@ -535,6 +535,23 @@
             <p class="att-muted" style="margin:16px 0 0">Butuh dokumen lain yang sering diminta ke operator? Sampaikan ke admin supaya ditambahkan di sini.</p>`);
     }
 
+    /** Gambar kop & logo sebagai data URI (dimuat sekali), supaya cetakan tidak menunggu internet. */
+    let dokAssets = null;
+    function loadDokAssets() {
+        if (!dokAssets) {
+            dokAssets = Promise.all(Dok.ASSETS.map(async (file) => {
+                try {
+                    const res = await fetch(`/${file}`);
+                    if (!res.ok) return [file, null];
+                    const blob = await res.blob();
+                    const uri = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(blob); });
+                    return [file, String(uri).replace(/^data:[^;]*;/, 'data:image/png;')];
+                } catch { return [file, null]; }
+            })).then((pairs) => Object.fromEntries(pairs));
+        }
+        return dokAssets;
+    }
+
     async function loadDokData(classId) {
         if (dok.data && dok.dataFor === classId) return dok.data;
         dok.data = await rpc('get_class_document_data', { p_class_id: classId });
@@ -582,7 +599,8 @@
         const vals = dok.values[id];
         loading();
         let data;
-        try { data = await loadDokData(dok.classId); } catch (err) { return main(`<div class="att-alert err">${esc(errMessage(err))}</div>`); }
+        let assets = null;
+        try { [data, assets] = await Promise.all([loadDokData(dok.classId), loadDokAssets()]); } catch (err) { return main(`<div class="att-alert err">${esc(errMessage(err))}</div>`); }
         if (parseHash().path !== `/dokumen/${id}`) return;
         for (const f of type.fields) if (f.type === 'siswa' && vals[f.key] && vals[f.key] !== '*' && !data.siswa.some((s) => s.student_id === vals[f.key])) vals[f.key] = '';
         const has = (k) => type.formats.includes(k);
@@ -619,7 +637,7 @@
             frame.id = 'gDokPrev';
             frame.title = 'Pratinjau dokumen';
             frame.setAttribute('sandbox', '');
-            frame.srcdoc = doc ? Dok.page(doc, 'preview') : '<p style="font:14px Arial;color:#64748b;padding:16px">Pilih siswa dulu untuk melihat pratinjau.</p>';
+            frame.srcdoc = doc ? Dok.page(doc, 'preview', assets) : '<p style="font:14px Arial;color:#64748b;padding:16px">Pilih siswa dulu untuk melihat pratinjau.</p>';
             $('gDokPrev').replaceWith(frame);
             box.classList.toggle('wide', Boolean(doc?.landscape));
             // Perkecil pratinjau supaya satu halaman muat di lebar layar HP.
@@ -658,7 +676,7 @@
             if (!doc) { err.textContent = 'Pilih siswa dulu.'; err.classList.remove('g-hidden'); return; }
             const name = Dok.fileName(doc);
             if (b.dataset.out === 'print') {
-                if (!window.RekapPrint.print(Dok.page(doc, 'print'))) toast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.', 'err');
+                if (!window.RekapPrint.print(Dok.page(doc, 'print', assets))) toast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.', 'err');
             } else if (b.dataset.out === 'word') {
                 window.RekapPrint.download(new TextEncoder().encode(`\ufeff${Dok.page(doc, 'word')}`), `${name}.doc`, 'application/msword');
                 toast('File Word diunduh.');

@@ -133,6 +133,19 @@ test('kop surat resmi dipasang sebagai satu gambar di semua surat & biodata', ()
     assert.match(Dok.KOP.kecil.join(' '), /admin@sdnkalibaru05\.sch\.id/);
 });
 
+test('gambar kop ditanam (data URI) untuk cetak & pratinjau, tetap alamat web untuk Word', () => {
+    const doc = Dok.build('undangan', data, opts('undangan'));
+    const assets = { 'kop-surat.png': 'data:image/png;base64,AAAA', 'logo-cetak.png': null };
+    for (const mode of ['print', 'preview']) {
+        const h = Dok.page(doc, mode, assets);
+        assert.match(h, /<img src="data:image\/png;base64,AAAA"/, mode);
+        assert.doesNotMatch(h, /kop-surat\.png/, mode);
+    }
+    assert.match(Dok.page(doc, 'word', assets), /https:\/\/sdnkalibaru05\.sch\.id\/kop-surat\.png/);
+    assert.match(Dok.page(doc, 'print'), /kop-surat\.png/, 'tanpa aset → tetap pakai alamat gambar');
+    assert.deepEqual(Dok.ASSETS, ['kop-surat.png', 'logo-cetak.png']);
+});
+
 test('dokumen daftar: logo sekolah di kiri atas + keterangan, tanpa kop surat', () => {
     for (const id of ['daftar', 'blanko', 'hadir']) {
         const b = Dok.build(id, data, opts(id)).body;
