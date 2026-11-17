@@ -680,12 +680,16 @@ begin
     v_no := v_no + 1;
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Inventaris', 'u', 'Kode otomatis berikutnya LAP-002',
         'ok', public.inv_save_item('{"nama":"Laptop Asus 2","kategori":"Laptop"}') ->> 'kode' = 'LAP-002');
-    v_j := public.inv_import_items('[{"nama":"Speaker Aktif","kategori":"Speaker","kode":"spk","jumlah":2},{"nama":"Proyektor Epson","kategori":"Proyektor","kondisi":"Rusak ringan"},{"nama":"Lemari Arsip","kategori":"Mebel","jenis_pinjam":"Tidak dipinjam"}]');
+    v_j := public.inv_import_items('[{"nama":"Speaker Aktif","kategori":"Speaker","kode":"spk","jumlah":2},{"nama":"Proyektor Epson","kategori":"Proyektor","kondisi":"Berfungsi"},{"nama":"Proyektor BenQ","kategori":"Proyektor","kondisi":"Rusak berat","keterangan_rusak":"Lampu mati"},{"nama":"Lemari Arsip","kategori":"Mebel","jenis_pinjam":"Tidak dipinjam"}]');
     v_no := v_no + 1;
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Inventaris', 'u', 'Impor Excel: jumlah 2 → SPK-01, SPK-02; tanpa kode → PRO-001',
-        'ok', (v_j ->> 'ditambah')::int = 4
-          and (select count(*) from public.inventory_items where kode in ('SPK-01', 'SPK-02', 'PRO-001', 'MEB-001')) = 4
-          and (select kondisi from public.inventory_items where kode = 'PRO-001') = 'rusak_ringan');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Inventaris', 'u', 'Impor Excel: jumlah 2 → SPK-01, SPK-02; tanpa kode → PRO-001; status lama "Rusak berat" → Rusak + keterangan',
+        'ok', (v_j ->> 'ditambah')::int = 5
+          and (select count(*) from public.inventory_items where kode in ('SPK-01', 'SPK-02', 'PRO-001', 'PRO-002', 'MEB-001')) = 5
+          and (select kondisi from public.inventory_items where kode = 'PRO-001') = 'baik'
+          and (select kondisi || '/' || keterangan_rusak from public.inventory_items where kode = 'PRO-002') = 'rusak/Lampu mati');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Status', 'u', 'Barang berfungsi tidak menyimpan keterangan rusak',
+        'ok', public.inv_save_item('{"nama":"Kamera","kategori":"Kamera","kondisi":"berfungsi","keterangan_rusak":"iseng"}') -> 'keterangan_rusak' = 'null'::jsonb);
     v_j := public.inv_import_items('[{"nama":"Speaker Aktif Baru","kode":"SPK-01"}]');
     v_no := v_no + 1;
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Inventaris', 'u', 'Impor ulang kode yang sama → diperbarui, bukan dobel',
@@ -708,6 +712,18 @@ begin
     v_no := v_no + 1;
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Guru bisa mencari pakai kode barang juga',
         'ok', public.inv_scan('spk-02') ->> 'kode' = 'SPK-02');
+    v_j := public.inv_scan('PRO-002');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Status', 'u', 'Guru scan barang rusak: status + keterangan tampil, ditawari barang sejenis yang tersedia',
+        'ok', v_j ->> 'kondisi' = 'rusak' and v_j ->> 'keterangan_rusak' = 'Lampu mati'
+          and v_j -> 'alternatif' = '[{"kode":"PRO-001","nama":"Proyektor Epson","lokasi":null}]'::jsonb);
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_borrow('PRO-002')$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Status', 'u', 'Barang rusak tidak bisa dipinjam', 'ok', v_r = '22023');
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_set_status((select id from public.inventory_items where kode = 'PRO-002'), 'baik')$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Status', 'u', 'Guru tidak bisa mengubah status rusak/berfungsi', 'ok', v_r = '42501');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Status', 'u', 'Barang tersedia tidak menawarkan alternatif',
+        'ok', public.inv_scan('PRO-001') -> 'alternatif' = '[]'::jsonb);
     v_j := public.inv_borrow('LAP-001', 'Mengajar kelas 1A', public.jakarta_today() + 60);
     v_no := v_no + 1;
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Guru pinjam laptop jangka panjang sampai tanggal tertentu',
@@ -747,10 +763,11 @@ begin
 
     perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
     execute 'set local role authenticated';
-    v_j := public.inv_return('LAP-001', 'rusak_ringan', 'Engsel longgar');
+    v_j := public.inv_return('LAP-001', 'Engsel agak longgar');
     v_no := v_no + 1;
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Guru mengembalikan; kondisi barang ikut diperbarui',
-        'ok', v_j -> 'pinjaman' = 'null'::jsonb and v_j ->> 'kondisi' = 'rusak_ringan'
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Guru mengembalikan + catatan; status barang tetap (hanya admin yang menentukan)',
+        'ok', v_j -> 'pinjaman' = 'null'::jsonb and v_j ->> 'kondisi' = 'baik'
+          and (select catatan_kembali from public.inventory_loans where returned_at is not null) = 'Engsel agak longgar'
           and jsonb_array_length(public.inv_my_loans() -> 'riwayat') = 1 and jsonb_array_length(public.inv_my_loans() -> 'aktif') = 1);
     execute 'reset role';
 
@@ -761,7 +778,7 @@ begin
     v_j := public.inv_admin_overview();
     v_no := v_no + 1;
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Admin', 'u', 'Kepala sekolah melihat inventaris; pinjaman lewat batas ditandai terlambat',
-        'ok', jsonb_array_length(v_j -> 'items') = 6
+        'ok', jsonb_array_length(v_j -> 'items') = 8
           and exists (select 1 from jsonb_array_elements(v_j -> 'items') x where x ->> 'kode' = 'SPK-02' and (x -> 'pinjaman' ->> 'terlambat')::boolean));
     v_no := v_no + 1; v_r := public.t_try($q$select public.inv_delete_item((select id from public.inventory_items where kode = 'LAP-002'))$q$);
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Hak', 'u', 'Kepala sekolah tidak bisa menghapus barang', 'ok', v_r = '42501');
@@ -774,10 +791,16 @@ begin
         'ok', v_j -> 'pinjaman' ->> 'peminjam' = 'Ahmad Soleh, S.Pd.');
     v_no := v_no + 1; v_r := public.t_try($q$select public.inv_delete_item((select id from public.inventory_items where kode = 'PRO-001'))$q$);
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Admin', 'u', 'Barang yang masih dipinjam tidak bisa dihapus', 'ok', v_r = '22023');
-    v_j := public.inv_admin_return((select id from public.inventory_items where kode = 'SPK-02'), 'baik', null);
+    v_j := public.inv_admin_return((select id from public.inventory_items where kode = 'SPK-02'), 'rusak', 'Dikembalikan ke TU', 'Kabel putus');
     v_no := v_no + 1;
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Admin', 'u', 'Admin menandai pinjaman guru sudah kembali',
-        'ok', v_j -> 'pinjaman' = 'null'::jsonb);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Admin', 'u', 'Admin menandai kembali sekaligus menetapkan status Rusak + keterangan',
+        'ok', v_j -> 'pinjaman' = 'null'::jsonb and v_j ->> 'kondisi' = 'rusak' and v_j ->> 'keterangan_rusak' = 'Kabel putus');
+    v_j := public.inv_set_status((select id from public.inventory_items where kode = 'SPK-02'), 'Berfungsi', 'sisa');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Admin', 'u', 'Admin menandai berfungsi lagi → keterangan rusak dihapus',
+        'ok', v_j ->> 'kondisi' = 'baik' and v_j -> 'keterangan_rusak' = 'null'::jsonb);
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_set_status((select id from public.inventory_items where kode = 'SPK-02'), 'hancur')$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Admin', 'u', 'Status selain Berfungsi/Rusak ditolak', 'ok', v_r = '22023');
     v_r := public.inv_delete_item((select id from public.inventory_items where kode = 'LAP-001'))
         || '/' || public.inv_delete_item((select id from public.inventory_items where kode = 'LAP-002'));
     v_no := v_no + 1;

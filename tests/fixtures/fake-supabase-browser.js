@@ -225,13 +225,16 @@
         items: [
             { id: 'i-lap1', kode: 'LAP-001', nama: 'Laptop Acer Aspire 3', kategori: 'Laptop', merk: 'Acer A314', nomor_seri: 'SN-ACER-1', lokasi: 'Ruang TU', kondisi: 'baik', jenis_pinjam: 'jangka_panjang', tahun_perolehan: 2024, catatan: null, aktif: true, qr_token: 'toklap001aaa' },
             { id: 'i-spk1', kode: 'SPK-01', nama: 'Speaker Aktif Portable', kategori: 'Speaker', merk: 'Polytron', nomor_seri: null, lokasi: 'Gudang', kondisi: 'baik', jenis_pinjam: 'harian', tahun_perolehan: 2023, catatan: null, aktif: true, qr_token: 'tokspk01bbbb' },
-            { id: 'i-pro1', kode: 'PRO-001', nama: 'Proyektor Epson EB-X500', kategori: 'Proyektor', merk: 'Epson', nomor_seri: null, lokasi: 'Ruang TU', kondisi: 'rusak_ringan', jenis_pinjam: 'harian', tahun_perolehan: 2022, catatan: null, aktif: true, qr_token: 'tokpro001ccc' },
+            { id: 'i-pro1', kode: 'PRO-001', nama: 'Proyektor Epson EB-X500', kategori: 'Proyektor', merk: 'Epson', nomor_seri: null, lokasi: 'Ruang TU', kondisi: 'baik', jenis_pinjam: 'harian', tahun_perolehan: 2022, catatan: null, aktif: true, qr_token: 'tokpro001ccc' },
+            { id: 'i-pro2', kode: 'PRO-002', nama: 'Proyektor BenQ MS560', kategori: 'Proyektor', merk: 'BenQ', nomor_seri: null, lokasi: 'Gudang', kondisi: 'rusak', keterangan_rusak: 'Lampu proyektor mati', jenis_pinjam: 'harian', tahun_perolehan: 2020, catatan: null, aktif: true, qr_token: 'tokpro002eee' },
+            { id: 'i-pro3', kode: 'PRO-003', nama: 'Proyektor Epson EB-E01', kategori: 'Proyektor', merk: 'Epson', nomor_seri: null, lokasi: 'Lab Komputer', kondisi: 'baik', jenis_pinjam: 'harian', tahun_perolehan: 2024, catatan: null, aktif: true, qr_token: 'tokpro003fff' },
             { id: 'i-meb1', kode: 'MEB-001', nama: 'Lemari Arsip Besi', kategori: 'Mebel', merk: null, nomor_seri: null, lokasi: 'Ruang Kepala Sekolah', kondisi: 'baik', jenis_pinjam: 'tidak_dipinjam', tahun_perolehan: 2019, catatan: null, aktif: true, qr_token: 'tokmeb001ddd' },
         ],
         loans: [
             { id: 'l1', item: 'i-spk1', peminjam: 'Susy Nurhayati', sejak: `${today}T00:30:00Z`, sampai: today, keperluan: 'Upacara', kembali: null, kondisi: null, catatan: null },
             { id: 'l2', item: 'i-pro1', peminjam: 'Sunarsih, S.Pd.', sejak: `${isoDay(-3)}T01:00:00Z`, sampai: isoDay(-1), keperluan: 'Mengajar kelas 1A', kembali: null, kondisi: null, catatan: null },
-            { id: 'l0', item: 'i-lap1', peminjam: 'Sunarsih, S.Pd.', sejak: `${isoDay(-40)}T01:00:00Z`, sampai: null, keperluan: 'Rapor', kembali: `${isoDay(-20)}T01:00:00Z`, kondisi: 'baik', catatan: null },
+            { id: 'l0', item: 'i-lap1', peminjam: 'Sunarsih, S.Pd.', sejak: `${isoDay(-40)}T01:00:00Z`, sampai: null, keperluan: 'Rapor', kembali: `${isoDay(-20)}T01:00:00Z`, kondisi: null, catatan: null },
+            { id: 'l3', item: 'i-pro3', peminjam: 'Taripah, S.Pd.', sejak: `${isoDay(-2)}T01:00:00Z`, sampai: isoDay(-2), keperluan: 'Rapat', kembali: `${isoDay(-2)}T06:00:00Z`, kondisi: null, catatan: 'Kabel HDMI longgar' },
         ],
     };
     const openLoan = (id) => INV.loans.find((l) => l.item === id && !l.kembali);
@@ -246,14 +249,14 @@
         const n = Math.max(0, ...INV.items.map((i) => (new RegExp(`^${pre}-(\\d+)$`).exec(i.kode) || [])[1] || 0).map(Number)) + 1;
         return `${pre}-${String(n).padStart(3, '0')}`;
     }
-    const KOND = { baik: 'baik', 'rusak ringan': 'rusak_ringan', rusak_ringan: 'rusak_ringan', 'rusak berat': 'rusak_berat', rusak_berat: 'rusak_berat' };
+    const KOND = { '': 'baik', baik: 'baik', berfungsi: 'baik', rusak: 'rusak', 'rusak ringan': 'rusak', rusak_ringan: 'rusak', 'rusak berat': 'rusak', rusak_berat: 'rusak' };
     const JEN = { harian: 'harian', 'jangka panjang': 'jangka_panjang', jangka_panjang: 'jangka_panjang', 'tidak dipinjam': 'tidak_dipinjam', tidak_dipinjam: 'tidak_dipinjam' };
     function clean(r) {
-        const kondisi = KOND[String(r.kondisi || 'baik').toLowerCase()];
+        const kondisi = KOND[String(r.kondisi || '').trim().toLowerCase()];
         const jenis = JEN[String(r.jenis_pinjam || 'harian').toLowerCase()];
-        if (!kondisi) throw new Error('Kondisi harus Baik, Rusak ringan, atau Rusak berat.');
+        if (!kondisi) throw new Error('Status harus Berfungsi atau Rusak.');
         if (!jenis) throw new Error('Jenis pinjam harus Harian, Jangka panjang, atau Tidak dipinjam.');
-        return { nama: r.nama, kategori: r.kategori || null, merk: r.merk || null, nomor_seri: r.nomor_seri || null, lokasi: r.lokasi || null, kondisi, jenis_pinjam: jenis, tahun_perolehan: r.tahun_perolehan ? Number(r.tahun_perolehan) : null, catatan: r.catatan || null };
+        return { nama: r.nama, kategori: r.kategori || null, merk: r.merk || null, nomor_seri: r.nomor_seri || null, lokasi: r.lokasi || null, kondisi, keterangan_rusak: kondisi === 'rusak' ? (r.keterangan_rusak || null) : null, jenis_pinjam: jenis, tahun_perolehan: r.tahun_perolehan ? Number(r.tahun_perolehan) : null, catatan: r.catatan || null };
     }
     function invRpc(fn, a, user) {
         const me = user === 'admin' ? 'Paroji' : 'Sunarsih, S.Pd.';
@@ -263,13 +266,18 @@
                 const it = findItem(a.p_code);
                 if (!it || !it.aktif) return err('Barang dengan kode itu tidak ditemukan.');
                 const j = invJson(it);
-                return ok({ ...j, milik_saya: j.pinjaman?.peminjam === me });
+                const mine = j.pinjaman?.peminjam === me;
+                const alternatif = !mine && (it.kondisi === 'rusak' || j.pinjaman) && it.kategori
+                    ? INV.items.filter((o) => o !== it && o.aktif && o.kondisi === 'baik' && o.jenis_pinjam !== 'tidak_dipinjam' && o.kategori === it.kategori && !openLoan(o.id))
+                        .map((o) => ({ kode: o.kode, nama: o.nama, lokasi: o.lokasi })) : [];
+                return ok({ ...j, milik_saya: mine, alternatif });
             }
             case 'inv_borrow': case 'inv_admin_lend': {
                 const it = fn === 'inv_borrow' ? findItem(a.p_code) : INV.items.find((i) => i.id === a.p_item);
                 const holder = openLoan(it.id);
                 if (holder) return err(`${it.nama} sedang dipinjam oleh ${holder.peminjam}.`);
                 if (it.jenis_pinjam === 'tidak_dipinjam') return err(`${it.nama} tidak untuk dipinjam.`);
+                if (it.kondisi === 'rusak') return err(`${it.nama} sedang rusak, tidak bisa dipinjam.`);
                 const who = fn === 'inv_borrow' ? me : T.staff.find((x) => x.id === a.p_staff)?.name;
                 INV.loans.push({ id: `l${INV.seq++}`, item: it.id, peminjam: who, sejak: new Date().toISOString(), sampai: a.p_sampai || (it.jenis_pinjam === 'harian' ? today : null), keperluan: a.p_keperluan, kembali: null });
                 return ok(invJson(it));
@@ -279,8 +287,8 @@
                 const l = openLoan(it.id);
                 if (!l) return err('Barang ini tidak sedang dipinjam.');
                 if (fn === 'inv_return' && user !== 'admin' && l.peminjam !== me) return err('Hanya peminjam atau admin yang bisa mengembalikan.');
-                Object.assign(l, { kembali: new Date().toISOString(), kondisi: a.p_kondisi || 'baik', catatan: a.p_catatan || null });
-                it.kondisi = a.p_kondisi || 'baik';
+                Object.assign(l, { kembali: new Date().toISOString(), kondisi: a.p_kondisi || null, catatan: a.p_catatan || null });
+                if (fn === 'inv_admin_return' && a.p_kondisi) Object.assign(it, { kondisi: a.p_kondisi, keterangan_rusak: a.p_kondisi === 'rusak' ? (a.p_keterangan_rusak || null) : null });
                 return ok(invJson(it));
             }
             case 'inv_my_loans': {
@@ -320,6 +328,13 @@
                 });
                 F.imported = a.p_rows;
                 return ok({ ditambah, diperbarui });
+            }
+            case 'inv_set_status': {
+                const it = INV.items.find((i) => i.id === a.p_item);
+                const k = KOND[String(a.p_kondisi || '').toLowerCase()];
+                if (!a.p_kondisi || !k) return err('Status barang harus Berfungsi atau Rusak.');
+                Object.assign(it, { kondisi: k, keterangan_rusak: k === 'rusak' ? (a.p_keterangan || null) : null });
+                return ok(invJson(it));
             }
             case 'inv_delete_item': {
                 const it = INV.items.find((i) => i.id === a.p_id);

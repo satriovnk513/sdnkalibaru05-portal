@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#ffffff">
     <script src="theme.js?v=1"></script>
     <link rel="stylesheet" href="theme.css?v=1">
-    <link rel="stylesheet" href="attendance.css?v=10">
+    <link rel="stylesheet" href="attendance.css?v=11">
     <style>
         /* ── Reset & Base ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -793,6 +793,7 @@
             <div class="content-area">
                 <!-- ═══ DASHBOARD OVERVIEW ═══ -->
                 <div id="tabDashboard" class="tab-content" style="display: block;">
+                    <button type="button" id="dashInvAlert" class="inv-dash" hidden></button>
                     <div class="stat-grid">
                         <div class="stat-card" onclick="showTab('tabStaff')">
                             <div class="stat-icon" style="background:#fadbd8;color:#c0392b;">👥</div>
@@ -952,7 +953,8 @@
                         </div></div>
                     <div class="inv-stats" id="invStats"></div>
                     <div class="inv-seg" id="invSeg" role="tablist" aria-label="Tampilan inventaris">
-                        <button type="button" role="tab" data-view="barang" aria-selected="true">Daftar barang</button>
+                        <button type="button" role="tab" data-view="monitor" aria-selected="true">Monitoring</button>
+                        <button type="button" role="tab" data-view="barang" aria-selected="false">Daftar barang</button>
                         <button type="button" role="tab" data-view="dipinjam" aria-selected="false">Sedang dipinjam</button>
                         <button type="button" role="tab" data-view="riwayat" aria-selected="false">Riwayat</button>
                     </div>
@@ -1451,8 +1453,8 @@
     <script src="admin-dokumen.js?v=1"></script>
     <script src="qr.js?v=1"></script>
     <script src="xlsx-read.js?v=1"></script>
-    <script src="inventaris.js?v=1"></script>
-    <script src="admin-inventaris.js?v=1"></script>
+    <script src="inventaris.js?v=2"></script>
+    <script src="admin-inventaris.js?v=2"></script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>

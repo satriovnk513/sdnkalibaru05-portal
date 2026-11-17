@@ -938,13 +938,23 @@ async function runUi() {
         await page.waitForSelector('.inv-state.mine');
         check(await page.evaluate(() => window.__fake.calls.some((c) => c.fn === 'inv_borrow' && c.args.p_code === 'toklap001aaa' && c.args.p_keperluan === 'Mengajar kelas 1A' && c.args.p_sampai === null)),
             'Pinjam sekarang → inv_borrow dengan token QR & keperluan');
-        check(/Sedang Anda pinjam/.test(await page.textContent('.inv-state')) && (await page.isVisible('#gInvKond')), 'setelah pinjam muncul form Kembalikan');
+        check(/Sedang Anda pinjam/.test(await page.textContent('.inv-state')) && (await page.isVisible('#gInvNote')) && !(await page.$('#gInvKond')), 'setelah pinjam muncul form Kembalikan (tanpa pilihan kondisi — itu tugas admin)');
         await shot(page, 'inv-02-guru-dipinjam-360.png');
 
         // Barang dipinjam orang lain & barang tidak dipinjam
         await page.evaluate(() => { location.hash = '#/pinjam/tokspk01bbbb'; });
         await page.waitForSelector('.inv-state.busy');
         check(/Susy Nurhayati/.test(await page.textContent('.inv-state')) && !(await page.$('#gInvForm')), 'barang yang dipinjam guru lain: tampil nama peminjam, tanpa tombol pinjam');
+        // Barang rusak → keterangan + tawaran barang sejenis yang berfungsi
+        await page.evaluate(() => { location.hash = '#/pinjam/tokpro002eee'; });
+        await page.waitForSelector('.inv-state.broken');
+        check(/tidak bisa dipinjam/.test(await page.textContent('.inv-state.broken')) && /Lampu proyektor mati/.test(await page.textContent('.inv-state.broken')) && !(await page.$('#gInvForm')),
+            'scan barang rusak: status Rusak + keterangan, tanpa tombol pinjam');
+        check(/PRO-003/.test(await page.textContent('#gInvAlt')) && !/PRO-001/.test(await page.textContent('#gInvAlt')), 'barang rusak: ditawari proyektor lain yang berfungsi & tersedia');
+        await shot(page, 'inv-02b-guru-rusak-360.png');
+        await page.click('#gInvAlt a[href="#/pinjam/PRO-003"]');
+        await page.waitForSelector('.inv-state.ok');
+        check(/Proyektor Epson EB-E01/.test(await page.textContent('#gMain')), 'ketuk barang alternatif → langsung ke halaman pinjamnya');
         await page.evaluate(() => { location.hash = '#/pinjam/MEB-001'; });
         await page.waitForSelector('.inv-state.off');
         check(/tidak untuk dipinjam/.test(await page.textContent('.inv-state')), 'cari pakai kode: barang "tidak dipinjam" tidak bisa dipinjam');
@@ -972,12 +982,11 @@ async function runUi() {
         await page.fill('#gKode', 'https://sdnkalibaru05.sch.id/guru#/pinjam/tokpro001ccc');
         await page.click('#gKodeForm button');
         await page.waitForSelector('.inv-state.mine');
-        await page.selectOption('#gInvKond', 'rusak_berat');
-        await page.fill('#gInvNote', 'Lampu mati');
+        await page.fill('#gInvNote', 'Lampu berkedip');
         await page.click('#gInvBtn');
-        await page.waitForSelector('.inv-state.off');
-        check(await page.evaluate(() => window.__fake.calls.some((c) => c.fn === 'inv_return' && c.args.p_code === 'tokpro001ccc' && c.args.p_kondisi === 'rusak_berat' && c.args.p_catatan === 'Lampu mati')),
-            'Kembalikan → inv_return dengan kondisi & catatan; barang rusak berat tidak bisa dipinjam lagi');
+        await page.waitForSelector('.inv-state.ok');
+        check(await page.evaluate(() => window.__fake.calls.some((c) => c.fn === 'inv_return' && c.args.p_code === 'tokpro001ccc' && c.args.p_catatan === 'Lampu berkedip' && !('p_kondisi' in c.args))),
+            'Kembalikan → inv_return dengan catatan saja; status barang tetap ditentukan admin');
         await page.click('#gBack');
         await page.waitForSelector('#gMyLoans .inv-loan');
         check((await page.$$('#gMyLoans .inv-loan')).length === 1, 'setelah dikembalikan, pinjaman aktif tinggal 1');
@@ -992,10 +1001,44 @@ async function runUi() {
         await page.fill('#adminPassword', 'x');
         await page.click('.btn-login');
         await page.waitForSelector('#mainContent', { state: 'visible' });
-        await page.evaluate(() => showTab('tabInventaris', document.querySelector('[data-tab="tabInventaris"]')));
-        await page.waitForSelector('#invBody .att-table');
+        await page.waitForSelector('#dashInvAlert:not([hidden])');
+        check(/1 barang lewat batas kembali/.test(await page.textContent('#dashInvAlert')) && /2 sedang dipinjam/.test(await page.textContent('#dashInvAlert')),
+            `${T} Dashboard utama: peringatan barang terlambat (${(await page.textContent('#dashInvAlert')).replace(/\s+/g, ' ').trim()})`);
+        await page.click('#dashInvAlert');
+        await page.waitForSelector('#invMonth');
         const stats = await page.$$eval('#invStats .inv-stat b', (b) => b.map((x) => x.textContent));
-        check(stats.join(',') === '4,2,1,1', `${T} ringkasan: 4 barang, 2 dipinjam, 1 terlambat, 1 rusak (${stats})`);
+        check(stats.join(',') === '6,2,1,1', `${T} ringkasan: 6 barang, 2 dipinjam, 1 terlambat, 1 rusak (${stats})`);
+        {
+            const mon = (await page.textContent('#invBody')).replace(/\s+/g, ' ');
+            check(/Proyektor Epson EB-X500.*Sunarsih.*Telat 1 hari/.test(mon), `${T} Monitoring: daftar lewat batas kembali + berapa hari telat`);
+            check(/Proyektor BenQ MS560.*Lampu proyektor mati/.test(mon), `${T} Monitoring: barang rusak + keterangannya`);
+            check(/“Kabel HDMI longgar”.*Taripah/.test(mon), `${T} Monitoring: catatan guru saat mengembalikan`);
+            check(/Susy Nurhayati meminjam Speaker Aktif Portable/.test(mon), `${T} Monitoring: aktivitas hari ini`);
+            check(/Peminjam teraktif/.test(mon) && (await page.$$('#invBody .inv-days span')).length >= 28, `${T} Monitoring: grafik per hari + peminjam teraktif`);
+            await shot(page, `inv-09-admin-monitoring-${vp.tag}.png`);
+            check(await overflow(page) <= 0, `${T} Monitoring tidak bergeser ke samping`);
+            const bulanIni = await page.textContent('#invMonth');
+            await page.click('#invBody [data-mon="-1"]');
+            await page.waitForFunction((t) => document.getElementById('invMonth')?.textContent !== t, bulanIni);
+            check(!(await page.isDisabled('#invBody [data-mon="1"]')), `${T} Monitoring bisa pindah ke bulan sebelumnya`);
+            await page.click('#invBody [data-mon="1"]');
+        }
+        // Catatan guru → admin tandai rusak dari monitoring
+        await page.click('#invBody [data-broken="i-pro3"]');
+        await page.fill('#fs_ket', 'Port HDMI longgar');
+        await page.click('.att-sheet button[type="submit"]');
+        await page.waitForFunction(() => /Sudah ditandai rusak/.test(document.getElementById('invBody').textContent));
+        check(await page.evaluate(() => window.__fake.calls.some((c) => c.fn === 'inv_set_status' && c.args.p_item === 'i-pro3' && c.args.p_kondisi === 'rusak' && c.args.p_keterangan === 'Port HDMI longgar')),
+            `${T} dari catatan guru, admin menandai barang rusak + keterangan`);
+        await page.click('#invSeg [data-view="barang"]');
+        await page.waitForSelector('#invBody .att-table');
+        await page.fill('#invBody [data-q]', 'PRO-003');
+        await page.waitForSelector('#invBody [data-fixed="i-pro3"]');
+        check(!(await page.$('#invBody [data-lend="i-pro3"]')) && /Port HDMI longgar/.test(await page.textContent('#invBody')), `${T} barang rusak: keterangan tampil, tidak bisa dipinjamkan`);
+        await page.click('#invBody [data-fixed="i-pro3"]');
+        await page.waitForSelector('#invBody [data-lend="i-pro3"]');
+        check(true, `${T} Tandai berfungsi → bisa dipinjam lagi`);
+        await page.fill('#invBody [data-q]', '');
         check(/Inventaris/.test(await page.textContent('#topbarTitle')), `${T} judul topbar Inventaris`);
         check(await overflow(page) <= 0, `${T} tab Inventaris tidak bergeser ke samping`);
         await shot(page, `inv-10-admin-barang-${vp.tag}.png`);
@@ -1012,7 +1055,7 @@ async function runUi() {
         // Impor CSV + Excel
         if (vp.tag === '1366') {
             const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#invTemplate')]);
-            const tv = await xlsxCells(dl, ['A1', 'B2', 'J3']);
+            const tv = await xlsxCells(dl, ['A1', 'B2', 'K3']);
             check(!tv || (/^Kode/.test(tv[0]) && tv[1] === 'Laptop Acer Aspire 3' && tv[2] === '2'), `${T} template impor Excel valid (${tv})`);
             const csv = join(dlDir, 'impor.csv');
             const { writeFileSync } = await import('node:fs');
@@ -1022,7 +1065,7 @@ async function runUi() {
             const prev = await page.textContent('.att-sheet');
             check(/Impor 6 barang/.test(prev) && /× 3/.test(prev), `${T} pratinjau impor CSV: 6 barang (2 + 3 + 1), baris kosong dilewati`);
             await page.click('.att-sheet [data-act="yes"]');
-            await page.waitForFunction(() => /Baris 3: Kondisi/.test(document.getElementById('attToastHost')?.textContent || ''));
+            await page.waitForFunction(() => /Baris 3: Status/.test(document.getElementById('attToastHost')?.textContent || ''));
             check(!(await page.evaluate(() => window.__fake.imported)), `${T} satu baris salah → impor ditolak seluruhnya dengan nomor barisnya`);
             writeFileSync(csv, 'Kode,Nama barang,Kategori,Kondisi,Jenis pinjam,Jumlah\n,Laptop Lenovo,Laptop,Baik,Jangka panjang,2\nTAB,Tablet Samsung,Tablet,,,3\n');
             await page.setInputFiles('#invFile', csv);
@@ -1088,10 +1131,11 @@ async function runUi() {
         check(/Terlambat/.test(await page.textContent('#invBody')), `${T} tab Sedang dipinjam menandai yang terlambat`);
         await shot(page, `inv-11-admin-dipinjam-${vp.tag}.png`);
         await page.click('#invBody [data-back="i-spk1"]');
-        await page.selectOption('#fs_kondisi', 'rusak_ringan');
+        await page.selectOption('#fs_kondisi', 'rusak');
+        await page.fill('#fs_keterangan_rusak', 'Kabel power putus');
         await page.click('.att-sheet button[type="submit"]');
         await page.waitForFunction(() => !/Speaker Aktif/.test(document.getElementById('invBody').textContent));
-        check(await page.evaluate(() => window.__fake.calls.some((c) => c.fn === 'inv_admin_return' && c.args.p_item === 'i-spk1' && c.args.p_kondisi === 'rusak_ringan')), `${T} Tandai kembali → inv_admin_return`);
+        check(await page.evaluate(() => window.__fake.calls.some((c) => c.fn === 'inv_admin_return' && c.args.p_item === 'i-spk1' && c.args.p_kondisi === 'rusak' && c.args.p_keterangan_rusak === 'Kabel power putus')), `${T} Tandai kembali + status Rusak & keterangan → inv_admin_return`);
         await page.click('#invSeg [data-view="barang"]');
         await page.waitForSelector('#invBody [data-del="i-spk1"]');
         await page.click('#invBody [data-del="i-spk1"]');

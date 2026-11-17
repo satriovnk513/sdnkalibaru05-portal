@@ -67,3 +67,36 @@ test('stickerHtml: 24 per A4, slot awal bisa dilewati, nama di-escape', () => {
     assert.ok(html.includes('&lt;b&gt;Jahil&lt;/b&gt;'));
     assert.ok(!html.includes('<b>Jahil</b>'));
 });
+
+test('monitor: terlambat, catatan guru, aktivitas hari ini, statistik bulan', () => {
+    const today = '2026-11-17';
+    const loans = [
+        { item_id: 'a', kode: 'PRO-001', nama: 'Proyektor', peminjam: 'Bu A', sejak: '2026-11-14T01:00:00Z', sampai: '2026-11-15', kembali: null, terlambat: true },
+        { item_id: 'b', kode: 'SPK-01', nama: 'Speaker', peminjam: 'Pak B', sejak: '2026-11-17T00:30:00Z', sampai: today, kembali: null, terlambat: false },
+        { item_id: 'a', kode: 'PRO-001', nama: 'Proyektor', peminjam: 'Bu A', sejak: '2026-11-03T01:00:00Z', sampai: '2026-11-03', kembali: '2026-11-05T01:00:00Z', catatan: 'Lampu berkedip', terlambat: false },
+        { item_id: 'c', kode: 'LAP-001', nama: 'Laptop', peminjam: 'Pak B', sejak: '2026-10-01T01:00:00Z', sampai: null, kembali: '2026-11-17T03:00:00Z', terlambat: false },
+    ];
+    const items = [{ aktif: true, kondisi: 'rusak', kode: 'X' }, { aktif: false, kondisi: 'rusak' }, { aktif: true, kondisi: 'baik' }];
+    const m = Inv.monitor(loans, items, '2026-11', today);
+    assert.equal(m.total, 3);
+    assert.equal(m.dikembalikan, 1);
+    assert.equal(m.rataHari, 2);
+    assert.equal(m.sedang, 2);
+    assert.equal(m.rusak.length, 1);
+    assert.deepEqual(m.late.map((l) => [l.kode, l.telat]), [['PRO-001', 2]]);
+    assert.deepEqual(m.topBarang[0], { k: 'Proyektor (PRO-001)', n: 2 });
+    assert.deepEqual(m.topPeminjam.map((x) => x.k), ['Bu A', 'Pak B']);
+    assert.equal(m.perHari.length, 30);
+    assert.equal(m.perHari[16].n, 1);
+    assert.deepEqual(m.events.map((e) => e.jenis), ['kembali', 'pinjam']);
+    assert.equal(m.notes[0].catatan, 'Lampu berkedip');
+});
+
+test('template impor baru: kolom Status & Keterangan rusak terbaca', async () => {
+    const bytes = Inv.templateXlsx(R.buildXlsx);
+    const rows = await X.read(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), 't.xlsx');
+    const it = Inv.parseImport(rows).items[2];
+    assert.equal(it.kondisi, 'Rusak');
+    assert.equal(it.keterangan_rusak, 'Lampu proyektor mati');
+    assert.equal(it.catatan, '');
+});
