@@ -124,23 +124,20 @@ print(b['E6'].value, '|', b['C8'].value, '|', b.max_column)
     } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('kop surat resmi: Jaya Raya, Suku Dinas, alamat, telepon, email admin, kode pos', () => {
-    const d = Dok.build('undangan', data, opts('undangan'));
-    for (const t of ['PEMERINTAH PROVINSI DAERAH KHUSUS IBUKOTA JAKARTA', 'DINAS PENDIDIKAN',
-        'SUKU DINAS PENDIDIKAN WILAYAH II KOTA ADMINISTRASI JAKARTA UTARA', 'SEKOLAH DASAR NEGERI KALI BARU 05 PAGI',
-        'Jalan Kalibaru Barat IV No. 60, RT 003 RW 012', 'Telepon (021) 44833627; Faksimile (021) 44833627;',
-        'Email: admin@sdnkalibaru05.sch.id', 'JAKARTA', 'Kode Pos  14110', 'logo-kop.png']) assert.ok(d.body.includes(t), t);
-    assert.doesNotMatch(d.body, /gmail\.com/);
-    for (const id of ['aktif', 'panggilan', 'pemberitahuan', 'biodata']) {
-        assert.ok(Dok.build(id, data, opts(id, { siswa: 'a' })).body.includes('logo-kop.png'), `${id} memakai kop surat`);
+test('kop surat resmi dipasang sebagai satu gambar di semua surat & biodata', () => {
+    for (const id of ['undangan', 'aktif', 'panggilan', 'pemberitahuan', 'biodata']) {
+        const b = Dok.build(id, data, opts(id, { siswa: 'a' })).body;
+        assert.match(b, /<img src="[^"]*\/kop-surat\.png" width="680" height="155"/, `${id} memakai gambar kop`);
+        assert.ok(b.indexOf('kop-surat.png') < 200, `${id}: kop di paling atas`);
     }
+    assert.match(Dok.KOP.kecil.join(' '), /admin@sdnkalibaru05\.sch\.id/);
 });
 
 test('dokumen daftar: logo sekolah di kiri atas + keterangan, tanpa kop surat', () => {
     for (const id of ['daftar', 'blanko', 'hadir']) {
         const b = Dok.build(id, data, opts(id)).body;
         assert.ok(b.indexOf('logo-cetak.png') > -1 && b.indexOf('logo-cetak.png') < b.indexOf('<table class="grid"'), `${id}: logo di atas tabel`);
-        assert.ok(!b.includes('logo-kop.png') && !b.includes('SUKU DINAS'), `${id}: tanpa kop surat`);
+        assert.ok(!b.includes('kop-surat.png'), `${id}: tanpa kop surat`);
         assert.match(b, /KELAS : I\.A/);
         assert.match(b, /Wali Kelas : <b>Sunarsih, S\.Pd\.<\/b>/);
     }

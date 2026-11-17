@@ -352,4 +352,4 @@ Menu **Dokumen** di Portal Guru: guru membuat sendiri dokumen yang biasa diminta
 
 - `letter_register` + `take_letter_number(jenis, perihal, kode = 'PK.0101')` — nomor surat berurut per tahun kalender (001–999), format `005/PK.0101`. Tiap nomor yang diambil tercatat (siapa, kapan, surat apa). Admin & pimpinan bisa membaca seluruh buku nomor; guru hanya nomor yang diambilnya.
 - `get_student_profile` kini menyertakan NIK siswa. No. KK, NIK orang tua, penghasilan tetap tidak ada di profil.
-- Kop surat resmi (logo Jaya Raya `logo-kop.png`, Suku Dinas, alamat, telepon, email admin) ada di konstanta `KOP` pada `dokumen-templates.js`.
+- Kop surat resmi dipasang sebagai satu gambar `kop-surat.png` (dirender dari file kop sekolah) supaya persis sama di cetak, PDF, dan Word.
