@@ -492,6 +492,11 @@ async function runUi() {
         await page.fill('#gDk_tanggal', '2026-12-05');
         await page.waitForFunction(() => /\.{5,}\/PK\.0101/.test(document.getElementById('gDokPrev').srcdoc || ''));
         check(true, 'nomor surat kosong tampil sebagai titik-titik + /PK.0101');
+        check(await page.inputValue('#gDk_kop') === 'sudin' && (await page.$$('#gDk_kop option')).length === 2, 'pilihan kop surat: Suku Dinas (bawaan) atau Dinas');
+        await page.selectOption('#gDk_kop', 'dinas');
+        await page.waitForFunction(() => /Kop surat Dinas Pendidikan/.test(document.getElementById('gDokPrev').srcdoc || ''));
+        check(await page.evaluate(() => localStorage.getItem('dok-kop')) === 'dinas', 'pratinjau berganti ke kop Dinas, pilihan diingat');
+        await page.selectOption('#gDk_kop', 'sudin');
         await page.click('#gDokAmbil');
         await page.click('.att-sheet [data-act="yes"]');
         await page.waitForFunction(() => document.getElementById('gDk_nomor').value === '001');
@@ -505,7 +510,7 @@ async function runUi() {
                 'cetak surat keterangan aktif: isi, keperluan, tanda tangan kepala sekolah');
             check(/Jakarta, 5 Desember 2026/.test(txt) && /Nomor : 001\/PK\.0101/.test(txt), 'surat memakai tanggal tanda tangan yang diisi dan nomor 001/PK.0101');
             const kop = await pop.$eval('.kertas img', (i) => ({ data: i.src.startsWith('data:image/png;base64,'), len: i.src.length, first: document.querySelector('.kertas').firstElementChild.contains(i), alt: i.alt }));
-            check(kop.data && kop.len > 100000 && kop.first && /KALI BARU 05 PAGI/.test(kop.alt), `kop surat resmi tertanam sebagai gambar di paling atas surat (${kop.len} karakter)`);
+            check(kop.data && kop.len > 100000 && kop.first && /Suku Dinas/.test(kop.alt), `kop surat Suku Dinas (bawaan) tertanam di paling atas surat (${kop.len} karakter)`);
             if (OUT) { await pop.emulateMedia({ media: 'print' }); await pop.setViewportSize({ width: 794, height: 1123 }); await pop.screenshot({ path: join(OUT, 'dokumen-surat-aktif.png') }); }
             await pop.close();
         }

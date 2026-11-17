@@ -68,7 +68,14 @@
 
     // ------------------------------------------------------------------ daftar jenis dokumen
     const F_TTD = { key: 'tanggal', label: 'Tanggal tanda tangan', type: 'date', default: 'today' };
+    // Kop surat: dua versi resmi. Pilihan terakhir diingat di perangkat (lihat guru.js).
+    const KOP_VERSI = {
+        sudin: { label: 'Suku Dinas Pendidikan Wilayah II Jakarta Utara', file: 'kop-sudin.png', h: 154 },
+        dinas: { label: 'Dinas Pendidikan', file: 'kop-dinas.png', h: 123 },
+    };
+    const F_KOP = { key: 'kop', label: 'Kop surat', type: 'select', options: Object.entries(KOP_VERSI).map(([k, v]) => [k, v.label]), default: 'sudin', remember: true };
     const F_SURAT = [
+        F_KOP,
         { key: 'nomor', label: 'Nomor surat', type: 'nomor' },
         { key: 'kode', label: 'Kode surat', type: 'hidden', default: KOP.kodeSurat },
         { key: 'tanggal', label: 'Tanggal surat / tanda tangan', type: 'date', default: 'today' },
@@ -103,7 +110,7 @@
                 F_TTD,
             ] },
         { id: 'biodata', grup: 'Per siswa', nama: 'Biodata siswa', ket: 'Satu lembar per siswa: identitas, NIK, No. KK, orang tua, alamat, No. HP.',
-            formats: ['print', 'word'], fields: [{ key: 'siswa', label: 'Siswa', type: 'siswa', all: true }, F_TTD] },
+            formats: ['print', 'word'], fields: [{ key: 'siswa', label: 'Siswa', type: 'siswa', all: true }, F_KOP, F_TTD] },
         { id: 'aktif', grup: 'Surat', nama: 'Surat keterangan aktif sekolah', ket: 'Menerangkan siswa benar terdaftar dan aktif. Ditandatangani kepala sekolah.',
             formats: ['print', 'word'], fields: [
                 { key: 'siswa', label: 'Siswa', type: 'siswa' }, ...F_SURAT,
@@ -148,9 +155,12 @@
     /** "Jakarta, 17 November 2026" */
     const kotaTgl = (iso) => `${KOP.kota}, ${isIso(iso) ? tgl(iso) : titik(24)}`;
 
-    // Kop surat dipasang sebagai satu gambar (kop-surat.png, dirender dari file kop resmi sekolah)
-    // supaya tampil persis sama di cetakan, PDF, dan Word. Lebar 680 px = lebar isi halaman A4 tegak.
-    const kopHtml = () => `<div class="kop"><img src="${ORIGIN}/kop-surat.png" width="680" height="155" alt="${esc(KOP.sekolah)}" style="width:100%;height:auto"></div>`;
+    // Kop surat dipasang sebagai satu gambar (dirender 300 dpi dari file kop resmi sekolah) supaya
+    // tampil persis sama di cetakan, PDF, dan Word. Lebar 680 px = lebar isi halaman A4 tegak.
+    const kopHtml = (o) => {
+        const v = KOP_VERSI[o?.kop] || KOP_VERSI.sudin;
+        return `<div class="kop"><img src="${ORIGIN}/${v.file}" width="680" height="${v.h}" alt="Kop surat ${esc(v.label)}" style="width:100%;height:auto"></div>`;
+    };
 
     /** Kepala dokumen daftar: logo sekolah di kiri atas, judul & keterangan di sebelahnya, kelas di kanan. */
     const judulHtml = (judul, d, sub) => `<table class="kepala" width="100%" cellpadding="0" cellspacing="0"><tr>
@@ -242,7 +252,7 @@
         },
         biodata(d, o) {
             const row = (l, v) => `<tr><td width="34%">${esc(l)}</td><td width="3%">:</td><td>${v ? esc(v) : '-'}</td></tr>`;
-            const satu = (s) => `${kopHtml()}<div class="judul" style="margin-top:14pt">BIODATA SISWA</div>
+            const satu = (s) => `${kopHtml(o)}<div class="judul" style="margin-top:14pt">BIODATA SISWA</div>
                 <div class="subjudul" style="margin-bottom:12pt">TAHUN PELAJARAN ${esc(String(d.tahun_ajaran || '').replace('/', ' / '))}</div>
                 <table class="noborder bio" width="100%">
                     <tr><td colspan="3" class="bag">A. IDENTITAS SISWA</td></tr>
@@ -262,7 +272,7 @@
             if (!s) return null;
             const row = (l, v) => `<tr><td width="170">${esc(l)}</td><td width="10">:</td><td>${v ? esc(v) : '-'}</td></tr>`;
             const ks = d.kepala_sekolah;
-            return { landscape: false, title: `Surat Keterangan Aktif ${s.nama}`, body: `${kopHtml()}
+            return { landscape: false, title: `Surat Keterangan Aktif ${s.nama}`, body: `${kopHtml(o)}
                 <div class="judul" style="margin-top:14pt"><u>SURAT KETERANGAN AKTIF SEKOLAH</u></div>
                 <div class="subjudul" style="margin-bottom:14pt">Nomor : ${nomorSurat(o)}</div>
                 <p>Yang bertanda tangan di bawah ini:</p>
@@ -278,7 +288,7 @@
         panggilan(d, o) {
             const s = pilihSiswa(d, o)[0];
             if (!s) return null;
-            return { landscape: false, title: `Surat Panggilan Orang Tua ${s.nama}`, body: `${kopHtml()}
+            return { landscape: false, title: `Surat Panggilan Orang Tua ${s.nama}`, body: `${kopHtml(o)}
                 ${kepalaSurat(o, { perihal: 'Panggilan Orang Tua / Wali Murid', kepada: [`Bapak/Ibu <b>${esc(ortu(s) || titik(30))}</b>`, `Orang Tua/Wali dari <b>${esc(s.nama)}</b> (Kelas ${esc(romawi(d.kelas))})`] })}
                 <p>Dengan hormat,</p>
                 <p class="j">Sehubungan dengan ${isi(o.keperluan, 50)}, kami mengharapkan kehadiran Bapak/Ibu di sekolah pada:</p>
@@ -288,7 +298,7 @@
                 ${ttdHtml({ atas: ['Mengetahui,', 'Kepala Sekolah'], orang: d.kepala_sekolah }, { atas: ['', 'Wali Kelas'], orang: (d.wali || [])[0] })}` };
         },
         undangan(d, o) {
-            const satu = (s) => `${kopHtml()}
+            const satu = (s) => `${kopHtml(o)}
                 ${kepalaSurat(o, { perihal: 'Undangan', kepada: s
         ? [`Bapak/Ibu <b>${esc(ortu(s) || titik(30))}</b>`, `Orang Tua/Wali dari <b>${esc(s.nama)}</b> (Kelas ${esc(romawi(d.kelas))})`]
         : [`Bapak/Ibu Orang Tua/Wali Murid Kelas <b>${esc(romawi(d.kelas))}</b>`] })}
@@ -301,7 +311,7 @@
             return { landscape: false, title: `Undangan Rapat Orang Tua ${romawi(d.kelas)}`, body: o.perSiswa ? halaman((d.siswa || []).map(satu)) : satu(null) };
         },
         pemberitahuan(d, o) {
-            return { landscape: false, title: `Surat ${o.perihal || 'Pemberitahuan'} ${romawi(d.kelas)}`, body: `${kopHtml()}
+            return { landscape: false, title: `Surat ${o.perihal || 'Pemberitahuan'} ${romawi(d.kelas)}`, body: `${kopHtml(o)}
                 ${kepalaSurat(o, { perihal: o.perihal || 'Pemberitahuan', kepada: [`Bapak/Ibu Orang Tua/Wali Murid Kelas <b>${esc(romawi(d.kelas))}</b>`] })}
                 <p>Dengan hormat,</p>
                 <p class="j">${nl2br(o.isi || titik(120))}</p>
@@ -402,5 +412,5 @@
 
     const fileName = (doc) => String(doc.title || 'Dokumen').replace(/[^\w.\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
 
-    return { TYPES, KOLOM, KOP, typeOf, defaults, build, page, xlsx, fileName, tgl, hariTgl, romawi, nomorSurat, kotaTgl, ASSETS: ['kop-surat.png', 'logo-cetak.png'] };
+    return { TYPES, KOLOM, KOP, typeOf, defaults, build, page, xlsx, fileName, tgl, hariTgl, romawi, nomorSurat, kotaTgl, KOP_VERSI, ASSETS: ['kop-sudin.png', 'kop-dinas.png', 'logo-cetak.png'] };
 }));

@@ -124,33 +124,38 @@ print(b['E6'].value, '|', b['C8'].value, '|', b.max_column)
     } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('kop surat resmi dipasang sebagai satu gambar di semua surat & biodata', () => {
+test('kop surat: pilih versi Suku Dinas (bawaan) atau Dinas, di semua surat & biodata', () => {
     for (const id of ['undangan', 'aktif', 'panggilan', 'pemberitahuan', 'biodata']) {
-        const b = Dok.build(id, data, opts(id, { siswa: 'a' })).body;
-        assert.match(b, /<img src="[^"]*\/kop-surat\.png" width="680" height="155"/, `${id} memakai gambar kop`);
-        assert.ok(b.indexOf('kop-surat.png') < 200, `${id}: kop di paling atas`);
+        assert.ok(Dok.typeOf(id).fields.some((f) => f.key === 'kop' && f.type === 'select' && f.default === 'sudin'), `${id} punya pilihan kop`);
+        const a = Dok.build(id, data, opts(id, { siswa: 'a' })).body;
+        assert.match(a, /<img src="[^"]*\/kop-sudin\.png" width="680" height="154"/, `${id}: bawaan Suku Dinas`);
+        assert.ok(a.indexOf('kop-sudin.png') < 200, `${id}: kop di paling atas`);
+        const b = Dok.build(id, data, opts(id, { siswa: 'a', kop: 'dinas' })).body;
+        assert.match(b, /<img src="[^"]*\/kop-dinas\.png" width="680" height="123"/, `${id}: versi Dinas`);
+        assert.doesNotMatch(b, /kop-sudin/);
     }
+    assert.match(Dok.build('aktif', data, opts('aktif', { siswa: 'a', kop: 'ngawur' })).body, /kop-sudin\.png/, 'nilai tak dikenal → Suku Dinas');
     assert.match(Dok.KOP.kecil.join(' '), /admin@sdnkalibaru05\.sch\.id/);
 });
 
 test('gambar kop ditanam (data URI) untuk cetak & pratinjau, tetap alamat web untuk Word', () => {
     const doc = Dok.build('undangan', data, opts('undangan'));
-    const assets = { 'kop-surat.png': 'data:image/png;base64,AAAA', 'logo-cetak.png': null };
+    const assets = { 'kop-sudin.png': 'data:image/png;base64,AAAA', 'kop-dinas.png': null, 'logo-cetak.png': null };
     for (const mode of ['print', 'preview']) {
         const h = Dok.page(doc, mode, assets);
         assert.match(h, /<img src="data:image\/png;base64,AAAA"/, mode);
-        assert.doesNotMatch(h, /kop-surat\.png/, mode);
+        assert.doesNotMatch(h, /kop-sudin\.png/, mode);
     }
-    assert.match(Dok.page(doc, 'word', assets), /https:\/\/sdnkalibaru05\.sch\.id\/kop-surat\.png/);
-    assert.match(Dok.page(doc, 'print'), /kop-surat\.png/, 'tanpa aset → tetap pakai alamat gambar');
-    assert.deepEqual(Dok.ASSETS, ['kop-surat.png', 'logo-cetak.png']);
+    assert.match(Dok.page(doc, 'word', assets), /https:\/\/sdnkalibaru05\.sch\.id\/kop-sudin\.png/);
+    assert.match(Dok.page(doc, 'print'), /kop-sudin\.png/, 'tanpa aset → tetap pakai alamat gambar');
+    assert.deepEqual(Dok.ASSETS, ['kop-sudin.png', 'kop-dinas.png', 'logo-cetak.png']);
 });
 
 test('dokumen daftar: logo sekolah di kiri atas + keterangan, tanpa kop surat', () => {
     for (const id of ['daftar', 'blanko', 'hadir']) {
         const b = Dok.build(id, data, opts(id)).body;
         assert.ok(b.indexOf('logo-cetak.png') > -1 && b.indexOf('logo-cetak.png') < b.indexOf('<table class="grid"'), `${id}: logo di atas tabel`);
-        assert.ok(!b.includes('kop-surat.png'), `${id}: tanpa kop surat`);
+        assert.ok(!/kop-(sudin|dinas)\.png/.test(b), `${id}: tanpa kop surat`);
         assert.match(b, /KELAS : I\.A/);
         assert.match(b, /Wali Kelas : <b>Sunarsih, S\.Pd\.<\/b>/);
     }
