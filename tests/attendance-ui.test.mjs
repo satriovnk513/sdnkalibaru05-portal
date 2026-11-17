@@ -903,4 +903,216 @@ async function runUi() {
         check(errors.length === 0, `${T} tidak ada error JavaScript di Cetak & Dokumen (${errors.join(' | ').slice(0, 160)})`);
         await ctx.close();
     }
+
+    // ============================================================ INVENTARIS — QR (guru) + admin
+    const hasCv2 = spawnSync('python3', ['-c', 'import cv2'], { encoding: 'utf8' }).status === 0;
+    /** Baca isi QR dari <svg> dengan OpenCV (null bila OpenCV tidak ada). */
+    async function decodeQr(page, svgHtml) {
+        if (!hasCv2) return null;
+        const p2 = await page.context().newPage();
+        await p2.setViewportSize({ width: 420, height: 420 });
+        await p2.setContent(`<body style="margin:0;background:#fff"><div style="width:400px;height:400px">${svgHtml.replace(/width="\d+" height="\d+"/, 'width="400" height="400"')}</div></body>`);
+        const path = join(dlDir, `qr-${Date.now()}.png`);
+        await p2.screenshot({ path });
+        await p2.close();
+        const r = spawnSync('python3', ['-c', 'import sys,cv2\nimg=cv2.imread(sys.argv[1])\nprint(cv2.QRCodeDetector().detectAndDecode(img)[0])', path], { encoding: 'utf8' });
+        return r.status === 0 ? r.stdout.trim() : `ERROR ${r.stderr.slice(0, 100)}`;
+    }
+
+    {
+        // Guru belum login scan stiker → login → langsung ke halaman barang.
+        const { ctx, page, errors } = await newPage('/guru#/pinjam/toklap001aaa', { width: 360, height: 780 });
+        await page.waitForSelector('#gLogin:not(.g-hidden)');
+        await page.fill('#gId', '990000000000000001');
+        await page.fill('#gPw', 'benar123');
+        await page.click('#gLoginBtn');
+        await page.waitForSelector('#gInvForm');
+        check(/Laptop Acer Aspire 3/.test(await page.textContent('#gMain')) && /Tersedia/.test(await page.textContent('.inv-state')),
+            'Scan QR saat belum login: setelah masuk langsung ke halaman barang (tersedia)');
+        check(!(await page.textContent('#gMain')).includes('SN-ACER-1'), 'halaman scan guru tidak menampilkan nomor seri');
+        check((await page.inputValue('#gInvSampai')) === '' && /Kosongkan/.test(await page.textContent('#gInvForm')), 'laptop jangka panjang: tanggal kembali opsional');
+        await shot(page, 'inv-01-guru-scan-tersedia-360.png');
+        check(await overflow(page) <= 0, 'halaman barang tidak bergeser ke samping di 360 px');
+        await page.fill('#gInvKeperluan', 'Mengajar kelas 1A');
+        await page.click('#gInvBtn');
+        await page.waitForSelector('.inv-state.mine');
+        check(await page.evaluate(() => window.__fake.calls.some((c) => c.fn === 'inv_borrow' && c.args.p_code === 'toklap001aaa' && c.args.p_keperluan === 'Mengajar kelas 1A' && c.args.p_sampai === null)),
+            'Pinjam sekarang → inv_borrow dengan token QR & keperluan');
+        check(/Sedang Anda pinjam/.test(await page.textContent('.inv-state')) && (await page.isVisible('#gInvKond')), 'setelah pinjam muncul form Kembalikan');
+        await shot(page, 'inv-02-guru-dipinjam-360.png');
+
+        // Barang dipinjam orang lain & barang tidak dipinjam
+        await page.evaluate(() => { location.hash = '#/pinjam/tokspk01bbbb'; });
+        await page.waitForSelector('.inv-state.busy');
+        check(/Susy Nurhayati/.test(await page.textContent('.inv-state')) && !(await page.$('#gInvForm')), 'barang yang dipinjam guru lain: tampil nama peminjam, tanpa tombol pinjam');
+        await page.evaluate(() => { location.hash = '#/pinjam/MEB-001'; });
+        await page.waitForSelector('.inv-state.off');
+        check(/tidak untuk dipinjam/.test(await page.textContent('.inv-state')), 'cari pakai kode: barang "tidak dipinjam" tidak bisa dipinjam');
+        await page.evaluate(() => { location.hash = '#/pinjam/ZZZ-999'; });
+        await page.waitForSelector('#gMain .att-alert.err');
+        check(/tidak ditemukan/.test(await page.textContent('#gMain')), 'kode salah → pesan barang tidak ditemukan');
+
+        // Dashboard: kotak barang yang saya pinjam
+        await page.click('.g-nav a[data-nav="home"]');
+        await page.waitForSelector('#gLoans');
+        const box = await page.textContent('#gLoans');
+        check(/Laptop Acer Aspire 3/.test(box) && /Proyektor/.test(box) && /1 terlambat/.test(box), `dashboard menampilkan barang yang saya pinjam + jumlah terlambat (${box.replace(/\s+/g, ' ').slice(0, 90)})`);
+        await shot(page, 'inv-03-guru-dashboard-360.png');
+
+        // Halaman Pinjam Barang + scan (fallback kamera) + ketik kode
+        await page.click('#gLoans a[href="#/pinjam"]');
+        await page.waitForSelector('#gMyLoans .inv-loan');
+        check((await page.$$('#gMyLoans .inv-loan')).length === 2 && /Laptop Acer/.test(await page.textContent('#gMyHist')), 'Pinjam Barang: 2 pinjaman aktif + riwayat');
+        await page.click('#gScan');
+        await page.waitForSelector('.att-sheet');
+        check(/Kamera/.test(await page.textContent('.att-sheet')), 'browser tanpa pemindai bawaan → petunjuk pakai aplikasi Kamera HP');
+        await page.click('.att-sheet [data-act="yes"]');
+        await shot(page, 'inv-04-guru-pinjam-360.png');
+        check(await overflow(page) <= 0, 'halaman Pinjam Barang tidak bergeser ke samping');
+        await page.fill('#gKode', 'https://sdnkalibaru05.sch.id/guru#/pinjam/tokpro001ccc');
+        await page.click('#gKodeForm button');
+        await page.waitForSelector('.inv-state.mine');
+        await page.selectOption('#gInvKond', 'rusak_berat');
+        await page.fill('#gInvNote', 'Lampu mati');
+        await page.click('#gInvBtn');
+        await page.waitForSelector('.inv-state.off');
+        check(await page.evaluate(() => window.__fake.calls.some((c) => c.fn === 'inv_return' && c.args.p_code === 'tokpro001ccc' && c.args.p_kondisi === 'rusak_berat' && c.args.p_catatan === 'Lampu mati')),
+            'Kembalikan → inv_return dengan kondisi & catatan; barang rusak berat tidak bisa dipinjam lagi');
+        await page.click('#gBack');
+        await page.waitForSelector('#gMyLoans .inv-loan');
+        check((await page.$$('#gMyLoans .inv-loan')).length === 1, 'setelah dikembalikan, pinjaman aktif tinggal 1');
+        check(errors.length === 0, `tidak ada error JavaScript di Pinjam Barang (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
+
+    for (const vp of [{ width: 1366, height: 900, tag: '1366' }, { width: 390, height: 844, tag: '390' }]) {
+        const T = `[Inventaris ${vp.tag}]`;
+        const { ctx, page, errors } = await newPage('/admin', { width: vp.width, height: vp.height });
+        await page.fill('#adminEmail', 'admin@fiktif.test');
+        await page.fill('#adminPassword', 'x');
+        await page.click('.btn-login');
+        await page.waitForSelector('#mainContent', { state: 'visible' });
+        await page.evaluate(() => showTab('tabInventaris', document.querySelector('[data-tab="tabInventaris"]')));
+        await page.waitForSelector('#invBody .att-table');
+        const stats = await page.$$eval('#invStats .inv-stat b', (b) => b.map((x) => x.textContent));
+        check(stats.join(',') === '4,2,1,1', `${T} ringkasan: 4 barang, 2 dipinjam, 1 terlambat, 1 rusak (${stats})`);
+        check(/Inventaris/.test(await page.textContent('#topbarTitle')), `${T} judul topbar Inventaris`);
+        check(await overflow(page) <= 0, `${T} tab Inventaris tidak bergeser ke samping`);
+        await shot(page, `inv-10-admin-barang-${vp.tag}.png`);
+
+        // Tambah barang (kode otomatis)
+        await page.click('#invAdd');
+        await page.fill('#fs_nama', 'Kamera Canon EOS');
+        await page.fill('#fs_kategori', 'Kamera');
+        await page.selectOption('#fs_jenis_pinjam', 'harian');
+        await page.click('.att-sheet button[type="submit"]');
+        await page.waitForFunction(() => /KAM-001/.test(document.getElementById('invBody').textContent));
+        check(true, `${T} tambah barang → kode otomatis KAM-001`);
+
+        // Impor CSV + Excel
+        if (vp.tag === '1366') {
+            const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#invTemplate')]);
+            const tv = await xlsxCells(dl, ['A1', 'B2', 'J3']);
+            check(!tv || (/^Kode/.test(tv[0]) && tv[1] === 'Laptop Acer Aspire 3' && tv[2] === '2'), `${T} template impor Excel valid (${tv})`);
+            const csv = join(dlDir, 'impor.csv');
+            const { writeFileSync } = await import('node:fs');
+            writeFileSync(csv, 'Kode;Nama barang;Kategori;Kondisi;Jenis pinjam;Jumlah\n;Laptop Lenovo;Laptop;Baik;Jangka panjang;2\nTAB;Tablet Samsung;Tablet;;;3\n;;;;;\n;Rusak;;hancur;;\n');
+            await page.setInputFiles('#invFile', csv);
+            await page.waitForSelector('.att-sheet');
+            const prev = await page.textContent('.att-sheet');
+            check(/Impor 6 barang/.test(prev) && /× 3/.test(prev), `${T} pratinjau impor CSV: 6 barang (2 + 3 + 1), baris kosong dilewati`);
+            await page.click('.att-sheet [data-act="yes"]');
+            await page.waitForFunction(() => /Baris 3: Kondisi/.test(document.getElementById('attToastHost')?.textContent || ''));
+            check(!(await page.evaluate(() => window.__fake.imported)), `${T} satu baris salah → impor ditolak seluruhnya dengan nomor barisnya`);
+            writeFileSync(csv, 'Kode,Nama barang,Kategori,Kondisi,Jenis pinjam,Jumlah\n,Laptop Lenovo,Laptop,Baik,Jangka panjang,2\nTAB,Tablet Samsung,Tablet,,,3\n');
+            await page.setInputFiles('#invFile', csv);
+            await page.waitForSelector('.att-sheet');
+            await page.click('.att-sheet [data-act="yes"]');
+            await page.waitForFunction(() => /Impor selesai: 5 barang baru/.test(document.getElementById('attToastHost')?.textContent || ''));
+            const body = await page.textContent('#invBody');
+            check(/LAP-002/.test(body) || /Menampilkan 1–10 dari 10/.test(body), `${T} impor CSV berhasil: 5 barang baru`);
+            const imp = await page.evaluate(() => window.__fake.imported);
+            check(imp.length === 2 && imp[0].jumlah === 2 && imp[1].kode === 'TAB', `${T} baris impor dikirim ke database dengan jumlah & kode`);
+            if (hasOpenpyxl) {
+                const xl = join(dlDir, 'impor.xlsx');
+                spawnSync('python3', ['-c', `import openpyxl,sys\nwb=openpyxl.Workbook();ws=wb.active\nws.append(['Daftar barang sekolah'])\nws.append(['No','Kode','Nama Barang','Merk','Lokasi','Tahun','Keterangan'])\nws.append([1,'PRJ-9','Proyektor BenQ','BenQ MS560','Lab',2021,'Baru'])\nwb.save(sys.argv[1])`, xl]);
+                await page.setInputFiles('#invFile', xl);
+                await page.waitForSelector('.att-sheet');
+                check(/Proyektor BenQ/.test(await page.textContent('.att-sheet')), `${T} impor .xlsx: judul kolom dikenali walau ada baris judul di atasnya`);
+                await page.click('.att-sheet [data-act="yes"]');
+                await page.waitForFunction(() => /PRJ-9/.test(document.getElementById('invBody').textContent) || window.__fake.imported?.[0]?.kode === 'PRJ-9');
+                const x = await page.evaluate(() => window.__fake.imported[0]);
+                check(x.merk === 'BenQ MS560' && x.lokasi === 'Lab' && x.tahun_perolehan === '2021' && x.catatan === 'Baru', `${T} kolom Excel dipetakan benar (${JSON.stringify(x).slice(0, 120)})`);
+            }
+        }
+
+        // Stiker QR: pilih 2 barang lalu cetak
+        await page.selectOption('#invFilter', 'aktif');
+        await page.fill('#invBody [data-q]', 'LAP-001');
+        await page.check('#invBody [data-pick="i-lap1"]');
+        await page.fill('#invBody [data-q]', 'SPK');
+        await page.check('#invBody [data-pick="i-spk1"]');
+        check(/\(2\)/.test(await page.textContent('#invPrint')), `${T} tombol cetak menghitung barang yang dipilih`);
+        await page.click('#invPrint');
+        await page.selectOption('#fs_skip', '1');
+        {
+            const pop = await popupFrom(page, () => page.click('.att-sheet button[type="submit"]'));
+            const n = await pop.$$eval('.st:not(.kosong)', (x) => x.length);
+            const blank = await pop.$$eval('.st.kosong', (x) => x.length);
+            const first = await pop.$eval('.st:not(.kosong)', (x) => x.textContent.replace(/\s+/g, ' '));
+            check(n === 2 && blank >= 1 && /LAP-001/.test(first) && /SDN KALIBARU 05 PAGI/.test(first), `${T} lembar stiker: 2 stiker, slot pertama dilewati (${first.slice(0, 80)})`);
+            const sz = await pop.$eval('.kertas', (k) => ({ w: k.getBoundingClientRect().width, cols: getComputedStyle(k).gridTemplateColumns.split(' ').length }));
+            check(sz.cols === 3 && Math.abs(sz.w - 793.7) < 3, `${T} stiker A4 3 kolom (${Math.round(sz.w)} px)`);
+            if (vp.tag === '1366') {
+                await shot(pop, 'inv-12-stiker-a4.png');
+                const svg = await pop.$eval('.st:not(.kosong) .qr', (q) => q.innerHTML);
+                const txt = await decodeQr(page, svg);
+                check(txt === null || txt === 'https://sdnkalibaru05.sch.id/guru#/pinjam/toklap001aaa', `${T} QR di stiker terbaca kamera → tautan pinjam barang (${txt})`);
+            }
+            await pop.close();
+        }
+        await page.fill('#invBody [data-q]', '');
+
+        // Pinjamkan atas nama staf, tandai kembali, hapus (arsip)
+        check(!(await page.$('#invBody [data-lend="i-meb1"]')), `${T} barang "tidak dipinjam" tidak punya tombol Pinjamkan`);
+        await page.fill('#invBody [data-q]', 'KAM-001');
+        await page.click('#invBody [data-lend]');
+        await page.selectOption('#fs_staff', { label: 'Taripah, S.Pd.' });
+        check((await page.inputValue('#fs_sampai')).length === 10, `${T} pinjaman harian: tanggal kembali terisi hari ini`);
+        await page.click('.att-sheet button[type="submit"]');
+        await page.waitForFunction(() => /Taripah/.test(document.getElementById('invBody').textContent));
+        check(true, `${T} admin mencatat pinjaman atas nama guru`);
+        await page.fill('#invBody [data-q]', '');
+        await page.click('#invSeg [data-view="dipinjam"]');
+        await page.waitForFunction(() => document.getElementById('invBody').dataset.view === 'dipinjam' && /Taripah/.test(document.getElementById('invBody').textContent));
+        check(/Terlambat/.test(await page.textContent('#invBody')), `${T} tab Sedang dipinjam menandai yang terlambat`);
+        await shot(page, `inv-11-admin-dipinjam-${vp.tag}.png`);
+        await page.click('#invBody [data-back="i-spk1"]');
+        await page.selectOption('#fs_kondisi', 'rusak_ringan');
+        await page.click('.att-sheet button[type="submit"]');
+        await page.waitForFunction(() => !/Speaker Aktif/.test(document.getElementById('invBody').textContent));
+        check(await page.evaluate(() => window.__fake.calls.some((c) => c.fn === 'inv_admin_return' && c.args.p_item === 'i-spk1' && c.args.p_kondisi === 'rusak_ringan')), `${T} Tandai kembali → inv_admin_return`);
+        await page.click('#invSeg [data-view="barang"]');
+        await page.waitForSelector('#invBody [data-del="i-spk1"]');
+        await page.click('#invBody [data-del="i-spk1"]');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => /diarsipkan/.test(document.getElementById('attToastHost')?.textContent || ''));
+        check(true, `${T} hapus barang yang punya riwayat → diarsipkan`);
+        await page.selectOption('#invFilter', 'arsip');
+        await page.waitForSelector('#invBody [data-restore="i-spk1"]');
+        check(true, `${T} filter Diarsipkan menampilkan barang arsip + tombol Aktifkan lagi`);
+
+        // Riwayat + Excel
+        await page.click('#invSeg [data-view="riwayat"]');
+        await page.waitForSelector('#invHistXlsx');
+        check(/Susy Nurhayati/.test(await page.textContent('#invBody')), `${T} riwayat pinjam tampil`);
+        if (vp.tag === '1366') {
+            const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#invHistXlsx')]);
+            const v = await xlsxCells(dl, ['A1', 'C3']);
+            check(!v || (/RIWAYAT PEMINJAMAN/.test(v[0]) && v[1] === 'Barang' && v[2] === 'logo'), `${T} Excel riwayat pinjam valid + logo (${v})`);
+        }
+        check(await overflow(page) <= 0, `${T} tidak bergeser ke samping`);
+        check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
 }

@@ -308,3 +308,43 @@
 @media print {
     .att-noprint { display: none !important; }
 }
+
+/* ===================================================== Inventaris (admin + guru) */
+.inv-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.inv-stat { text-align: left; border: 1px solid var(--att-line); background: var(--t-surface); border-radius: 14px; padding: 12px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; font: inherit; color: var(--att-ink); }
+.inv-stat b { font-size: 1.6rem; line-height: 1.1; }
+.inv-stat span { font-size: .8rem; color: var(--att-muted); font-weight: 600; }
+.inv-stat.info b { color: var(--t-blue-ink); }
+.inv-stat.bad { border-color: var(--t-red-line); background: var(--t-red-bg); } .inv-stat.bad b { color: var(--t-red-ink); }
+.inv-stat.warn { border-color: var(--t-amber-line); background: var(--t-amber-bg); } .inv-stat.warn b { color: var(--t-amber-ink); }
+.inv-seg { display: inline-grid; grid-auto-flow: column; gap: 4px; padding: 4px; border-radius: 12px; background: var(--t-surface-3); margin-bottom: 12px; max-width: 100%; overflow-x: auto; }
+.inv-seg button { min-height: 38px; padding: 0 14px; border: none; border-radius: 9px; background: transparent; font: 600 .86rem inherit; font-family: inherit; color: var(--t-text); cursor: pointer; white-space: nowrap; }
+.inv-seg button[aria-selected="true"] { background: var(--t-surface); color: var(--att-ink); box-shadow: 0 1px 3px rgba(15, 23, 42, .18); }
+.inv-sub { font-size: .76rem; margin-top: 2px; }
+.inv-kode { white-space: nowrap; font-family: 'Courier New', monospace; letter-spacing: .02em; }
+.inv-pick { width: 20px; height: 20px; accent-color: var(--att-brand); }
+.inv-tools-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; flex: 1 1 100%; }
+.inv-prev, .inv-err { margin: 6px 0 0; padding-left: 18px; font-size: .86rem; display: grid; gap: 3px; }
+
+/* Portal Guru */
+.inv-card { background: var(--t-surface); border: 1px solid var(--att-line); border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+.inv-card h3 { margin: 0 0 2px; font-size: 1.1rem; color: var(--att-ink); }
+.inv-meta { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: .88rem; margin: 12px 0 0; }
+.inv-meta dt { color: var(--att-muted); } .inv-meta dd { margin: 0; color: var(--att-ink); font-weight: 600; }
+.inv-state { border-radius: 12px; padding: 12px 14px; margin: 12px 0; font-size: .9rem; }
+.inv-state.ok { background: var(--att-h-bg); color: var(--t-green-ink); border: 1px solid var(--t-green-line); }
+.inv-state.mine { background: var(--t-blue-bg); color: var(--t-blue-ink); border: 1px solid var(--t-blue-line); }
+.inv-state.busy { background: var(--t-amber-bg); color: var(--t-amber-ink); border: 1px solid var(--t-amber-line); }
+.inv-state.off { background: var(--t-surface-2); color: var(--t-text); border: 1px solid var(--att-line); }
+.inv-scan-btn { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 64px; font-size: 1.05rem; }
+.inv-scan-btn svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.inv-loan { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--att-line); }
+.inv-loan:first-child { border-top: none; }
+.inv-loan > div { flex: 1; min-width: 0; }
+.inv-loan b { display: block; color: var(--att-ink); }
+.inv-loan small { color: var(--att-muted); font-size: .78rem; }
+.inv-cam { position: fixed; inset: 0; z-index: 3000; background: #000; display: flex; flex-direction: column; }
+.inv-cam video { flex: 1; width: 100%; object-fit: cover; }
+.inv-cam-frame { position: absolute; left: 50%; top: 45%; width: min(70vw, 280px); aspect-ratio: 1; transform: translate(-50%, -50%); border: 3px solid #fff; border-radius: 18px; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .45); pointer-events: none; }
+.inv-cam-bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); display: grid; gap: 10px; text-align: center; color: #fff; }
+#gLoans .att-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }

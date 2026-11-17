@@ -670,6 +670,132 @@ begin
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'O Hak', 'u', 'Anon tidak bisa mengambil nomor surat', 'ok', v_r = '42501');
     execute 'reset role';
 
+    -- ======================================================== P. Inventaris & pinjam QR
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.inv_save_item('{"nama":"Laptop Asus 1","kategori":"Laptop","nomor_seri":"SN-1","jenis_pinjam":"jangka panjang"}');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Inventaris', 'u', 'Admin tambah barang: kode otomatis LAP-001, token QR 12 karakter',
+        'ok', v_j ->> 'kode' = 'LAP-001' and length(v_j ->> 'qr_token') = 12 and v_j ->> 'jenis_pinjam' = 'jangka_panjang' and v_j -> 'pinjaman' = 'null'::jsonb);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Inventaris', 'u', 'Kode otomatis berikutnya LAP-002',
+        'ok', public.inv_save_item('{"nama":"Laptop Asus 2","kategori":"Laptop"}') ->> 'kode' = 'LAP-002');
+    v_j := public.inv_import_items('[{"nama":"Speaker Aktif","kategori":"Speaker","kode":"spk","jumlah":2},{"nama":"Proyektor Epson","kategori":"Proyektor","kondisi":"Rusak ringan"},{"nama":"Lemari Arsip","kategori":"Mebel","jenis_pinjam":"Tidak dipinjam"}]');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Inventaris', 'u', 'Impor Excel: jumlah 2 → SPK-01, SPK-02; tanpa kode → PRO-001',
+        'ok', (v_j ->> 'ditambah')::int = 4
+          and (select count(*) from public.inventory_items where kode in ('SPK-01', 'SPK-02', 'PRO-001', 'MEB-001')) = 4
+          and (select kondisi from public.inventory_items where kode = 'PRO-001') = 'rusak_ringan');
+    v_j := public.inv_import_items('[{"nama":"Speaker Aktif Baru","kode":"SPK-01"}]');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Inventaris', 'u', 'Impor ulang kode yang sama → diperbarui, bukan dobel',
+        'ok', v_j ->> 'diperbarui' = '1' and v_j ->> 'ditambah' = '0'
+          and (select nama from public.inventory_items where kode = 'SPK-01') = 'Speaker Aktif Baru');
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_import_items('[{"nama":"OK"},{"nama":"Rusak","kondisi":"hancur"}]')$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Inventaris', 'u', 'Impor dengan satu baris salah ditolak seluruhnya',
+        'ok', v_r = '22023' and not exists (select 1 from public.inventory_items where nama = 'OK'));
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_save_item('{"nama":"Dobel","kode":"lap-001"}')$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Inventaris', 'u', 'Kode yang sudah dipakai ditolak (tidak peka huruf besar)', 'ok', v_r = '23505');
+    execute 'reset role';
+
+    -- Guru meminjam lewat QR
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.inv_scan((select qr_token from public.inventory_items where kode = 'LAP-001'));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Guru scan QR: identitas barang tampil, nomor seri disembunyikan',
+        'ok', v_j ->> 'nama' = 'Laptop Asus 1' and not v_j ? 'nomor_seri' and v_j -> 'pinjaman' = 'null'::jsonb and not (v_j ->> 'milik_saya')::boolean);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Guru bisa mencari pakai kode barang juga',
+        'ok', public.inv_scan('spk-02') ->> 'kode' = 'SPK-02');
+    v_j := public.inv_borrow('LAP-001', 'Mengajar kelas 1A', public.jakarta_today() + 60);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Guru pinjam laptop jangka panjang sampai tanggal tertentu',
+        'ok', v_j -> 'pinjaman' ->> 'peminjam' = 'Sunarsih, S.Pd.' and (v_j -> 'pinjaman' ->> 'sampai')::date = public.jakarta_today() + 60
+          and (public.inv_scan('LAP-001') ->> 'milik_saya')::boolean);
+    v_j := public.inv_borrow('SPK-02', null, null);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Barang harian tanpa tanggal → harus kembali hari ini',
+        'ok', (v_j -> 'pinjaman' ->> 'sampai')::date = public.jakarta_today());
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_borrow('PRO-001', null, public.jakarta_today() - 1)$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Tanggal kembali di masa lalu ditolak', 'ok', v_r = '22023');
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_borrow('MEB-001')$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Barang "tidak dipinjam" tidak bisa dipinjam', 'ok', v_r = '22023');
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_save_item('{"nama":"Iseng"}')$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Hak', 'u', 'Guru tidak bisa menambah barang', 'ok', v_r = '42501');
+    v_no := v_no + 1; v_r := public.t_try($q$insert into public.inventory_loans (item_id, staff_id) select id, (select id from public.staff limit 1) from public.inventory_items where kode = 'PRO-001'$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Hak', 'u', 'Guru tidak bisa menulis langsung ke tabel pinjaman', 'ok', v_r = '42501');
+    v_j := public.inv_my_loans();
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Pinjaman saya: 2 barang aktif',
+        'ok', jsonb_array_length(v_j -> 'aktif') = 2 and (select count(*) from public.inventory_loans) = 2);
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_borrow('LAP-001')$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Guru lain tidak bisa meminjam barang yang sedang dipinjam', 'ok', v_r = '23505');
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_return('LAP-001')$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Guru lain tidak bisa mengembalikan pinjaman orang lain', 'ok', v_r = '42501');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Guru lain melihat siapa peminjamnya, tapi tidak bisa membaca tabel pinjaman orang lain',
+        'ok', public.inv_scan('LAP-001') -> 'pinjaman' ->> 'peminjam' = 'Sunarsih, S.Pd.' and not (public.inv_scan('LAP-001') ->> 'milik_saya')::boolean
+          and (select count(*) from public.inventory_loans) = 0);
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_admin_overview()$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Hak', 'u', 'Guru biasa tidak bisa membuka daftar inventaris admin', 'ok', v_r = '42501');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.inv_return('LAP-001', 'rusak_ringan', 'Engsel longgar');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Pinjam', 'u', 'Guru mengembalikan; kondisi barang ikut diperbarui',
+        'ok', v_j -> 'pinjaman' = 'null'::jsonb and v_j ->> 'kondisi' = 'rusak_ringan'
+          and jsonb_array_length(public.inv_my_loans() -> 'riwayat') = 1 and jsonb_array_length(public.inv_my_loans() -> 'aktif') = 1);
+    execute 'reset role';
+
+    -- Admin: pantau, catat atas nama staf, terlambat, hapus/arsip
+    update public.inventory_loans set borrowed_at = now() - interval '3 days', due_date = public.jakarta_today() - 2 where returned_at is null;
+    perform set_config('request.jwt.claims', json_build_object('sub', u_lilis, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.inv_admin_overview();
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Admin', 'u', 'Kepala sekolah melihat inventaris; pinjaman lewat batas ditandai terlambat',
+        'ok', jsonb_array_length(v_j -> 'items') = 6
+          and exists (select 1 from jsonb_array_elements(v_j -> 'items') x where x ->> 'kode' = 'SPK-02' and (x -> 'pinjaman' ->> 'terlambat')::boolean));
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_delete_item((select id from public.inventory_items where kode = 'LAP-002'))$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Hak', 'u', 'Kepala sekolah tidak bisa menghapus barang', 'ok', v_r = '42501');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.inv_admin_lend((select id from public.inventory_items where kode = 'PRO-001'), (select id from public.staff where name = 'Ahmad Soleh, S.Pd.'), 'Rapat', null);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Admin', 'u', 'Admin mencatat pinjaman atas nama staf tanpa akun',
+        'ok', v_j -> 'pinjaman' ->> 'peminjam' = 'Ahmad Soleh, S.Pd.');
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_delete_item((select id from public.inventory_items where kode = 'PRO-001'))$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Admin', 'u', 'Barang yang masih dipinjam tidak bisa dihapus', 'ok', v_r = '22023');
+    v_j := public.inv_admin_return((select id from public.inventory_items where kode = 'SPK-02'), 'baik', null);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Admin', 'u', 'Admin menandai pinjaman guru sudah kembali',
+        'ok', v_j -> 'pinjaman' = 'null'::jsonb);
+    v_r := public.inv_delete_item((select id from public.inventory_items where kode = 'LAP-001'))
+        || '/' || public.inv_delete_item((select id from public.inventory_items where kode = 'LAP-002'));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Admin', 'u', 'Barang dengan riwayat → diarsipkan; tanpa riwayat → dihapus',
+        'ok', v_r = 'diarsipkan/dihapus' and public.t_try($q$select public.inv_scan('LAP-001')$q$) = 'P0002'
+          and not exists (select 1 from public.inventory_items where kode = 'LAP-002'));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Admin', 'u', 'Riwayat pinjam lengkap (3 pinjaman) tetap ada',
+        'ok', jsonb_array_length(public.inv_loan_history(null, null)) = 3);
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    v_no := v_no + 1; v_r := public.t_try($q$select public.inv_scan('SPK-01')$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Hak', 'u', 'Anon tidak bisa scan barang', 'ok', v_r = '42501');
+    v_no := v_no + 1; v_r := public.t_try($q$select count(*) from public.inventory_items$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Hak', 'u', 'Anon tidak bisa membaca tabel inventaris', 'ok', v_r = '42501');
+    execute 'reset role';
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end

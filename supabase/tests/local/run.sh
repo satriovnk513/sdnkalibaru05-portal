@@ -50,6 +50,8 @@ run "Migration HP orang tua di peringatan alpa" "$ROOT/supabase/migrations/20261
 run "Migration data dokumen guru"      "$ROOT/supabase/migrations/20261116000001_class_document_data.sql"
 run "Migration nomor surat & NIK profil" "$ROOT/supabase/migrations/20261117000001_letter_numbers_profile_nik.sql"
 run "Migration nomor surat (ulang, idempotent)" "$ROOT/supabase/migrations/20261117000001_letter_numbers_profile_nik.sql"
+run "Migration inventaris"          "$ROOT/supabase/migrations/20261118000001_inventory.sql"
+run "Migration inventaris (ulang, idempotent)" "$ROOT/supabase/migrations/20261118000001_inventory.sql"
 
 echo "→ Tes Absensi"
 {

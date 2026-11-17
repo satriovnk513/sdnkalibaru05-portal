@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#ffffff">
     <script src="theme.js?v=1"></script>
     <link rel="stylesheet" href="theme.css?v=1">
-    <link rel="stylesheet" href="attendance.css?v=9">
+    <link rel="stylesheet" href="attendance.css?v=10">
     <style>
         /* ── Reset & Base ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -720,6 +720,12 @@
                     Cetak &amp; Dokumen
                 </a>
 
+                <div class="nav-section-label">SARANA</div>
+                <a class="nav-item" data-tab="tabInventaris" onclick="showTab('tabInventaris', this)">
+                    <svg viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>
+                    Inventaris &amp; Pinjam
+                </a>
+
                 <div class="nav-section-label">AKADEMIK</div>
                 <a class="nav-item" data-tab="tabClasses" onclick="showTab('tabClasses', this)">
                     <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 22h8M12 18v4"/></svg>
@@ -932,6 +938,25 @@
                         <div class="att-field" style="max-width:480px"><label for="dkTypes">Jenis dokumen</label><select class="att-select" id="dkTypes"></select></div>
                     </div>
                     <div class="admin-card g-dok-host" id="dkHost"><div class="att-muted">Memuat…</div></div>
+                </div>
+
+                <!-- ═══ TAB INVENTARIS ═══ -->
+                <div id="tabInventaris" class="tab-content">
+                    <div class="section-header ak-head"><div><h2>Inventaris &amp; Peminjaman</h2>
+                        <p class="att-muted" style="margin:4px 0 0">Tempel stiker QR di tiap barang. Guru scan pakai kamera HP untuk pinjam &amp; mengembalikan sendiri — semuanya tercatat di sini.</p></div>
+                        <div class="att-row">
+                            <button type="button" class="att-btn att-btn-ghost" id="invTemplate">⬇ Template Excel</button>
+                            <button type="button" class="att-btn att-btn-ghost" id="invImport">⬆ Impor Excel</button>
+                            <button type="button" class="att-btn att-btn-primary" id="invAdd">+ Tambah barang</button>
+                            <input type="file" id="invFile" accept=".xlsx,.csv" hidden>
+                        </div></div>
+                    <div class="inv-stats" id="invStats"></div>
+                    <div class="inv-seg" id="invSeg" role="tablist" aria-label="Tampilan inventaris">
+                        <button type="button" role="tab" data-view="barang" aria-selected="true">Daftar barang</button>
+                        <button type="button" role="tab" data-view="dipinjam" aria-selected="false">Sedang dipinjam</button>
+                        <button type="button" role="tab" data-view="riwayat" aria-selected="false">Riwayat</button>
+                    </div>
+                    <div class="admin-card" id="invBody"><div class="att-muted">Memuat…</div></div>
                 </div>
 
                 <!-- ═══ TAB REKAP SEMESTER ═══ -->
@@ -1418,12 +1443,16 @@
     <script src="admin.js?v=5"></script>
     <script src="attendance-sheet.js?v=7"></script>
     <script src="admin-attendance.js?v=5"></script>
-    <script src="admin-akademik.js?v=1"></script>
+    <script src="admin-akademik.js?v=2"></script>
     <script src="rekap-print.js?v=4"></script>
     <script src="admin-laporan.js?v=3"></script>
     <script src="dokumen-templates.js?v=6"></script>
     <script src="dokumen-ui.js?v=2"></script>
     <script src="admin-dokumen.js?v=1"></script>
+    <script src="qr.js?v=1"></script>
+    <script src="xlsx-read.js?v=1"></script>
+    <script src="inventaris.js?v=1"></script>
+    <script src="admin-inventaris.js?v=1"></script>
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>
