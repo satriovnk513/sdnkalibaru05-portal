@@ -49,9 +49,9 @@ test('daftar siswa: hanya kolom yang dipilih, NIK ikut bila diminta, landscape b
 
 test('blanko: jumlah kolom dan judul kolom sesuai isian', () => {
     const d = Dok.build('blanko', data, opts('blanko', { jumlah: 4, label: 'PH1, PH2' }));
-    assert.equal((d.body.match(/<th class="kosong">/g) || []).length, 4);
-    assert.match(d.body, /<th class="kosong">PH1<\/th><th class="kosong">PH2<\/th><th class="kosong"><\/th>/);
-    assert.equal(Dok.build('blanko', data, opts('blanko', { jumlah: 99 })).body.match(/<th class="kosong">/g).length, 20, 'dibatasi 20 kolom');
+    assert.equal((d.body.match(/<th class="kosong"/g) || []).length, 4);
+    assert.match(d.body, /<th class="kosong" width="\d+">PH1<\/th><th class="kosong" width="\d+">PH2<\/th><th class="kosong" width="\d+"><\/th>/);
+    assert.equal(Dok.build('blanko', data, opts('blanko', { jumlah: 99 })).body.match(/<th class="kosong"/g).length, 20, 'dibatasi 20 kolom');
 });
 
 test('daftar hadir: tanda tangan zig-zag; versi orang tua menampilkan nama orang tua', () => {
@@ -67,14 +67,14 @@ test('daftar hadir: tanda tangan zig-zag; versi orang tua menampilkan nama orang
 test('surat per siswa: tanpa siswa → null; dengan siswa → kop, nomor kosong jadi titik-titik, tanda tangan', () => {
     assert.equal(Dok.build('aktif', data, opts('aktif')), null);
     const d = Dok.build('aktif', data, opts('aktif', { siswa: 'a', keperluan: 'persyaratan KJP' }));
-    assert.match(d.body, /SEKOLAH DASAR NEGERI KALIBARU 05 PAGI/);
     assert.match(d.body, /SURAT KETERANGAN AKTIF SEKOLAH/);
-    assert.match(d.body, /Nomor : \.{10,}/);
+    assert.match(d.body, /Nomor : \.{5,}\/PK\.0101/, 'nomor kosong → titik-titik + kode');
     assert.match(d.body, /persyaratan KJP/);
     assert.match(d.body, /Jakarta, 16 November 2026/);
     assert.match(d.body, /<u>Kepala Fiktif, S\.Pd\.SD<\/u>/);
-    const p = Dok.build('panggilan', data, opts('panggilan', { siswa: 'b', nomor: '12/SD/2026' }));
-    assert.match(p.body, /12\/SD\/2026/);
+    const p = Dok.build('panggilan', data, opts('panggilan', { siswa: 'b', nomor: '5' }));
+    assert.match(p.body, />005\/PK\.0101</, 'nomor urut dirapikan jadi 3 angka + kode');
+    assert.equal(Dok.nomorSurat({ nomor: '123', kode: 'PK.0202' }), '123/PK.0202');
     assert.match(p.body, /Bapak\/Ibu <b>Ibu Dua<\/b>/);
     assert.match(p.body, /Wali Kelas/);
 });
@@ -98,7 +98,7 @@ test('halaman: cetak punya tombol, Word punya namespace & pemisah halaman, prati
     assert.match(w, /page-break-before:always/);
     assert.doesNotMatch(w, /class="tbar"/);
     assert.doesNotMatch(Dok.page(doc, 'preview'), /class="tbar"|<script/i);
-    assert.match(Dok.page(Dok.build('blanko', data, opts('blanko', { jumlah: 12 })), 'print'), /size: A4 landscape/);
+    assert.match(Dok.page(Dok.build('blanko', data, opts('blanko', { jumlah: 14 })), 'print'), /size: A4 landscape/);
 });
 
 test('Excel daftar & blanko valid dibuka openpyxl; surat tidak punya Excel', (t) => {
@@ -122,4 +122,35 @@ print(b['E6'].value, '|', b['C8'].value, '|', b.max_column)
         assert.deepEqual(l1, ['DAFTAR NAMA SISWA', 'No', 'NISN', 'NIK', 'SISWA <SATU> & "DUA"', '3172000000000001']);
         assert.deepEqual(l2, ['PH1', 'SISWA DUA', '7']);
     } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('kop surat resmi: Jaya Raya, Suku Dinas, alamat, telepon, email admin, kode pos', () => {
+    const d = Dok.build('undangan', data, opts('undangan'));
+    for (const t of ['PEMERINTAH PROVINSI DAERAH KHUSUS IBUKOTA JAKARTA', 'DINAS PENDIDIKAN',
+        'SUKU DINAS PENDIDIKAN WILAYAH II KOTA ADMINISTRASI JAKARTA UTARA', 'SEKOLAH DASAR NEGERI KALI BARU 05 PAGI',
+        'Jalan Kalibaru Barat IV No. 60, RT 003 RW 012', 'Telepon (021) 44833627; Faksimile (021) 44833627;',
+        'Email: admin@sdnkalibaru05.sch.id', 'JAKARTA', 'Kode Pos  14110', 'logo-kop.png']) assert.ok(d.body.includes(t), t);
+    assert.doesNotMatch(d.body, /gmail\.com/);
+    for (const id of ['aktif', 'panggilan', 'pemberitahuan', 'biodata']) {
+        assert.ok(Dok.build(id, data, opts(id, { siswa: 'a' })).body.includes('logo-kop.png'), `${id} memakai kop surat`);
+    }
+});
+
+test('dokumen daftar: logo sekolah di kiri atas + keterangan, tanpa kop surat', () => {
+    for (const id of ['daftar', 'blanko', 'hadir']) {
+        const b = Dok.build(id, data, opts(id)).body;
+        assert.ok(b.indexOf('logo-cetak.png') > -1 && b.indexOf('logo-cetak.png') < b.indexOf('<table class="grid"'), `${id}: logo di atas tabel`);
+        assert.ok(!b.includes('logo-kop.png') && !b.includes('SUKU DINAS'), `${id}: tanpa kop surat`);
+        assert.match(b, /KELAS : I\.A/);
+        assert.match(b, /Wali Kelas : <b>Sunarsih, S\.Pd\.<\/b>/);
+    }
+});
+
+test('tanggal tanda tangan bisa diisi sendiri, format "Jakarta, DD Bulan YYYY"', () => {
+    for (const id of ['daftar', 'blanko', 'hadir', 'biodata', 'aktif', 'undangan']) {
+        assert.ok(Dok.typeOf(id).fields.some((f) => f.key === 'tanggal' && f.type === 'date'), `${id} punya isian tanggal`);
+        const b = Dok.build(id, data, opts(id, { siswa: 'a', tanggal: '2026-12-05' })).body;
+        assert.match(b, /Jakarta, 5 Desember 2026/, id);
+    }
+    assert.equal(Dok.kotaTgl('2027-01-31'), 'Jakarta, 31 Januari 2027');
 });

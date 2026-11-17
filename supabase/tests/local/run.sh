@@ -48,6 +48,8 @@ run "Migration wajib ganti password"  "$ROOT/supabase/migrations/20261114000001_
 run "Migration statistik & peringatan alpa" "$ROOT/supabase/migrations/20261114000002_attendance_stats.sql"
 run "Migration HP orang tua di peringatan alpa" "$ROOT/supabase/migrations/20261114000003_alpha_alert_phone.sql"
 run "Migration data dokumen guru"      "$ROOT/supabase/migrations/20261116000001_class_document_data.sql"
+run "Migration nomor surat & NIK profil" "$ROOT/supabase/migrations/20261117000001_letter_numbers_profile_nik.sql"
+run "Migration nomor surat (ulang, idempotent)" "$ROOT/supabase/migrations/20261117000001_letter_numbers_profile_nik.sql"
 
 echo "→ Tes Absensi"
 {

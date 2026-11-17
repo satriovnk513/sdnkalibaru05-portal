@@ -18,14 +18,25 @@
     const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const ORIGIN = root.location && /^https?:/.test(root.location.origin || '') ? root.location.origin : 'https://sdnkalibaru05.sch.id';
 
-    // Kop surat. Ubah di sini bila susunan kop resmi sekolah berbeda.
+    // Kop surat resmi sekolah (sumber: KOP SURAT SEKOLAH TERBARU 2026.docx). Ubah di sini bila kop berganti.
     const KOP = {
-        baris: ['PEMERINTAH PROVINSI DAERAH KHUSUS IBUKOTA JAKARTA', 'DINAS PENDIDIKAN'],
-        sekolah: 'SEKOLAH DASAR NEGERI KALIBARU 05 PAGI',
-        alamat: 'Jl. Tanah Merdeka No.60 RT 003/RW 012, Kel. Kalibaru, Kec. Cilincing, Jakarta Utara 14110',
-        kontak: 'Email: sdnkalibarunollima@gmail.com',
+        baris: [
+            ['PEMERINTAH PROVINSI DAERAH KHUSUS IBUKOTA JAKARTA', 13],
+            ['DINAS PENDIDIKAN', 12],
+            ['SUKU DINAS PENDIDIKAN WILAYAH II KOTA ADMINISTRASI JAKARTA UTARA', 10.5],   // 12 pt di file asli; dikecilkan agar muat satu baris di samping logo
+        ],
+        sekolah: 'SEKOLAH DASAR NEGERI KALI BARU 05 PAGI',
+        kecil: [
+            'Jalan Kalibaru Barat IV No. 60, RT 003 RW 012, Kel. Kalibaru, Kec. Cilincing, Jakarta Utara',
+            'Telepon (021) 44833627; Faksimile (021) 44833627;',
+            'Website: https://sdnkalibaru05.sch.id; Email: admin@sdnkalibaru05.sch.id',
+        ],
+        kotaKop: 'JAKARTA',
+        kodePos: 'Kode Pos  14110',
         kota: 'Jakarta',
         nama: 'SDN Kalibaru 05 Pagi',
+        namaDaftar: 'SDN KALIBARU 05 PAGI',
+        kodeSurat: 'PK.0101',
     };
 
     const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -56,9 +67,11 @@
     ];
 
     // ------------------------------------------------------------------ daftar jenis dokumen
+    const F_TTD = { key: 'tanggal', label: 'Tanggal tanda tangan', type: 'date', default: 'today' };
     const F_SURAT = [
-        { key: 'nomor', label: 'Nomor surat (boleh dikosongkan)', type: 'text', placeholder: 'Diisi TU, mis. 123/-1.851.5' },
-        { key: 'tanggal', label: 'Tanggal surat', type: 'date', default: 'today' },
+        { key: 'nomor', label: 'Nomor surat', type: 'nomor' },
+        { key: 'kode', label: 'Kode surat', type: 'hidden', default: KOP.kodeSurat },
+        { key: 'tanggal', label: 'Tanggal surat / tanda tangan', type: 'date', default: 'today' },
     ];
     const F_ACARA = [
         { key: 'hari', label: 'Hari, tanggal acara', type: 'date', default: 'today' },
@@ -71,6 +84,7 @@
             formats: ['print', 'word', 'xlsx'], fields: [
                 { key: 'judul', label: 'Judul', type: 'text', default: 'DAFTAR NAMA SISWA' },
                 { key: 'kolom', label: 'Kolom yang ditampilkan', type: 'checks', options: KOLOM.map((k) => [k.key, k.label]), default: ['nis', 'nisn', 'jk'] },
+                F_TTD,
             ] },
         { id: 'blanko', grup: 'Daftar', nama: 'Blanko nilai / daftar kosong', ket: 'Nama siswa + kolom kosong untuk nilai, tugas, setoran, atau catatan lain.',
             formats: ['print', 'word', 'xlsx'], fields: [
@@ -78,6 +92,7 @@
                 { key: 'sub', label: 'Keterangan di bawah judul (mapel, semester, dll.)', type: 'text', placeholder: 'Mis. Matematika · Semester Ganjil' },
                 { key: 'jumlah', label: 'Jumlah kolom kosong', type: 'number', default: 10, min: 1, max: 20 },
                 { key: 'label', label: 'Judul tiap kolom (pisahkan dengan koma, boleh kosong)', type: 'text', placeholder: 'Mis. PH1, PH2, PTS, PAS' },
+                F_TTD,
             ] },
         { id: 'hadir', grup: 'Daftar', nama: 'Daftar hadir kegiatan / tanda terima', ket: 'Daftar bertanda tangan untuk ujian, rapat orang tua, ambil rapor, atau terima buku/seragam.',
             formats: ['print', 'word'], fields: [
@@ -85,9 +100,10 @@
                 { key: 'kegiatan', label: 'Kegiatan / barang yang diterima', type: 'text', placeholder: 'Mis. Pengambilan Rapor Semester Ganjil' },
                 { key: 'hari', label: 'Hari, tanggal', type: 'date', default: 'today' },
                 { key: 'penanda', label: 'Yang menandatangani', type: 'select', options: [['siswa', 'Siswa'], ['ortu', 'Orang tua / wali']], default: 'siswa' },
+                F_TTD,
             ] },
         { id: 'biodata', grup: 'Per siswa', nama: 'Biodata siswa', ket: 'Satu lembar per siswa: identitas, NIK, No. KK, orang tua, alamat, No. HP.',
-            formats: ['print', 'word'], fields: [{ key: 'siswa', label: 'Siswa', type: 'siswa', all: true }] },
+            formats: ['print', 'word'], fields: [{ key: 'siswa', label: 'Siswa', type: 'siswa', all: true }, F_TTD] },
         { id: 'aktif', grup: 'Surat', nama: 'Surat keterangan aktif sekolah', ket: 'Menerangkan siswa benar terdaftar dan aktif. Ditandatangani kepala sekolah.',
             formats: ['print', 'word'], fields: [
                 { key: 'siswa', label: 'Siswa', type: 'siswa' }, ...F_SURAT,
@@ -123,20 +139,47 @@
     }
 
     // ------------------------------------------------------------------ potongan HTML bersama
-    const kopHtml = () => `<table class="kop" width="100%" cellpadding="0" cellspacing="0"><tr>
-        <td width="86" align="center" valign="middle"><img src="${ORIGIN}/logo-cetak.png" width="76" height="76" alt=""></td>
-        <td align="center" valign="middle">
-            ${KOP.baris.map((b) => `<div class="k1">${esc(b)}</div>`).join('')}
-            <div class="k2">${esc(KOP.sekolah)}</div>
-            <div class="k3">${esc(KOP.alamat)}</div>
-            <div class="k3">${esc(KOP.kontak)}</div>
-        </td><td width="86">&nbsp;</td></tr></table><div class="garis"></div>`;
+    /** Nomor surat: "005/PK.0101"; bila nomor urut kosong → titik-titik untuk diisi tangan. */
+    const nomorSurat = (o) => {
+        const n = String(o.nomor ?? '').trim();
+        const kode = String(o.kode ?? KOP.kodeSurat).trim() || KOP.kodeSurat;
+        return `${/^\d{1,3}$/.test(n) ? n.padStart(3, '0') : (n ? esc(n) : '.......')}/${esc(kode)}`;
+    };
+    /** "Jakarta, 17 November 2026" */
+    const kotaTgl = (iso) => `${KOP.kota}, ${isIso(iso) ? tgl(iso) : titik(24)}`;
 
-    const judulHtml = (judul, d, sub) => `<div class="judul">${esc(judul)}</div>
-        <div class="subjudul">${esc(KOP.sekolah)} · TAHUN PELAJARAN ${esc(String(d.tahun_ajaran || '').replace('/', ' / '))}</div>
-        ${sub ? `<div class="subjudul">${esc(sub)}</div>` : ''}
-        <table class="meta" width="100%"><tr><td>Kelas : <b>${esc(romawi(d.kelas))}</b></td>
-            <td align="right">Wali Kelas : <b>${esc((d.wali || [])[0]?.nama || titik(30))}</b></td></tr></table>`;
+    const kopHtml = () => `<table class="kop" width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td width="66" align="left" valign="middle"><img src="${ORIGIN}/logo-kop.png" width="62" height="72" alt="Logo Jaya Raya"></td>
+        <td align="center" valign="middle">
+            ${KOP.baris.map(([b, sz]) => `<div style="font-size:${sz}pt;white-space:nowrap">${esc(b)}</div>`).join('')}
+            <div class="k2">${esc(KOP.sekolah)}</div>
+            ${KOP.kecil.map((b) => `<div class="k3">${esc(b)}</div>`).join('')}
+        </td></tr></table>
+        <table class="kop kop2" width="100%" cellpadding="0" cellspacing="0"><tr>
+            <td width="25%">&nbsp;</td><td width="50%" align="center" class="k3">${esc(KOP.kotaKop)}</td><td width="25%" align="right" class="k3">${esc(KOP.kodePos)}</td></tr></table>
+        <div class="garis"></div>`;
+
+    /** Kepala dokumen daftar: logo sekolah di kiri atas, judul & keterangan di sebelahnya, kelas di kanan. */
+    const judulHtml = (judul, d, sub) => `<table class="kepala" width="100%" cellpadding="0" cellspacing="0"><tr>
+            <td width="62" valign="middle"><img src="${ORIGIN}/logo-cetak.png" width="54" height="54" alt="Logo sekolah"></td>
+            <td valign="middle"><div class="judul kiri">${esc(judul)}</div>
+                <div class="subjudul kiri">TAHUN PELAJARAN ${esc(String(d.tahun_ajaran || '').replace('/', ' / '))}</div>
+                <div class="subjudul kiri"><b>${esc(KOP.namaDaftar)}</b>${sub ? ` · ${esc(sub)}` : ''}</div></td>
+            <td width="130" align="right" valign="middle" class="kelas">KELAS : ${esc(romawi(d.kelas))}</td></tr></table>
+        <table class="meta" width="100%"><tr><td>Wali Kelas : <b>${esc((d.wali || [])[0]?.nama || titik(30))}</b></td>
+            <td align="right">Jumlah siswa : <b>${(d.siswa || []).length}</b></td></tr></table>`;
+
+    /**
+     * Ukuran huruf tabel daftar supaya kepala + tabel + tanda tangan muat satu halaman
+     * (sampai ±45 siswa di kertas tegak). Di bawah 8 pt dibiarkan pindah halaman.
+     */
+    function fitGrid(n, landscape) {
+        const budget = landscape ? 320 : 545;               // pt yang tersedia untuk baris tabel
+        const pitch = Math.min(19, budget / (n + 1.6));
+        const fs = Math.max(8, Math.min(landscape ? 9.5 : 11, (pitch - 3.2) / 1.15));
+        return { fs: Math.round(fs * 10) / 10, rowH: Math.max(13, Math.min(20, Math.floor(pitch) - 1)) };
+    }
+    const gridOpen = (n, landscape) => { const f = fitGrid(n, landscape); return `<table class="grid" width="100%" style="font-size:${f.fs}pt">`; };
 
     const nip = (p) => (p?.nip ? `NIP. ${esc(p.nip)}` : 'NIP. -');
     const orang = (p) => `<b><u>${esc(p?.nama || titik(34))}</u></b><br>${nip(p)}`;
@@ -148,14 +191,14 @@
 
     const ttdDaftar = (d, iso) => ttdHtml(
         { atas: ['Mengetahui,', 'Kepala Sekolah'], orang: d.kepala_sekolah },
-        { atas: [`${KOP.kota}, ${tgl(iso)}`, 'Wali Kelas'], orang: (d.wali || [])[0] });
+        { atas: [kotaTgl(iso), 'Wali Kelas'], orang: (d.wali || [])[0] });
 
     const kepalaSurat = (o, { perihal, lampiran = '-', kepada }) => `<table class="noborder" width="100%"><tr>
         <td valign="top"><table class="noborder">
-            <tr><td width="70">Nomor</td><td width="10">:</td><td>${isi(o.nomor, 28)}</td></tr>
+            <tr><td width="70">Nomor</td><td width="10">:</td><td>${nomorSurat(o)}</td></tr>
             <tr><td>Lampiran</td><td>:</td><td>${esc(lampiran)}</td></tr>
             <tr><td>Perihal</td><td>:</td><td><b>${esc(perihal)}</b></td></tr></table></td>
-        <td valign="top" align="right">${esc(KOP.kota)}, ${esc(tgl(o.tanggal))}</td></tr></table>
+        <td valign="top" align="right">${esc(kotaTgl(o.tanggal))}</td></tr></table>
         <p class="yth">Kepada Yth.<br>${kepada.join('<br>')}<br>di Tempat</p>`;
 
     const acaraHtml = (o) => `<table class="noborder acara">
@@ -175,20 +218,23 @@
     const BUILD = {
         daftar(d, o) {
             const cols = KOLOM.filter((k) => (o.kolom || []).includes(k.key));
-            return { landscape: cols.reduce((n, k) => n + k.w, 0) > 60, title: `${o.judul || 'Daftar Nama Siswa'} ${romawi(d.kelas)}`, body: `${judulHtml(o.judul || 'DAFTAR NAMA SISWA', d)}
-                <table class="grid" width="100%"><thead><tr><th width="30">No</th><th>Nama Siswa</th>${cols.map((k) => `<th>${esc(k.label)}</th>`).join('')}</tr></thead><tbody>
+            const landscape = cols.reduce((n, k) => n + k.w, 0) > 60;
+            return { landscape, title: `${o.judul || 'Daftar Nama Siswa'} ${romawi(d.kelas)}`, body: `${judulHtml(o.judul || 'DAFTAR NAMA SISWA', d)}
+                ${gridOpen((d.siswa || []).length, landscape)}<thead><tr><th width="30">No</th><th>Nama Siswa</th>${cols.map((k) => `<th>${esc(k.label)}</th>`).join('')}</tr></thead><tbody>
                 ${(d.siswa || []).map((s) => `<tr><td align="center">${esc(s.no)}</td><td>${esc(s.nama)}</td>${cols.map((k) => `<td${k.key === 'jk' ? ' align="center"' : ''}>${esc(k.get(s) || '')}</td>`).join('')}</tr>`).join('')}
                 </tbody></table><p class="kecil">Jumlah siswa: ${(d.siswa || []).length} (Laki-laki ${(d.siswa || []).filter((s) => s.jk === 'L').length}, Perempuan ${(d.siswa || []).filter((s) => s.jk === 'P').length})</p>
-                ${ttdDaftar(d, d.tanggal)}` };
+                ${ttdDaftar(d, o.tanggal || d.tanggal)}` };
         },
         blanko(d, o) {
             const n = Math.max(1, Math.min(20, Number(o.jumlah) || 10));
             const labels = String(o.label || '').split(',').map((x) => x.trim());
-            return { landscape: n > 8, title: `${o.judul || 'Daftar Nilai'} ${romawi(d.kelas)}`, body: `${judulHtml(o.judul || 'DAFTAR NILAI', d, o.sub)}
-                <table class="grid" width="100%"><thead><tr><th width="30">No</th><th width="60">NIS</th><th>Nama Siswa</th><th width="26">L/P</th>
-                ${Array.from({ length: n }, (_, i) => `<th class="kosong">${esc(labels[i] || '')}</th>`).join('')}</tr></thead><tbody>
-                ${(d.siswa || []).map((s) => `<tr><td align="center">${esc(s.no)}</td><td align="center">${esc(s.nis || '')}</td><td>${esc(s.nama)}</td><td align="center">${esc(s.jk || '')}</td>${'<td class="kosong">&nbsp;</td>'.repeat(n)}</tr>`).join('')}
-                </tbody></table>${ttdDaftar(d, d.tanggal)}` };
+            // Lebar kolom kosong: sisa lebar kertas setelah kolom nama (±190 pt), dibagi rata.
+            const kw = Math.max(18, Math.min(60, Math.floor(((n > 10 ? 770 : 510) - 30 - 46 - 26 - 190) / n)));
+            return { landscape: n > 10, title: `${o.judul || 'Daftar Nilai'} ${romawi(d.kelas)}`, body: `${judulHtml(o.judul || 'DAFTAR NILAI', d, o.sub)}
+                ${gridOpen((d.siswa || []).length, n > 10).replace('style="', 'style="table-layout:fixed;')}<thead><tr><th width="30">No</th><th width="46">NIS</th><th>Nama Siswa</th><th width="26">L/P</th>
+                ${Array.from({ length: n }, (_, i) => `<th class="kosong" width="${kw}">${esc(labels[i] || '')}</th>`).join('')}</tr></thead><tbody>
+                ${(d.siswa || []).map((s) => `<tr><td align="center">${esc(s.no)}</td><td align="center">${esc(s.nis || '')}</td><td class="nm">${esc(s.nama)}</td><td align="center">${esc(s.jk || '')}</td>${'<td class="kosong">&nbsp;</td>'.repeat(n)}</tr>`).join('')}
+                </tbody></table>${ttdDaftar(d, o.tanggal || d.tanggal)}` };
         },
         hadir(d, o) {
             const pakaiOrtu = o.penanda === 'ortu';
@@ -196,10 +242,10 @@
                 <table class="noborder" style="margin-bottom:6pt">
                     <tr><td width="110">Kegiatan</td><td width="10">:</td><td>${isi(o.kegiatan, 50)}</td></tr>
                     <tr><td>Hari, tanggal</td><td>:</td><td>${isi(o.hari && hariTgl(o.hari), 50)}</td></tr></table>
-                <table class="grid" width="100%"><thead><tr><th width="30">No</th><th>Nama Siswa</th>${pakaiOrtu ? '<th>Nama Orang Tua / Wali</th>' : '<th width="26">L/P</th>'}<th colspan="2" width="34%">Tanda Tangan</th></tr></thead><tbody>
-                ${(d.siswa || []).map((s, i) => `<tr class="tinggi"><td align="center">${esc(s.no)}</td><td>${esc(s.nama)}</td>${pakaiOrtu ? `<td>${esc(ortu(s))}</td>` : `<td align="center">${esc(s.jk || '')}</td>`}
+                ${gridOpen((d.siswa || []).length + 2, false)}<thead><tr><th width="30">No</th><th>Nama Siswa</th>${pakaiOrtu ? '<th>Nama Orang Tua / Wali</th>' : '<th width="26">L/P</th>'}<th colspan="2" width="34%">Tanda Tangan</th></tr></thead><tbody>
+                ${(d.siswa || []).map((s, i) => `<tr class="tinggi" style="height:${fitGrid((d.siswa || []).length + 2, false).rowH}pt"><td align="center">${esc(s.no)}</td><td>${esc(s.nama)}</td>${pakaiOrtu ? `<td>${esc(ortu(s))}</td>` : `<td align="center">${esc(s.jk || '')}</td>`}
                     <td width="17%">${i % 2 === 0 ? `${i + 1}.` : '&nbsp;'}</td><td width="17%">${i % 2 === 1 ? `${i + 1}.` : '&nbsp;'}</td></tr>`).join('')}
-                </tbody></table>${ttdDaftar(d, o.hari || d.tanggal)}` };
+                </tbody></table>${ttdDaftar(d, o.tanggal || o.hari || d.tanggal)}` };
         },
         biodata(d, o) {
             const row = (l, v) => `<tr><td width="34%">${esc(l)}</td><td width="3%">:</td><td>${v ? esc(v) : '-'}</td></tr>`;
@@ -214,7 +260,7 @@
                     <tr><td colspan="3" class="bag">C. ALAMAT</td></tr>
                     ${row('Alamat tempat tinggal', s.alamat)}
                 </table>
-                ${ttdHtml(null, { atas: [`${KOP.kota}, ${tgl(d.tanggal)}`, 'Wali Kelas'], orang: (d.wali || [])[0] })}`;
+                ${ttdHtml(null, { atas: [kotaTgl(o.tanggal || d.tanggal), 'Wali Kelas'], orang: (d.wali || [])[0] })}`;
             const list = pilihSiswa(d, o);
             return { landscape: false, title: `Biodata ${list.length === 1 ? list[0].nama : `Kelas ${romawi(d.kelas)}`}`, body: halaman(list.map(satu)) };
         },
@@ -225,7 +271,7 @@
             const ks = d.kepala_sekolah;
             return { landscape: false, title: `Surat Keterangan Aktif ${s.nama}`, body: `${kopHtml()}
                 <div class="judul" style="margin-top:14pt"><u>SURAT KETERANGAN AKTIF SEKOLAH</u></div>
-                <div class="subjudul" style="margin-bottom:14pt">Nomor : ${isi(o.nomor, 36)}</div>
+                <div class="subjudul" style="margin-bottom:14pt">Nomor : ${nomorSurat(o)}</div>
                 <p>Yang bertanda tangan di bawah ini:</p>
                 <table class="noborder indent">${row('Nama', ks?.nama)}${row('NIP', ks?.nip)}${row('Jabatan', `Kepala ${KOP.nama}`)}</table>
                 <p>menerangkan dengan sebenarnya bahwa:</p>
@@ -234,7 +280,7 @@
                 <p class="j">adalah benar siswa ${esc(KOP.nama)} yang terdaftar dan masih aktif mengikuti kegiatan belajar mengajar pada Tahun Pelajaran ${esc(d.tahun_ajaran)}.</p>
                 <p class="j">Surat keterangan ini dibuat untuk dipergunakan sebagai ${isi(o.keperluan, 44)}.</p>
                 <p class="j">Demikian surat keterangan ini dibuat agar dapat dipergunakan sebagaimana mestinya.</p>
-                ${ttdHtml(null, { atas: [`${KOP.kota}, ${tgl(o.tanggal)}`, 'Kepala Sekolah'], orang: ks })}` };
+                ${ttdHtml(null, { atas: [kotaTgl(o.tanggal), 'Kepala Sekolah'], orang: ks })}` };
         },
         panggilan(d, o) {
             const s = pilihSiswa(d, o)[0];
@@ -277,28 +323,31 @@
     }
 
     const CSS = (landscape) => `
-        @page { size: A4 ${landscape ? 'landscape' : 'portrait'}; margin: ${landscape ? '12mm' : '18mm 18mm 16mm'}; }
-        body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; color: #000; line-height: 1.35; }
+        @page { size: A4 ${landscape ? 'landscape' : 'portrait'}; margin: ${landscape ? '12mm' : '16mm 15mm 14mm'}; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; line-height: 1.35; }
         table { border-collapse: collapse; }
-        td, th { font-family: 'Times New Roman', Times, serif; font-size: 12pt; vertical-align: top; }
-        .kop .k1 { font-size: 13pt; font-weight: bold; }
-        .kop .k2 { font-size: 16pt; font-weight: bold; }
-        .kop .k3 { font-size: 10pt; }
-        .garis { border-top: 3px solid #000; border-bottom: 1px solid #000; height: 2px; margin: 4pt 0 10pt; }
-        .judul { text-align: center; font-size: 14pt; font-weight: bold; }
-        .subjudul { text-align: center; font-size: 11pt; }
-        .meta { margin: 8pt 0 4pt; }
-        .grid th, .grid td { border: 1px solid #000; padding: 2pt 4pt; font-size: ${landscape ? '9.5pt' : '11pt'}; }
+        td, th { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; vertical-align: top; }
+        .kop td { line-height: 1.15; }
+        .kop .k2 { font-size: 13pt; font-weight: bold; }
+        .kop .k3 { font-size: 9pt; }
+        .garis { border-top: 1.5pt solid #000; border-bottom: 0.75pt solid #000; height: 1.5pt; margin: 1pt 0 12pt; }
+        .judul { text-align: center; font-size: 13pt; font-weight: bold; }
+        .subjudul { text-align: center; font-size: 10.5pt; }
+        .kiri { text-align: left; }
+        .kepala .kelas { font-size: 12pt; font-weight: bold; white-space: nowrap; }
+        .meta { margin: 6pt 0 4pt; }
+        .meta td { font-size: 10.5pt; }
+        .grid th, .grid td { border: 1px solid #000; padding: 1pt 4pt; font-size: inherit; line-height: 1.15; }
         .grid th { text-align: center; background: #eee; vertical-align: middle; }
-        .grid tr.tinggi td { height: 20pt; vertical-align: middle; }
-        .grid .kosong { min-width: 22pt; }
+        .grid tr.tinggi td { vertical-align: middle; }
+        .grid td.nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .noborder td { border: none; padding: 1pt 2pt; }
         .indent { margin: 2pt 0 8pt 28pt; }
         .acara { margin: 2pt 0 8pt 28pt; }
         .bio td { padding: 3pt 2pt; }
         .bio .bag { font-weight: bold; padding-top: 10pt; border-bottom: 1px solid #000; }
-        .ttd { margin-top: 18pt; page-break-inside: avoid; }
-        .ttd td { font-size: 12pt; padding-left: 12%; }
+        .ttd { margin-top: 14pt; page-break-inside: avoid; }
+        .ttd td { font-size: 11pt; padding-left: 12%; }
         .yth { margin: 12pt 0; }
         p { margin: 0 0 8pt; }
         p.j { text-align: justify; text-indent: 28pt; }
@@ -306,7 +355,7 @@
         .pb { page-break-after: always; break-after: page; height: 0; }
         .tbar { position: fixed; top: 0; left: 0; right: 0; background: #0f172a; color: #fff; padding: 8px 12px; font: 14px Arial, sans-serif; display: flex; gap: 12px; align-items: center; z-index: 9; }
         .tbar button { font: 600 14px Arial, sans-serif; padding: 8px 16px; border: none; border-radius: 8px; background: #e11d48; color: #fff; cursor: pointer; }
-        @media screen { body.lihat { padding: 60px 16px 24px; background: #e2e8f0; } body.lihat .kertas { background: #fff; max-width: ${landscape ? '277mm' : '174mm'}; margin: 0 auto; padding: 14mm; box-shadow: 0 2px 12px rgba(0,0,0,.2); } }
+        @media screen { body.lihat { padding: 60px 16px 24px; background: #e2e8f0; } body.lihat .kertas { background: #fff; max-width: ${landscape ? '273mm' : '180mm'}; margin: 0 auto; padding: 14mm; box-shadow: 0 2px 12px rgba(0,0,0,.2); } }
         @media print { .tbar { display: none; } }`;
 
     /** Dokumen HTML lengkap untuk dicetak (mode: 'print'), pratinjau ('preview'), atau diunduh sebagai Word ('word'). */
@@ -315,7 +364,7 @@
         if (mode === 'word') {
             return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head>${head}
 <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->
-<style>@page Section1 { size: ${doc.landscape ? '841.9pt 595.3pt; mso-page-orientation: landscape' : '595.3pt 841.9pt'}; margin: ${doc.landscape ? '34pt' : '51pt 51pt 45pt'}; } div.Section1 { page: Section1; } .pb { page-break-after: always; mso-special-character: line-break; }</style>
+<style>@page Section1 { size: ${doc.landscape ? '841.9pt 595.3pt; mso-page-orientation: landscape' : '595.3pt 841.9pt'}; margin: ${doc.landscape ? '34pt' : '45pt 42pt 40pt'}; } div.Section1 { page: Section1; } .pb { page-break-after: always; mso-special-character: line-break; }</style>
 </head><body><div class="Section1">${doc.body.replace(/<div class="pb"><\/div>/g, '<br clear="all" style="page-break-before:always">')}</div></body></html>`;
         }
         const bar = mode === 'print' ? `<div class="tbar"><button onclick="window.print()">Cetak / Simpan PDF</button><span>${esc(doc.title)}</span></div>` : '';
@@ -327,7 +376,7 @@
         const siswa = d.siswa || [];
         const kop = (judul, lebar) => [
             [null, null, null, { v: judul, s: 1 }],
-            [null, null, null, { v: `${KOP.sekolah} · TAHUN PELAJARAN ${String(d.tahun_ajaran || '').replace('/', ' / ')}`, s: 1 }],
+            [null, null, null, { v: `${KOP.namaDaftar} · TAHUN PELAJARAN ${String(d.tahun_ajaran || '').replace('/', ' / ')}`, s: 1 }],
             [null, null, null, { v: `KELAS : ${romawi(d.kelas)}`, s: 1 }],
             [null, null, null, { v: `Wali Kelas : ${(d.wali || [])[0]?.nama || ''}` }],
             Array(lebar).fill(null),
@@ -348,12 +397,12 @@
             const rows = kop(o.sub ? `${o.judul || 'DAFTAR NILAI'} — ${o.sub}` : (o.judul || 'DAFTAR NILAI'), lebar);
             rows.push([{ v: 'No', s: 2 }, { v: 'NIS', s: 2 }, { v: 'Nama Siswa', s: 2 }, { v: 'L/P', s: 2 }, ...Array.from({ length: n }, (_, i) => ({ v: labels[i] || '', s: 2 }))]);
             for (const s of siswa) rows.push([{ v: s.no, s: 4 }, { v: String(s.nis || ''), s: 4 }, { v: s.nama, s: 3 }, { v: s.jk || '', s: 4 }, ...Array(n).fill({ v: '', s: 4 })]);
-            return { sheet: 'Blanko', rows, merges: [1, 2, 3, 4].map((r) => `D${r}:${L(lebar)}${r}`), widths: [5, 9, 34, 5, ...Array(n).fill(8)], landscape: n > 8 };
+            return { sheet: 'Blanko', rows, merges: [1, 2, 3, 4].map((r) => `D${r}:${L(lebar)}${r}`), widths: [5, 9, 34, 5, ...Array(n).fill(8)], landscape: n > 10 };
         }
         return null;
     }
 
     const fileName = (doc) => String(doc.title || 'Dokumen').replace(/[^\w.\- ]+/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
 
-    return { TYPES, KOLOM, KOP, typeOf, defaults, build, page, xlsx, fileName, tgl, hariTgl, romawi };
+    return { TYPES, KOLOM, KOP, typeOf, defaults, build, page, xlsx, fileName, tgl, hariTgl, romawi, nomorSurat, kotaTgl };
 }));

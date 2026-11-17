@@ -90,7 +90,7 @@
         case 'get_student_profile':
             return Promise.resolve(ok({
                 id: args.p_student_id,
-                identitas: { nama: 'Siswa Fiktif Dua', kelas: '1 A', nis: '9002', nisn: '0090000002', jenis_kelamin: 'P', tempat_lahir: 'Jakarta', tanggal_lahir: '2019-05-01', agama: 'Islam', anak_ke: '2' },
+                identitas: { nama: 'Siswa Fiktif Dua', kelas: '1 A', nis: '9002', nisn: '0090000002', nik: '3172000000000002', jenis_kelamin: 'P', tempat_lahir: 'Jakarta', tanggal_lahir: '2019-05-01', agama: 'Islam', anak_ke: '2' },
                 orang_tua: { ayah_nama: 'Ayah Fiktif', ayah_pekerjaan: 'Wiraswasta', ibu_nama: 'Ibu Fiktif', ibu_pekerjaan: 'Mengurus Rumah Tangga' },
                 kontak: ['081200000001', '081200000002'],
                 alamat: { jalan: 'Jl. Fiktif No. 1', rt: '003', rw: '012', kelurahan: 'Kalibaru', kecamatan: 'Cilincing' },
@@ -190,6 +190,11 @@
         }
         case 'get_alpha_alerts':
             return Promise.resolve(ok({ batas: args.p_min, dari: '2026-07-13', siswa: F.alpha || [] }));
+        case 'take_letter_number': {
+            F.letterNo = (F.letterNo || 0) + 1;
+            F.calls.push({ rpc: 'take_letter_number', args });
+            return Promise.resolve(ok({ tahun: 2026, nomor: F.letterNo, teks: `${String(F.letterNo).padStart(3, '0')}/${args.p_kode}` }));
+        }
         case 'get_class_document_data':
             return Promise.resolve(ok({
                 kelas: args.p_class_id === C1A ? '1 A' : '3 A', tahun_ajaran: '2026/2027', tanggal: today,

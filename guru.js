@@ -549,6 +549,14 @@
             return `<fieldset class="g-dok-checks"><legend>${esc(f.label)}</legend>${f.options.map(([k, l]) =>
                 `<label><input type="checkbox" data-dk="${f.key}" value="${esc(k)}" ${(v || []).includes(k) ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</fieldset>`;
         }
+        if (f.type === 'hidden') return '';
+        if (f.type === 'nomor') {
+            return `<div class="att-field"><label for="${id}">${esc(f.label)}</label>
+                <div class="g-dok-nomor"><input class="att-input" id="${id}" data-dk="${f.key}" inputmode="numeric" maxlength="3" placeholder="005" value="${esc(v)}" aria-label="Nomor urut surat">
+                    <span>/${esc(Dok.KOP.kodeSurat)}</span>
+                    <button type="button" class="att-btn att-btn-ghost att-btn-sm" id="gDokAmbil">Ambil nomor berikutnya</button></div>
+                <small class="att-muted">Kosongkan bila nomor diisi tangan oleh TU. "Ambil nomor berikutnya" mencatat nomor itu atas nama Anda supaya tidak dobel.</small></div>`;
+        }
         if (f.type === 'check') return `<label class="g-dok-check"><input type="checkbox" id="${id}" data-dk="${f.key}" ${v ? 'checked' : ''}> ${esc(f.label)}</label>`;
         if (f.type === 'select') return `<div class="att-field">${lab}<select class="att-select" id="${id}" data-dk="${f.key}">${f.options.map(([k, l]) => `<option value="${esc(k)}" ${k === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`;
         if (f.type === 'siswa') {
@@ -597,6 +605,8 @@
             for (const f of type.fields) {
                 if (f.type === 'checks') vals[f.key] = [...$('gDokForm').querySelectorAll(`[data-dk="${f.key}"]:checked`)].map((c) => c.value);
                 else if (f.type === 'check') vals[f.key] = $(`gDk_${f.key}`).checked;
+                else if (f.type === 'hidden') continue;
+                else if (f.type === 'nomor') { const el = $(`gDk_${f.key}`); el.value = el.value.replace(/[^0-9]/g, '').slice(0, 3); vals[f.key] = el.value; }
                 else vals[f.key] = $(`gDk_${f.key}`).value;
             }
             return Dok.build(id, data, vals);
@@ -623,6 +633,24 @@
         let timer = null;
         $('gDokForm').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(preview, 250); });
         $('gDokKelas').addEventListener('change', (e) => { dok.classId = e.target.value; renderDokumenForm(id, new URLSearchParams()); });
+        $('gDokAmbil')?.addEventListener('click', async () => {
+            read();
+            const s = data.siswa.find((x) => x.student_id === vals.siswa);
+            const ok = await window.Att.confirm({
+                title: 'Ambil nomor surat berikutnya?',
+                html: `<p class="att-muted">Nomor urut berikutnya akan dicatat di buku nomor surat atas nama Anda untuk <b>${esc(type.nama)}</b>. Nomor yang sudah diambil tidak bisa dipakai surat lain.</p>`,
+                confirmText: 'Ambil nomor',
+            });
+            if (!ok) return;
+            try {
+                const r = await rpc('take_letter_number', {
+                    p_jenis: type.nama, p_perihal: s ? `${s.nama} (Kelas ${data.kelas})` : `Kelas ${data.kelas}`, p_kode: vals.kode || Dok.KOP.kodeSurat,
+                });
+                $('gDk_nomor').value = String(r.nomor).padStart(3, '0');
+                toast(`Nomor surat ${r.teks} dicatat.`);
+                preview();
+            } catch (err) { toast(errMessage(err), 'err'); }
+        });
         $('gDokForm').querySelectorAll('[data-out]').forEach((b) => b.addEventListener('click', async () => {
             const doc = read();
             const err = $('gDokErr');
@@ -931,7 +959,7 @@
             setTop(idt.nama || 'Profil siswa', idt.kelas ? `Kelas ${idt.kelas}` : '', true);
             main(`<div class="att-card g-prof">
                 <h3 style="margin-top:0">Identitas</h3>
-                <dl>${row('Nama', idt.nama)}${row('Kelas', idt.kelas)}${row('NIS', idt.nis)}${row('NISN', idt.nisn)}
+                <dl>${row('Nama', idt.nama)}${row('Kelas', idt.kelas)}${row('NIS', idt.nis)}${row('NISN', idt.nisn)}${row('NIK', idt.nik)}
                     ${row('Jenis kelamin', idt.jenis_kelamin === 'L' ? 'Laki-laki' : idt.jenis_kelamin === 'P' ? 'Perempuan' : '')}
                     ${row('Tempat, tgl lahir', [idt.tempat_lahir, idt.tanggal_lahir].filter(Boolean).join(', '))}
                     ${row('Agama', idt.agama)}${row('Anak ke-', idt.anak_ke)}</dl>
