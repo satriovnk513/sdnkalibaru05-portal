@@ -93,7 +93,7 @@
                 }
                 if (f.type === 'checks') {
                     const val = new Set(f.value || []);
-                    return `<fieldset class="att-field" style="border:none;padding:0;margin:0"><legend style="font-size:.82rem;font-weight:600;color:#334155;margin-bottom:6px">${esc(f.label)}${req}</legend>
+                    return `<fieldset class="att-field" style="border:none;padding:0;margin:0"><legend style="font-size:.82rem;font-weight:600;color:var(--t-text);margin-bottom:6px">${esc(f.label)}${req}</legend>
                         <div class="ak-checks" id="fs_${f.id}">${(f.options || []).map((o) =>
                             `<label class="ak-check"><input type="checkbox" value="${esc(o.value)}" ${val.has(o.value) ? 'checked' : ''}> ${esc(o.label)}</label>`).join('')}</div></fieldset>`;
                 }

@@ -63,6 +63,8 @@ async function runUi() {
     async function newPage(path, viewport) {
         const ctx = await browser.newContext({ viewport, hasTouch: viewport.width < 700, isMobile: viewport.width < 700, acceptDownloads: true });
         await ctx.addInitScript(() => { window.print = () => { window.__printed = (window.__printed || 0) + 1; }; });
+        // UI_THEME=dark menjalankan seluruh alur dalam mode gelap (untuk memeriksa tampilan).
+        if (process.env.UI_THEME) await ctx.addInitScript((t) => { try { if (!localStorage.getItem('tema')) localStorage.setItem('tema', t); } catch { /* abaikan */ } }, process.env.UI_THEME);
         ctx.setDefaultTimeout(8000);
         await ctx.route('https://cdn.jsdelivr.net/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE }));
         await ctx.route(/^https:\/\/(fonts\.|wwpbghdepykfqgzhyvmh|.*vercel)/, (r) => r.fulfill({ status: 204, body: '' }));
@@ -138,6 +140,29 @@ async function runUi() {
         await pop.waitForLoadState();
         await pop.waitForFunction(() => document.querySelector('.page, .kertas'));
         return pop;
+    }
+
+    // ============================================================ MODE GELAP / TERANG
+    for (const [path, sel] of [['/guru', '#gLogin:not(.g-hidden)'], ['/admin', '.login-box']]) {
+        const { ctx, page } = await newPage(path, { width: 390, height: 780 });
+        await page.waitForSelector(sel);
+        await page.evaluate(() => localStorage.removeItem('tema'));
+        await page.reload();
+        await page.waitForSelector(sel);
+        const btn = page.locator('[data-theme-toggle]:visible').first();
+        check(await btn.count() === 1 && (await btn.innerHTML()).includes('svg'), `${path}: tombol mode gelap tampil di halaman masuk`);
+        const before = await page.evaluate(() => document.documentElement.dataset.theme);
+        await btn.click();
+        const after = await page.evaluate(() => ({ t: document.documentElement.dataset.theme, s: localStorage.getItem('tema'), bg: getComputedStyle(document.body).backgroundColor }));
+        check(after.t !== before && after.s === after.t, `${path}: tombol mengganti tema dan menyimpannya`);
+        await page.evaluate(() => { localStorage.setItem('tema', 'dark'); });
+        await page.reload();
+        await page.waitForSelector(sel);
+        const dark = await page.evaluate(() => ({ t: document.documentElement.dataset.theme, bg: getComputedStyle(document.body).backgroundColor, meta: document.querySelector('meta[name=theme-color]').content }));
+        check(dark.t === 'dark' && dark.bg !== 'rgb(255, 255, 255)' && dark.meta !== '#ffffff', `${path}: pilihan mode gelap bertahan setelah dimuat ulang`);
+        await page.locator('[data-theme-toggle]:visible').first().click();
+        check(await page.evaluate(() => document.documentElement.dataset.theme === 'light' && localStorage.getItem('tema') === 'light'), `${path}: bisa kembali ke mode terang`);
+        await ctx.close();
     }
 
     // ============================================================ GURU — HP 360 px
@@ -281,7 +306,7 @@ async function runUi() {
             'tombol Tandai semua Hadir: hijau pekat, ada ikon centang, tampak bisa ditekan');
         check(await page.$eval('#gSheet details.att-ket summary', (s) => /Keterangan status Dispensasi/.test(s.textContent) && s.querySelector('svg') !== null)
             && await page.evaluate(() => localStorage.getItem('att-ket')) === '1', 'keterangan dilipat jadi satu baris berikon "i"');
-        check(await page.$eval('.att-btn-reset', (b) => b.getBoundingClientRect().left > document.querySelector('.att-btn-hadir').getBoundingClientRect().right - 1 && getComputedStyle(b).backgroundColor === 'rgb(226, 232, 240)'), 'tombol Reset abu-abu di kanan Tandai semua Hadir');
+        check(await page.$eval('.att-btn-reset', (b) => b.getBoundingClientRect().left > document.querySelector('.att-btn-hadir').getBoundingClientRect().right - 1 && (document.documentElement.dataset.theme === 'dark' || getComputedStyle(b).backgroundColor === 'rgb(226, 232, 240)')), 'tombol Reset abu-abu di kanan Tandai semua Hadir');
         check(await page.$eval('#gSheet .att-back', (a) => a.textContent.trim() === 'Kembali ke Menu Utama' && a.getAttribute('href') === '#/'
             && a.getBoundingClientRect().top >= document.querySelector('#attSave').getBoundingClientRect().top), 'tombol Kembali ke Menu Utama ada di bawah tombol Simpan');
         // Reset mengosongkan semua
