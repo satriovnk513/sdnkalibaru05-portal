@@ -347,3 +347,9 @@ Menu **Dokumen** di Portal Guru: guru membuat sendiri dokumen yang biasa diminta
 - `get_class_document_data(class)` — kop (kelas, tahun ajaran, wali kelas, kepala sekolah) + siswa rombel dengan identitas, **NIK, No. KK**, orang tua, alamat, No. HP. Penghasilan, akta, koordinat tidak disertakan. Hak akses `can_view_class`.
 - `dokumen-templates.js` — template: daftar nama siswa (kolom bisa dipilih), blanko nilai, daftar hadir kegiatan / tanda terima, biodata siswa, surat keterangan aktif, surat panggilan orang tua, undangan rapat, surat pemberitahuan. Kop surat diatur di konstanta `KOP`.
 - Tes: `run.sh` bagian N, `tests/dokumen-templates.test.mjs`.
+
+## Nomor surat & NIK di profil (20261117000001)
+
+- `letter_register` + `take_letter_number(jenis, perihal, kode = 'PK.0101')` — nomor surat berurut per tahun kalender (001–999), format `005/PK.0101`. Tiap nomor yang diambil tercatat (siapa, kapan, surat apa). Admin & pimpinan bisa membaca seluruh buku nomor; guru hanya nomor yang diambilnya.
+- `get_student_profile` kini menyertakan NIK siswa. No. KK, NIK orang tua, penghasilan tetap tidak ada di profil.
+- Kop surat resmi (logo Jaya Raya `logo-kop.png`, Suku Dinas, alamat, telepon, email admin) ada di konstanta `KOP` pada `dokumen-templates.js`.

@@ -355,6 +355,7 @@ async function runUi() {
         await page.waitForSelector('.g-prof');
         const prof = await page.textContent('.g-prof');
         check(/081200000001/.test(prof) && (await page.$('a[href^="https://wa.me/62812"]')) !== null, 'profil menampilkan HP + tombol WhatsApp');
+        check(/NIK/.test(prof) && /3172000000000002/.test(prof), 'profil menampilkan NIK siswa');
         check(await overflow(page) <= 0, 'profil tidak bergeser ke samping');
         await shot(page, 'guru-06-profil-360.png');
 
@@ -466,7 +467,8 @@ async function runUi() {
         {
             const pop = await popupFrom(page, () => page.click('[data-out="print"]'));
             const txt = await pop.textContent('body');
-            check(/DAFTAR NAMA SISWA/.test(txt) && /Kelas : I\.A/.test(txt) && /Kepala Fiktif/.test(txt) && /Sunarsih/.test(txt), 'cetak daftar siswa: judul, kelas, tanda tangan kepsek & wali kelas');
+            check(/DAFTAR NAMA SISWA/.test(txt) && /KELAS : I\.A/.test(txt) && /Kepala Fiktif/.test(txt) && /Sunarsih/.test(txt), 'cetak daftar siswa: judul, kelas, tanda tangan kepsek & wali kelas');
+            check(await pop.$('img[src$="/logo-cetak.png"]') !== null && await pop.$('img[src$="/logo-kop.png"]') === null, 'dokumen daftar: logo sekolah di kiri atas, tanpa kop surat');
             await pop.close();
             const [dlx] = await Promise.all([page.waitForEvent('download'), page.click('[data-out="xlsx"]')]);
             const vx = await xlsxCells(dlx, ['D1', 'B7']);
@@ -487,11 +489,23 @@ async function runUi() {
         check(/Pilih siswa/.test(await page.textContent('#gDokErr')), 'surat keterangan: diminta memilih siswa dulu');
         await page.selectOption('#gDk_siswa', { index: 1 });
         await page.fill('#gDk_keperluan', 'persyaratan KJP');
+        await page.fill('#gDk_tanggal', '2026-12-05');
+        await page.waitForFunction(() => /\.{5,}\/PK\.0101/.test(document.getElementById('gDokPrev').srcdoc || ''));
+        check(true, 'nomor surat kosong tampil sebagai titik-titik + /PK.0101');
+        await page.click('#gDokAmbil');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => document.getElementById('gDk_nomor').value === '001');
+        check(/001\/PK\.0101/.test(await page.getAttribute('#gDokPrev', 'srcdoc'))
+            && await page.evaluate(() => window.__fake.calls.some((c) => c.rpc === 'take_letter_number' && c.args.p_jenis === 'Surat keterangan aktif sekolah' && c.args.p_kode === 'PK.0101')),
+            'Ambil nomor berikutnya: nomor 001/PK.0101 dicatat dan masuk ke surat');
         {
             const pop = await popupFrom(page, () => page.click('[data-out="print"]'));
             const txt = await pop.textContent('body');
-            check(/SURAT KETERANGAN AKTIF SEKOLAH/.test(txt) && /SEKOLAH DASAR NEGERI KALIBARU 05 PAGI/.test(txt) && /persyaratan KJP/.test(txt) && /Kepala Sekolah/.test(txt),
-                'cetak surat keterangan aktif: kop, isi, keperluan, tanda tangan kepala sekolah');
+            check(/SURAT KETERANGAN AKTIF SEKOLAH/.test(txt) && /SEKOLAH DASAR NEGERI KALI BARU 05 PAGI/.test(txt) && /SUKU DINAS PENDIDIKAN WILAYAH II/.test(txt)
+                && /admin@sdnkalibaru05\.sch\.id/.test(txt) && /persyaratan KJP/.test(txt) && /Kepala Sekolah/.test(txt),
+                'cetak surat keterangan aktif: kop resmi, isi, keperluan, tanda tangan kepala sekolah');
+            check(/Jakarta, 5 Desember 2026/.test(txt) && /Nomor : 001\/PK\.0101/.test(txt), 'surat memakai tanggal tanda tangan yang diisi dan nomor 001/PK.0101');
+            check(await pop.$('img[src$="/logo-kop.png"]') !== null, 'kop surat memuat logo Jaya Raya');
             if (OUT) { await pop.emulateMedia({ media: 'print' }); await pop.setViewportSize({ width: 794, height: 1123 }); await pop.screenshot({ path: join(OUT, 'dokumen-surat-aktif.png') }); }
             await pop.close();
         }

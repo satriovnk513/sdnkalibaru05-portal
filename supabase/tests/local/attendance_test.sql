@@ -188,8 +188,8 @@ begin
     -- Profil
     v_j := public.get_student_profile(st1);
     v_no := v_no + 1;
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'D Profil', 'u', 'Profil tanpa NIK, KK, NIK ayah, penghasilan',
-        'ok', position('9900000000000101' in v_j::text) = 0
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'D Profil', 'u', 'Profil memuat NIK siswa, tetapi tanpa KK, NIK ayah, penghasilan',
+        'ok', v_j -> 'identitas' ->> 'nik' = '9900000000000101'
           and position('9911111111111111' in v_j::text) = 0
           and position('9922222222222222' in v_j::text) = 0
           and position('5,000,000' in v_j::text) = 0);
@@ -628,6 +628,46 @@ begin
     execute 'set local role anon';
     v_no := v_no + 1; v_r := public.t_try(format('select public.get_class_document_data(%L)', c1a));
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'N Hak', 'u', 'Anon tidak bisa mengambil data dokumen', 'ok', v_r = '42501');
+    execute 'reset role';
+
+    -- ======================================================== O. Nomor surat
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.take_letter_number('Surat keterangan aktif', 'Siswa Fiktif Satu');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'O Nomor surat', 'u', 'Nomor pertama tahun ini = 001/PK.0101',
+        'ok', v_j ->> 'teks' = '001/PK.0101' and (v_j ->> 'nomor')::int = 1
+          and (v_j ->> 'tahun')::int = extract(year from public.jakarta_today())::int);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'O Nomor surat', 'u', 'Nomor berikutnya berurut (002), kode bisa diganti',
+        'ok', public.take_letter_number('Undangan', null, 'PK.0202') ->> 'teks' = '002/PK.0202');
+    v_no := v_no + 1; v_r := public.t_try($q$select public.take_letter_number('', null)$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'O Nomor surat', 'u', 'Jenis surat kosong ditolak', 'ok', v_r = '22023');
+    v_no := v_no + 1; v_r := public.t_try($q$select public.take_letter_number('Surat', null, 'PK 01<script>')$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'O Nomor surat', 'u', 'Kode surat berisi karakter aneh ditolak', 'ok', v_r = '22023');
+    v_no := v_no + 1; v_r := public.t_try($q$insert into public.letter_register (tahun, nomor, kode, jenis) values (2026, 500, 'X', 'Y')$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'O Nomor surat', 'u', 'Guru tidak bisa menulis langsung ke buku nomor surat', 'ok', v_r = '42501');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'O Nomor surat', 'u', 'Guru melihat nomor yang diambilnya sendiri (2 baris)',
+        'ok', (select count(*) from public.letter_register) = 2);
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'O Nomor surat', 'u', 'Guru lain tidak melihat nomor milik guru lain, dan nomornya lanjut (003)',
+        'ok', (select count(*) from public.letter_register) = 0
+          and public.take_letter_number('Surat pemberitahuan') ->> 'teks' = '003/PK.0101');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_lilis, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'O Nomor surat', 'u', 'Kepala sekolah melihat seluruh buku nomor surat (3 baris)',
+        'ok', (select count(*) from public.letter_register) = 3);
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    v_no := v_no + 1; v_r := public.t_try($q$select public.take_letter_number('Surat')$q$);
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'O Hak', 'u', 'Anon tidak bisa mengambil nomor surat', 'ok', v_r = '42501');
     execute 'reset role';
 
     -- ======================================================== hasil
