@@ -169,3 +169,18 @@ test('tanggal tanda tangan bisa diisi sendiri, format "Jakarta, DD Bulan YYYY"',
     }
     assert.equal(Dok.kotaTgl('2027-01-31'), 'Jakarta, 31 Januari 2027');
 });
+
+test('daftar bisa hanya sebagian siswa (nomor urut baru); kosong = semua', () => {
+    for (const id of ['daftar', 'blanko', 'hadir']) {
+        assert.ok(Dok.typeOf(id).fields.some((f) => f.key === 'pilih' && f.type === 'siswaMulti'), `${id} punya pilihan siswa`);
+        const all = Dok.build(id, data, opts(id)).body;
+        assert.match(all, /SISWA DUA/); assert.match(all, /SATU/);
+        const sub = Dok.build(id, data, opts(id, { pilih: ['b'] })).body;
+        assert.match(sub, /SISWA DUA/, id);
+        assert.doesNotMatch(sub, /SATU/, `${id}: siswa lain tidak ikut`);
+        assert.match(sub, /<td align="center">1<\/td>/, `${id}: nomor urut mulai 1`);
+    }
+    const x = Dok.xlsx('daftar', data, opts('daftar', { pilih: ['b'] }));
+    assert.equal(x.rows.length, 6 + 1, 'Excel: kop + header + 1 siswa');
+    assert.equal(data.siswa.length, 2, 'data asli tidak berubah');
+});

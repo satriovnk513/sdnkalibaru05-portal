@@ -87,7 +87,8 @@
                         <i class="fas fa-envelope"></i>
                         <div>
                             <h4>Email Resmi</h4>
-                            <p>admin@sdnkalibaru05.sch.id</p>
+                            <p><a href="mailto:admin@sdnkalibaru05.sch.id">admin@sdnkalibaru05.sch.id</a><br>
+                               <a href="mailto:sdnkalibarunollima@gmail.com">sdnkalibarunollima@gmail.com</a></p>
                         </div>
                     </div>
                 </div>
@@ -107,7 +108,7 @@
                     <!-- Spam trap: hidden from people, bots fill it in -->
                     <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" aria-hidden="true" style="display: none;">
                     <button type="submit" class="btn-primary" id="contactSubmit">Kirim Pesan <i class="fas fa-paper-plane" style="margin-left: 0.5rem;"></i></button>
-                    <p id="contactFormNote" role="status" aria-live="polite" style="margin-top: 0.75rem; font-size: 0.9rem; color: #64748b;">Pesan akan dikirim ke email sekolah (admin@sdnkalibaru05.sch.id).</p>
+                    <p id="contactFormNote" role="status" aria-live="polite" style="margin-top: 0.75rem; font-size: 0.9rem; color: #64748b;">Pesan akan dikirim ke email sekolah.</p>
                 </form>
             </div>
         </div>
@@ -174,7 +175,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="ai-service.js"></script>
+    <script src="ai-service.js?v=3"></script>
     <script src="kalibot.js"></script>
     <script src="main.js"></script>
     <script>
@@ -183,8 +184,9 @@
         // fall back to opening the visitor's email app.
         const WEB3FORMS_ACCESS_KEY = '9e753c0b-3593-478f-af9d-199d421c7078';
         const SCHOOL_EMAIL = 'admin@sdnkalibaru05.sch.id';
-        const FALLBACK_TEXT = 'Jika tetap gagal, kirim langsung ke ' + SCHOOL_EMAIL
-            + ' atau hubungi Operator 1 (0812-1147-2348) / Operator 2 (0852-1663-4685).';
+        const SCHOOL_EMAIL_2 = 'sdnkalibarunollima@gmail.com';
+        const FALLBACK_TEXT = 'Jika tetap gagal, kirim langsung ke ' + SCHOOL_EMAIL + ' atau ' + SCHOOL_EMAIL_2
+            + ', atau hubungi Operator 1 (0812-1147-2348) / Operator 2 (0852-1663-4685).';
 
         (function () {
             const form = document.getElementById('contactForm');
@@ -201,13 +203,13 @@
 
             function openMailApp() {
                 const body = `Nama: ${value('name')}\nEmail: ${value('email')}\n\n${value('message')}`;
-                window.location.href = 'mailto:' + SCHOOL_EMAIL
+                window.location.href = 'mailto:' + SCHOOL_EMAIL + ',' + SCHOOL_EMAIL_2
                     + '?subject=' + encodeURIComponent('[Website] ' + value('subject'))
                     + '&body=' + encodeURIComponent(body);
             }
 
             if (!WEB3FORMS_ACCESS_KEY) {
-                setNote('Pesan akan dibuka di aplikasi email Anda dan dikirim ke ' + SCHOOL_EMAIL + '.');
+                setNote('Pesan akan dibuka di aplikasi email Anda dan dikirim ke ' + SCHOOL_EMAIL + ' dan ' + SCHOOL_EMAIL_2 + '.');
             }
 
             form.addEventListener('submit', async (event) => {

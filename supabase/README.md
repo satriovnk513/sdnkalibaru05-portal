@@ -353,3 +353,4 @@ Menu **Dokumen** di Portal Guru: guru membuat sendiri dokumen yang biasa diminta
 - `letter_register` + `take_letter_number(jenis, perihal, kode = 'PK.0101')` — nomor surat berurut per tahun kalender (001–999), format `005/PK.0101`. Tiap nomor yang diambil tercatat (siapa, kapan, surat apa). Admin & pimpinan bisa membaca seluruh buku nomor; guru hanya nomor yang diambilnya.
 - `get_student_profile` kini menyertakan NIK siswa. No. KK, NIK orang tua, penghasilan tetap tidak ada di profil.
 - Kop surat resmi dipasang sebagai gambar dua versi: `kop-sudin.png` (Suku Dinas, bawaan) dan `kop-dinas.png` (Dinas). Guru memilih di form surat; pilihan diingat per perangkat.
+- Panel Admin → **Cetak & Dokumen**: dokumen yang sama, admin bisa memilih kelas mana pun (tahun ajaran aktif) dan siswanya. Formulir dipakai bersama di `dokumen-ui.js`. Dokumen daftar bisa hanya sebagian siswa (nomor urut baru).

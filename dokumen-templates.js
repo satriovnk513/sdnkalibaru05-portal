@@ -29,7 +29,7 @@
         kecil: [
             'Jalan Kalibaru Barat IV No. 60, RT 003 RW 012, Kel. Kalibaru, Kec. Cilincing, Jakarta Utara',
             'Telepon (021) 44833627; Faksimile (021) 44833627;',
-            'Website: https://sdnkalibaru05.sch.id; Email: admin@sdnkalibaru05.sch.id',
+            'Website: https://sdnkalibaru05.sch.id; Email: admin@sdnkalibaru05.sch.id',   // sesuai kop resmi (gambar)
         ],
         kotaKop: 'JAKARTA',
         kodePos: 'Kode Pos  14110',
@@ -86,12 +86,15 @@
         { key: 'tempat', label: 'Tempat', type: 'text', default: 'SDN Kalibaru 05 Pagi' },
     ];
 
+    // Daftar: boleh hanya sebagian siswa (kosong = semua siswa di kelas).
+    const F_PILIH = { key: 'pilih', label: 'Siswa yang dicantumkan', type: 'siswaMulti', default: [] };
+
     const TYPES = [
         { id: 'daftar', grup: 'Daftar', nama: 'Daftar nama siswa', ket: 'Nama siswa per kelas dengan kolom data yang Anda pilih (NIS, NISN, TTL, NIK, orang tua, dst.).',
             formats: ['print', 'word', 'xlsx'], fields: [
                 { key: 'judul', label: 'Judul', type: 'text', default: 'DAFTAR NAMA SISWA' },
                 { key: 'kolom', label: 'Kolom yang ditampilkan', type: 'checks', options: KOLOM.map((k) => [k.key, k.label]), default: ['nis', 'nisn', 'jk'] },
-                F_TTD,
+                F_PILIH, F_TTD,
             ] },
         { id: 'blanko', grup: 'Daftar', nama: 'Blanko nilai / daftar kosong', ket: 'Nama siswa + kolom kosong untuk nilai, tugas, setoran, atau catatan lain.',
             formats: ['print', 'word', 'xlsx'], fields: [
@@ -99,7 +102,7 @@
                 { key: 'sub', label: 'Keterangan di bawah judul (mapel, semester, dll.)', type: 'text', placeholder: 'Mis. Matematika · Semester Ganjil' },
                 { key: 'jumlah', label: 'Jumlah kolom kosong', type: 'number', default: 10, min: 1, max: 20 },
                 { key: 'label', label: 'Judul tiap kolom (pisahkan dengan koma, boleh kosong)', type: 'text', placeholder: 'Mis. PH1, PH2, PTS, PAS' },
-                F_TTD,
+                F_PILIH, F_TTD,
             ] },
         { id: 'hadir', grup: 'Daftar', nama: 'Daftar hadir kegiatan / tanda terima', ket: 'Daftar bertanda tangan untuk ujian, rapat orang tua, ambil rapor, atau terima buku/seragam.',
             formats: ['print', 'word'], fields: [
@@ -107,7 +110,7 @@
                 { key: 'kegiatan', label: 'Kegiatan / barang yang diterima', type: 'text', placeholder: 'Mis. Pengambilan Rapor Semester Ganjil' },
                 { key: 'hari', label: 'Hari, tanggal', type: 'date', default: 'today' },
                 { key: 'penanda', label: 'Yang menandatangani', type: 'select', options: [['siswa', 'Siswa'], ['ortu', 'Orang tua / wali']], default: 'siswa' },
-                F_TTD,
+                F_PILIH, F_TTD,
             ] },
         { id: 'biodata', grup: 'Per siswa', nama: 'Biodata siswa', ket: 'Satu lembar per siswa: identitas, NIK, No. KK, orang tua, alamat, No. HP.',
             formats: ['print', 'word'], fields: [{ key: 'siswa', label: 'Siswa', type: 'siswa', all: true }, F_KOP, F_TTD] },
@@ -321,8 +324,16 @@
     };
 
     /** { title, body, landscape } atau null bila isian belum lengkap (mis. siswa belum dipilih). */
+    /** Bila hanya sebagian siswa dipilih: saring dan beri nomor urut baru 1, 2, 3, … */
+    function pilihSebagian(d, o) {
+        const ids = Array.isArray(o?.pilih) ? o.pilih : [];
+        if (!ids.length) return d;
+        const set = new Set(ids);
+        return { ...d, siswa: (d.siswa || []).filter((s) => set.has(s.student_id)).map((s, i) => ({ ...s, no: i + 1 })) };
+    }
+
     function build(id, data, opts) {
-        return BUILD[id] ? BUILD[id](data, opts || {}) : null;
+        return BUILD[id] ? BUILD[id](pilihSebagian(data, opts), opts || {}) : null;
     }
 
     const CSS = (landscape) => `
@@ -380,7 +391,8 @@
     }
 
     /** Spesifikasi Excel (untuk RekapPrint.buildXlsx) bagi dokumen berbentuk daftar; null untuk yang lain. */
-    function xlsx(id, d, o = {}) {
+    function xlsx(id, d0, o = {}) {
+        const d = pilihSebagian(d0, o);
         const siswa = d.siswa || [];
         const kop = (judul, lebar) => [
             [null, null, null, { v: judul, s: 1 }],

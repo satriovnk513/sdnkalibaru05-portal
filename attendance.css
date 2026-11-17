@@ -255,6 +255,43 @@
 /* Layar pendek (HP miring): panel tidak menempel supaya daftar tetap terlihat */
 @media (max-height: 560px) { .att-float.is-floating { position: relative; top: auto; box-shadow: none; } }
 
+/* Cetak & Dokumen (Portal Guru & Panel Admin) */
+.g-dok-host .g-hidden { display: none !important; }
+/* Cetak & Dokumen */
+.g-dok-h { margin: 14px 0 8px; font-size: 0.95rem; color: #334155; }
+.g-dok-grid { display: grid; gap: 8px; }
+@media (min-width: 640px) { .g-dok-grid { grid-template-columns: 1fr 1fr; } }
+.g-dok { display: flex; align-items: center; gap: 12px; min-height: 72px; padding: 12px; border: 1px solid var(--att-line); border-radius: 14px; background: #fff; text-decoration: none; color: var(--att-ink); }
+.g-dok svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.g-dok > svg { color: var(--att-muted); width: 18px; height: 18px; }
+.g-dok-ico { flex: none; width: 44px; height: 44px; border-radius: 12px; background: #ffe4e6; color: #be123c; display: flex; align-items: center; justify-content: center; }
+.g-dok-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.g-dok-txt small { color: var(--att-muted); font-size: 0.8rem; line-height: 1.35; }
+.g-dok-checks { border: 1px solid var(--att-line); border-radius: 12px; padding: 8px 12px 10px; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; }
+.g-dok-checks legend { font-size: 0.82rem; font-weight: 600; color: #334155; padding: 0 4px; }
+.g-dok-checks label, .g-dok-check { display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: 0.9rem; }
+.g-dok-checks input, .g-dok-check input { width: 20px; height: 20px; flex: none; accent-color: var(--att-brand); }
+.g-dok-nomor { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.g-dok-nomor .att-input { width: 84px; flex: none; text-align: center; font-variant-numeric: tabular-nums; }
+.g-dok-nomor span { font-weight: 600; }
+.g-dok-actions { display: grid; gap: 8px; }
+@media (min-width: 480px) { .g-dok-actions { grid-auto-flow: column; grid-auto-columns: 1fr; } }
+.g-dok-prev { border: 1px solid var(--att-line); border-radius: 12px; background: #e2e8f0; overflow: auto; -webkit-overflow-scrolling: touch; }
+.g-dok-prev iframe { display: block; width: 794px; height: 1000px; border: 0; background: #fff; transform-origin: 0 0; }
+.g-dok-prev.wide iframe { width: 1123px; height: 794px; }
+
+.g-dok-multi { border: 1px solid var(--att-line); border-radius: 12px; padding: 0 12px; }
+.g-dok-multi summary { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; font-size: 0.86rem; font-weight: 600; color: #334155; }
+.g-dok-multi summary b { font-weight: 600; color: var(--att-brand); }
+.g-dok-multi-bar { display: flex; gap: 8px; margin-bottom: 6px; }
+.g-dok-multi-list { max-height: 260px; overflow: auto; display: grid; gap: 0; padding-bottom: 8px; }
+.g-dok-multi-list label { display: flex; align-items: center; gap: 8px; min-height: 38px; font-size: 0.9rem; border-top: 1px solid #f1f5f9; }
+.g-dok-multi-list input { width: 20px; height: 20px; flex: none; accent-color: var(--att-brand); }
+.g-dok-layout { display: grid; gap: 18px; }
+.g-dok-layout > div { min-width: 0; }
+@container (min-width: 900px) { .g-dok-layout { grid-template-columns: minmax(320px, 420px) 1fr; align-items: start; } }
+.g-dok-host { container-type: inline-size; }
+
 /* Admin: kelas yang belum absen */
 .att-status-sum { font-size: 0.95rem; margin-bottom: 12px; }
 .att-status-bar { height: 10px; border-radius: 999px; background: #fee2e2; overflow: hidden; margin-top: 6px; }
