@@ -148,16 +148,9 @@
     /** "Jakarta, 17 November 2026" */
     const kotaTgl = (iso) => `${KOP.kota}, ${isIso(iso) ? tgl(iso) : titik(24)}`;
 
-    const kopHtml = () => `<table class="kop" width="100%" cellpadding="0" cellspacing="0"><tr>
-        <td width="66" align="left" valign="middle"><img src="${ORIGIN}/logo-kop.png" width="62" height="72" alt="Logo Jaya Raya"></td>
-        <td align="center" valign="middle">
-            ${KOP.baris.map(([b, sz]) => `<div style="font-size:${sz}pt;white-space:nowrap">${esc(b)}</div>`).join('')}
-            <div class="k2">${esc(KOP.sekolah)}</div>
-            ${KOP.kecil.map((b) => `<div class="k3">${esc(b)}</div>`).join('')}
-        </td></tr></table>
-        <table class="kop kop2" width="100%" cellpadding="0" cellspacing="0"><tr>
-            <td width="25%">&nbsp;</td><td width="50%" align="center" class="k3">${esc(KOP.kotaKop)}</td><td width="25%" align="right" class="k3">${esc(KOP.kodePos)}</td></tr></table>
-        <div class="garis"></div>`;
+    // Kop surat dipasang sebagai satu gambar (kop-surat.png, dirender dari file kop resmi sekolah)
+    // supaya tampil persis sama di cetakan, PDF, dan Word. Lebar 680 px = lebar isi halaman A4 tegak.
+    const kopHtml = () => `<div class="kop"><img src="${ORIGIN}/kop-surat.png" width="680" height="155" alt="${esc(KOP.sekolah)}" style="width:100%;height:auto"></div>`;
 
     /** Kepala dokumen daftar: logo sekolah di kiri atas, judul & keterangan di sebelahnya, kelas di kanan. */
     const judulHtml = (judul, d, sub) => `<table class="kepala" width="100%" cellpadding="0" cellspacing="0"><tr>
@@ -327,10 +320,8 @@
         body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; line-height: 1.35; }
         table { border-collapse: collapse; }
         td, th { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; vertical-align: top; }
-        .kop td { line-height: 1.15; }
-        .kop .k2 { font-size: 13pt; font-weight: bold; }
-        .kop .k3 { font-size: 9pt; }
-        .garis { border-top: 1.5pt solid #000; border-bottom: 0.75pt solid #000; height: 1.5pt; margin: 1pt 0 12pt; }
+        .kop { margin: 0 0 12pt; }
+        .kop img { display: block; }
         .judul { text-align: center; font-size: 13pt; font-weight: bold; }
         .subjudul { text-align: center; font-size: 10.5pt; }
         .kiri { text-align: left; }

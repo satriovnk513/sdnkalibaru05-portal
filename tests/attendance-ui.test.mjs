@@ -468,7 +468,7 @@ async function runUi() {
             const pop = await popupFrom(page, () => page.click('[data-out="print"]'));
             const txt = await pop.textContent('body');
             check(/DAFTAR NAMA SISWA/.test(txt) && /KELAS : I\.A/.test(txt) && /Kepala Fiktif/.test(txt) && /Sunarsih/.test(txt), 'cetak daftar siswa: judul, kelas, tanda tangan kepsek & wali kelas');
-            check(await pop.$('img[src$="/logo-cetak.png"]') !== null && await pop.$('img[src$="/logo-kop.png"]') === null, 'dokumen daftar: logo sekolah di kiri atas, tanpa kop surat');
+            check(await pop.$('img[src$="/logo-cetak.png"]') !== null && await pop.$('img[src$="/kop-surat.png"]') === null, 'dokumen daftar: logo sekolah di kiri atas, tanpa kop surat');
             await pop.close();
             const [dlx] = await Promise.all([page.waitForEvent('download'), page.click('[data-out="xlsx"]')]);
             const vx = await xlsxCells(dlx, ['D1', 'B7']);
@@ -501,11 +501,10 @@ async function runUi() {
         {
             const pop = await popupFrom(page, () => page.click('[data-out="print"]'));
             const txt = await pop.textContent('body');
-            check(/SURAT KETERANGAN AKTIF SEKOLAH/.test(txt) && /SEKOLAH DASAR NEGERI KALI BARU 05 PAGI/.test(txt) && /SUKU DINAS PENDIDIKAN WILAYAH II/.test(txt)
-                && /admin@sdnkalibaru05\.sch\.id/.test(txt) && /persyaratan KJP/.test(txt) && /Kepala Sekolah/.test(txt),
-                'cetak surat keterangan aktif: kop resmi, isi, keperluan, tanda tangan kepala sekolah');
+            check(/SURAT KETERANGAN AKTIF SEKOLAH/.test(txt) && /persyaratan KJP/.test(txt) && /Kepala Sekolah/.test(txt),
+                'cetak surat keterangan aktif: isi, keperluan, tanda tangan kepala sekolah');
             check(/Jakarta, 5 Desember 2026/.test(txt) && /Nomor : 001\/PK\.0101/.test(txt), 'surat memakai tanggal tanda tangan yang diisi dan nomor 001/PK.0101');
-            check(await pop.$('img[src$="/logo-kop.png"]') !== null, 'kop surat memuat logo Jaya Raya');
+            check(await pop.$eval('img[src$="/kop-surat.png"]', (i) => i.complete && i.naturalWidth > 2000 && i.getBoundingClientRect().top < 120).catch(() => false), 'kop surat resmi tampil sebagai gambar di paling atas');
             if (OUT) { await pop.emulateMedia({ media: 'print' }); await pop.setViewportSize({ width: 794, height: 1123 }); await pop.screenshot({ path: join(OUT, 'dokumen-surat-aktif.png') }); }
             await pop.close();
         }
