@@ -468,7 +468,7 @@ async function runUi() {
             const pop = await popupFrom(page, () => page.click('[data-out="print"]'));
             const txt = await pop.textContent('body');
             check(/DAFTAR NAMA SISWA/.test(txt) && /KELAS : I\.A/.test(txt) && /Kepala Fiktif/.test(txt) && /Sunarsih/.test(txt), 'cetak daftar siswa: judul, kelas, tanda tangan kepsek & wali kelas');
-            check(await pop.$('img[src$="/logo-cetak.png"]') !== null && await pop.$('img[src$="/kop-surat.png"]') === null, 'dokumen daftar: logo sekolah di kiri atas, tanpa kop surat');
+            check((await pop.$$('img')).length === 1 && await pop.$eval('img', (i) => i.src.startsWith('data:image/png;base64,') && i.alt === 'Logo sekolah'), 'dokumen daftar: logo sekolah di kiri atas (tertanam), tanpa kop surat');
             await pop.close();
             const [dlx] = await Promise.all([page.waitForEvent('download'), page.click('[data-out="xlsx"]')]);
             const vx = await xlsxCells(dlx, ['D1', 'B7']);
@@ -504,7 +504,8 @@ async function runUi() {
             check(/SURAT KETERANGAN AKTIF SEKOLAH/.test(txt) && /persyaratan KJP/.test(txt) && /Kepala Sekolah/.test(txt),
                 'cetak surat keterangan aktif: isi, keperluan, tanda tangan kepala sekolah');
             check(/Jakarta, 5 Desember 2026/.test(txt) && /Nomor : 001\/PK\.0101/.test(txt), 'surat memakai tanggal tanda tangan yang diisi dan nomor 001/PK.0101');
-            check(await pop.$eval('img[src$="/kop-surat.png"]', (i) => i.complete && i.naturalWidth > 2000 && i.getBoundingClientRect().top < 120).catch(() => false), 'kop surat resmi tampil sebagai gambar di paling atas');
+            const kop = await pop.$eval('.kertas img', (i) => ({ data: i.src.startsWith('data:image/png;base64,'), len: i.src.length, first: document.querySelector('.kertas').firstElementChild.contains(i), alt: i.alt }));
+            check(kop.data && kop.len > 100000 && kop.first && /KALI BARU 05 PAGI/.test(kop.alt), `kop surat resmi tertanam sebagai gambar di paling atas surat (${kop.len} karakter)`);
             if (OUT) { await pop.emulateMedia({ media: 'print' }); await pop.setViewportSize({ width: 794, height: 1123 }); await pop.screenshot({ path: join(OUT, 'dokumen-surat-aktif.png') }); }
             await pop.close();
         }
