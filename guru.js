@@ -595,7 +595,14 @@
         if (!classes.length) return main('<div class="att-alert info">Belum ada kelas yang bisa Anda lihat.</div>');
         if (params.get('kelas')) dok.classId = params.get('kelas');
         if (!dok.classId || !classes.some((c) => c.class_id === dok.classId)) dok.classId = (home.wali_kelas[0] || classes[0]).class_id;
-        if (!dok.values[id]) dok.values[id] = Dok.defaults(type, home.today);
+        if (!dok.values[id]) {
+            dok.values[id] = Dok.defaults(type, home.today);
+            // Pilihan yang ditandai "remember" (mis. versi kop) memakai pilihan terakhir di perangkat ini.
+            for (const f of type.fields) {
+                if (!f.remember) continue;
+                try { const v = localStorage.getItem(`dok-${f.key}`); if (v && f.options.some(([k]) => k === v)) dok.values[id][f.key] = v; } catch { /* abaikan */ }
+            }
+        }
         const vals = dok.values[id];
         loading();
         let data;
@@ -625,7 +632,10 @@
                 else if (f.type === 'check') vals[f.key] = $(`gDk_${f.key}`).checked;
                 else if (f.type === 'hidden') continue;
                 else if (f.type === 'nomor') { const el = $(`gDk_${f.key}`); el.value = el.value.replace(/[^0-9]/g, '').slice(0, 3); vals[f.key] = el.value; }
-                else vals[f.key] = $(`gDk_${f.key}`).value;
+                else {
+                    vals[f.key] = $(`gDk_${f.key}`).value;
+                    if (f.remember) { try { localStorage.setItem(`dok-${f.key}`, vals[f.key]); } catch { /* abaikan */ } }
+                }
             }
             return Dok.build(id, data, vals);
         };
