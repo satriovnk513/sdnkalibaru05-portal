@@ -767,7 +767,7 @@ async function loadGallery() {
     const countEl = document.getElementById('galleryCount');
     if (!grid) return;
 
-    grid.innerHTML = '<p style="color:#94a3b8;font-size:0.9rem;">Memuat media...</p>';
+    grid.innerHTML = '<p style="color:var(--t-muted);font-size:0.9rem;">Memuat media...</p>';
 
     const { data, error } = await supabaseClient
         .from('gallery')
@@ -782,7 +782,7 @@ async function loadGallery() {
     if (countEl) countEl.textContent = `${data.length} item`;
 
     if (!data || data.length === 0) {
-        grid.innerHTML = '<p style="color:#94a3b8;font-size:0.9rem;grid-column:1/-1;text-align:center;padding:2rem 0;">Belum ada media di galeri. Upload foto atau video pertama kamu!</p>';
+        grid.innerHTML = '<p style="color:var(--t-muted);font-size:0.9rem;grid-column:1/-1;text-align:center;padding:2rem 0;">Belum ada media di galeri. Upload foto atau video pertama kamu!</p>';
         return;
     }
 
@@ -1004,9 +1004,9 @@ async function loadEkskul() {
         const safeIcon = escapeHtml(item.icon || 'fas fa-star');
         
         tr.innerHTML = `
-            <td><div style="width:36px;height:36px;background:#fef2f2;color:#da251c;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;"><i class="${safeIcon}"></i></div></td>
-            <td><strong>${safeName}</strong><br><small style="color:#64748b">${safeDesc}</small></td>
-            <td><span style="background:#e0f2fe;color:#0369a1;font-weight:700;padding:2px 8px;border-radius:12px;font-size:0.8rem;">📷 ${numPhotos} foto</span></td>
+            <td><div style="width:36px;height:36px;background:var(--t-red-bg);color:#da251c;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;"><i class="${safeIcon}"></i></div></td>
+            <td><strong>${safeName}</strong><br><small style="color:var(--t-muted)">${safeDesc}</small></td>
+            <td><span style="background:var(--t-blue-bg);color:var(--t-blue-ink);font-weight:700;padding:2px 8px;border-radius:12px;font-size:0.8rem;">📷 ${numPhotos} foto</span></td>
             <td>${escapeHtml(item.order_index || 99)}</td>
             <td>
                 <div class="td-actions">
@@ -1161,15 +1161,15 @@ async function loadAIMemory() {
 
         tbody.innerHTML = '';
         if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="color: #94a3b8; text-align: center;">Belum ada memori tambahan. Tambahkan memori di atas!</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="color: var(--t-muted); text-align: center;">Belum ada memori tambahan. Tambahkan memori di atas!</td></tr>';
             return;
         }
 
         data.forEach(item => {
             const tr = document.createElement('tr');
             const statusBadge = item.is_active
-                ? '<span style="background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.78rem;">Aktif</span>'
-                : '<span style="background: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.78rem;">Non-Aktif</span>';
+                ? '<span style="background: var(--t-green-bg); color: var(--t-green-ink); padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.78rem;">Aktif</span>'
+                : '<span style="background: var(--t-surface-2); color: var(--t-muted); padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.78rem;">Non-Aktif</span>';
 
             tr.innerHTML = `
                 <td style="font-weight: 700;">${escapeHtml(item.topic)}</td>
@@ -1177,7 +1177,7 @@ async function loadAIMemory() {
                 <td>${statusBadge}</td>
                 <td>
                     <div class="td-actions">
-                        <button class="btn-toggle-memory" style="background: ${item.is_active ? '#f1f5f9' : '#dcfce7'}; color: ${item.is_active ? '#475569' : '#166534'}; border: none; padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;">${item.is_active ? '⏸ Matikan' : '▶ Aktifkan'}</button>
+                        <button class="btn-toggle-memory" style="background: ${item.is_active ? 'var(--t-surface-3)' : 'var(--t-green-bg)'}; color: ${item.is_active ? 'var(--t-text)' : 'var(--t-green-ink)'}; border: none; padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;">${item.is_active ? '⏸ Matikan' : '▶ Aktifkan'}</button>
                         <button class="btn-edit">✏️ Edit</button>
                         <button class="btn-delete">🗑 Hapus</button>
                     </div>
@@ -1334,8 +1334,8 @@ function saveAISettingsForm(e) {
 async function testAIConnection() {
     const resBox = document.getElementById('aiTestResult');
     resBox.style.display = 'block';
-    resBox.style.background = '#f1f5f9';
-    resBox.style.color = '#334155';
+    resBox.style.background = 'var(--t-surface-3)';
+    resBox.style.color = 'var(--t-text)';
     resBox.innerText = 'Mengirim pesan uji koneksi ke Google Gemini AI...';
 
     const testConfig = {
@@ -1350,12 +1350,12 @@ async function testAIConnection() {
             [{ role: 'user', content: 'Halo Gemini, respon singkat "Koneksi Berhasil"' }],
             testConfig
         );
-        resBox.style.background = '#dcfce7';
-        resBox.style.color = '#166534';
+        resBox.style.background = 'var(--t-green-bg)';
+        resBox.style.color = 'var(--t-green-ink)';
         resBox.innerHTML = `<strong>Koneksi Berhasil! ✅</strong><br>Jawaban AI: <em>${escapeHtml(reply)}</em>`;
     } catch (err) {
-        resBox.style.background = '#fee2e2';
-        resBox.style.color = '#991b1b';
+        resBox.style.background = 'var(--t-red-bg)';
+        resBox.style.color = 'var(--t-red-ink)';
         resBox.innerHTML = `<strong>Koneksi Gagal ❌</strong><br>${escapeHtml(err.message)}`;
     }
 }

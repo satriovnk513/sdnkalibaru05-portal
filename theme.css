@@ -1,0 +1,77 @@
+/* =============================================================================
+   Tema terang / gelap untuk Portal Guru (/guru) dan Panel Admin (/admin).
+   Warna netral & warna status memakai token di bawah; mode gelap hanya
+   mengganti nilai token. Dokumen cetak (jendela cetak, pratinjau) tetap terang.
+   Tema dipasang oleh theme.js lewat atribut data-theme di <html>.
+   ========================================================================== */
+:root {
+    color-scheme: light;
+    --t-bg: #f4f5f7;
+    --t-surface: #ffffff;
+    --t-surface-2: #f8fafc;
+    --t-surface-3: #e2e8f0;
+    --t-ink: #0f172a;
+    --t-text: #334155;
+    --t-muted: #64748b;
+    --t-line: #e2e8f0;
+    --t-line-2: #cbd5e1;
+    --t-red-bg: #fef2f2;     --t-red-bg-2: #fecaca;   --t-red-ink: #991b1b;   --t-red-line: #fecaca;
+    --t-green-bg: #dcfce7;   --t-green-ink: #166534;  --t-green-line: #bbf7d0;
+    --t-amber-bg: #fef3c7;   --t-amber-bg-2: #fde68a; --t-amber-ink: #92400e; --t-amber-line: #fde68a;
+    --t-blue-bg: #eff6ff;    --t-blue-ink: #1e40af;   --t-blue-line: #bfdbfe;
+    --t-violet-bg: #ede9fe;  --t-violet-ink: #3730a3;
+    --t-shadow: rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --t-bg: #0b1220;
+    --t-surface: #121b2e;
+    --t-surface-2: #172238;
+    --t-surface-3: #24324d;
+    --t-ink: #e8edf5;
+    --t-text: #cbd5e1;
+    --t-muted: #94a3b8;
+    --t-line: #263450;
+    --t-line-2: #34445f;
+    --t-red-bg: rgba(239, 68, 68, 0.14);    --t-red-bg-2: rgba(239, 68, 68, 0.26);  --t-red-ink: #fca5a5;   --t-red-line: rgba(239, 68, 68, 0.38);
+    --t-green-bg: rgba(34, 197, 94, 0.15);  --t-green-ink: #86efac; --t-green-line: rgba(34, 197, 94, 0.38);
+    --t-amber-bg: rgba(245, 158, 11, 0.15); --t-amber-bg-2: rgba(245, 158, 11, 0.28); --t-amber-ink: #fcd34d; --t-amber-line: rgba(245, 158, 11, 0.38);
+    --t-blue-bg: rgba(59, 130, 246, 0.16);  --t-blue-ink: #93c5fd;  --t-blue-line: rgba(59, 130, 246, 0.4);
+    --t-violet-bg: rgba(139, 92, 246, 0.18); --t-violet-ink: #c4b5fd;
+    --t-shadow: rgba(0, 0, 0, 0.45);
+
+    /* Token lembar absensi (attendance.css) */
+    --att-ink: var(--t-ink);
+    --att-muted: var(--t-muted);
+    --att-line: var(--t-line);
+    --att-bg: var(--t-bg);
+    --att-card: var(--t-surface);
+    --att-brand: #f43f5e;
+    --att-brand-dark: #e11d48;
+    --att-h: #4ade80;  --att-h-bg: rgba(34, 197, 94, 0.18);
+    --att-s: #fbbf24;  --att-s-bg: rgba(245, 158, 11, 0.18);
+    --att-i: #60a5fa;  --att-i-bg: rgba(59, 130, 246, 0.2);
+    --att-a: #f87171;  --att-a-bg: rgba(239, 68, 68, 0.2);
+    --att-d: #a78bfa;  --att-d-bg: rgba(139, 92, 246, 0.22);
+}
+
+/* Unsur yang tidak lewat token */
+:root[data-theme="dark"] img[src*="logo"] { background: #fff; border-radius: 10px; }
+:root[data-theme="dark"] .ac-svg text { fill: var(--t-muted); }
+:root[data-theme="dark"] .ac-svg line { stroke: var(--t-line); }
+:root[data-theme="dark"] .ac-donut text:first-of-type { fill: var(--t-ink); }
+:root[data-theme="dark"] input::placeholder, :root[data-theme="dark"] textarea::placeholder { color: #64748b; }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #334155; }
+
+/* Tombol ganti tema */
+.theme-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 0 10px; border-radius: 12px;
+    border: 1px solid var(--t-line); background: var(--t-surface); color: var(--t-text); cursor: pointer; font: 600 0.82rem 'Inter', sans-serif; flex: none; }
+.theme-toggle:hover { background: var(--t-surface-2); }
+.theme-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.theme-toggle .ic-sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .ic-sun { display: block; }
+:root[data-theme="dark"] .theme-toggle .ic-moon { display: none; }
+
+.g-login-card, .login-box { position: relative; }
+.g-login-theme, .admin-login-theme { position: absolute; top: 12px; right: 12px; }
