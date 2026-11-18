@@ -57,7 +57,8 @@ async function runUi() {
     const BASE = `http://127.0.0.1:${server.address().port}`;
 
     const apiCalls = [];
-    const browser = await chromium.launch({ executablePath: CHROME });
+    // Kamera tiruan (pola uji Chrome) supaya pemindai QR di portal bisa dites tanpa kamera asli.
+    const browser = await chromium.launch({ executablePath: CHROME, args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
     cleanup.push(() => browser.close());
 
     async function newPage(path, viewport) {
@@ -67,6 +68,9 @@ async function runUi() {
         if (process.env.UI_THEME) await ctx.addInitScript((t) => { try { if (!localStorage.getItem('tema')) localStorage.setItem('tema', t); } catch { /* abaikan */ } }, process.env.UI_THEME);
         ctx.setDefaultTimeout(8000);
         await ctx.route('https://cdn.jsdelivr.net/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE }));
+        // jsQR tiruan: "membaca" QR yang isinya diatur tes lewat window.__qrAnswer.
+        await ctx.route('https://cdn.jsdelivr.net/npm/jsqr@*/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript',
+            body: 'window.__jsqrCalls = 0; window.jsQR = function (d, w, h) { window.__jsqrCalls++; window.__jsqrSize = [w, h]; return window.__qrAnswer ? { data: window.__qrAnswer } : null; };' }));
         await ctx.route(/^https:\/\/(fonts\.|wwpbghdepykfqgzhyvmh|.*vercel)/, (r) => r.fulfill({ status: 204, body: '' }));
         await ctx.route('**/_vercel/**', (r) => r.fulfill({ status: 204 }));
         await ctx.route('**/api/guru-login', async (r) => {
@@ -973,11 +977,34 @@ async function runUi() {
         await page.click('#gLoans a[href="#/pinjam"]');
         await page.waitForSelector('#gMyLoans .inv-loan');
         check((await page.$$('#gMyLoans .inv-loan')).length === 2 && /Laptop Acer/.test(await page.textContent('#gMyHist')), 'Pinjam Barang: 2 pinjaman aktif + riwayat');
+        await shot(page, 'inv-04-guru-pinjam-360.png');
+        // Scan QR → kamera langsung terbuka di dalam portal (tanpa dialog), QR terbaca → halaman barang.
+        await page.click('#gScan');
+        await page.waitForSelector('.inv-cam video');
+        check(!(await page.$('.att-sheet')), 'Scan QR langsung membuka kamera tanpa dialog petunjuk');
+        await page.waitForFunction(() => window.__jsqrCalls > 0 && /Arahkan/.test(document.getElementById('gCamMsg')?.textContent || ''));
+        check(await page.evaluate(() => document.querySelector('.inv-cam video').videoWidth > 0), 'kamera mengalirkan gambar ke pemindai');
+        await shot(page, 'inv-05-guru-kamera-360.png');
+        await page.evaluate(() => { window.__qrAnswer = 'https://sdnkalibaru05.sch.id/guru#/pinjam/toklap001aaa'; });
+        await page.waitForSelector('.inv-state.mine');
+        check(!(await page.$('.inv-cam')) && /Laptop Acer Aspire 3/.test(await page.textContent('#gMain')), 'QR terbaca → kamera ditutup & halaman barang terbuka');
+        await page.evaluate(() => { window.__qrAnswer = null; location.hash = '#/pinjam'; });
+        await page.waitForSelector('#gScan');
+        await page.click('#gScan');
+        await page.waitForSelector('.inv-cam');
+        await page.click('.inv-cam button');
+        check(!(await page.$('.inv-cam')), 'tombol Batal menutup kamera');
+        // Izin kamera ditolak → cadangan: foto stiker lalu dibaca.
+        await page.evaluate(() => { navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException('ditolak', 'NotAllowedError')); window.__qrAnswer = 'MEB-001'; });
         await page.click('#gScan');
         await page.waitForSelector('.att-sheet');
-        check(/Kamera/.test(await page.textContent('.att-sheet')), 'browser tanpa pemindai bawaan → petunjuk pakai aplikasi Kamera HP');
-        await page.click('.att-sheet [data-act="yes"]');
-        await shot(page, 'inv-04-guru-pinjam-360.png');
+        check(/Izin kamera ditolak/.test(await page.textContent('.att-sheet')), 'izin kamera ditolak → tawaran foto stiker');
+        const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click('.att-sheet [data-act="yes"]')]);
+        await chooser.setFiles(new URL('../logo-cetak.png', import.meta.url).pathname);
+        await page.waitForSelector('.inv-state.off');
+        check(/Lemari Arsip/.test(await page.textContent('#gMain')), 'foto stiker dibaca → halaman barang terbuka');
+        await page.evaluate(() => { location.hash = '#/pinjam'; });
+        await page.waitForSelector('#gMyLoans .inv-loan');
         check(await overflow(page) <= 0, 'halaman Pinjam Barang tidak bergeser ke samping');
         await page.fill('#gKode', 'https://sdnkalibaru05.sch.id/guru#/pinjam/tokpro001ccc');
         await page.click('#gKodeForm button');

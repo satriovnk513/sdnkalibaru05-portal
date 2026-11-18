@@ -587,39 +587,126 @@
         $('gMyHist').classList.toggle('g-hidden', !myLoans.riwayat.length);
     }
 
-    /** Pemindai QR di dalam portal (Chrome Android). Browser lain: pakai aplikasi Kamera. */
-    async function openScanner() {
-        const fallback = () => window.Att.confirm({
-            title: 'Scan pakai Kamera HP',
-            html: '<p class="att-muted">Buka aplikasi <b>Kamera</b> bawaan HP, arahkan ke stiker QR di barang, lalu ketuk tautan yang muncul. Halaman pinjam akan terbuka otomatis.</p><p class="att-muted">Kalau stiker rusak, ketik kode barang yang tercetak di bawah QR.</p>',
-            confirmText: 'Mengerti', cancelText: 'Tutup',
+    // Pemindai QR di dalam portal. Pakai BarcodeDetector bawaan browser kalau ada (Chrome Android),
+    // selain itu jsQR (dimuat dari CDN hanya saat dibutuhkan) — jalan di semua HP termasuk iPhone.
+    const JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+    let jsqrLoading = null;
+    function loadJsQR() {
+        const ready = window.jsQR?.default || window.jsQR;
+        if (typeof ready === 'function') return Promise.resolve(ready);
+        if (!jsqrLoading) {
+            jsqrLoading = new Promise((resolve, reject) => {
+                const sc = document.createElement('script');
+                sc.src = window.__JSQR_URL || JSQR_URL;
+                sc.async = true;
+                sc.onload = () => { const fn = window.jsQR?.default || window.jsQR; return typeof fn === 'function' ? resolve(fn) : reject(new Error('Pemindai QR gagal dimuat.')); };
+                sc.onerror = () => { jsqrLoading = null; reject(new Error('Pemindai QR gagal dimuat. Periksa koneksi internet.')); };
+                document.head.appendChild(sc);
+            });
+        }
+        return jsqrLoading;
+    }
+
+    /** → fungsi async (video|img) → teks QR atau null. */
+    async function makeQrReader() {
+        if ('BarcodeDetector' in window) {
+            try {
+                const formats = await window.BarcodeDetector.getSupportedFormats?.();
+                if (!formats || formats.includes('qr_code')) {
+                    const det = new window.BarcodeDetector({ formats: ['qr_code'] });
+                    return async (src) => (await det.detect(src))[0]?.rawValue || null;
+                }
+            } catch { /* pakai jsQR */ }
+        }
+        const jsQR = await loadJsQR();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        return async (src) => {
+            const w = src.videoWidth || src.naturalWidth || src.width;
+            const h = src.videoHeight || src.naturalHeight || src.height;
+            if (!w || !h) return null;
+            const k = Math.min(1, 800 / Math.max(w, h));
+            canvas.width = Math.round(w * k);
+            canvas.height = Math.round(h * k);
+            ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
+            const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            return jsQR(img.data, canvas.width, canvas.height, { inversionAttempts: 'dontInvert' })?.data || null;
+        };
+    }
+
+    const openScanned = (raw) => go(`/pinjam/${encodeURIComponent(Inv.codeFromScan(raw))}`);
+
+    /** Cadangan bila kamera langsung tidak bisa dibuka: ambil foto stiker lalu dibaca. */
+    async function photoScan(reason) {
+        const ok = await window.Att.confirm({
+            title: 'Scan lewat foto',
+            html: `<p class="att-muted">${esc(reason)}</p><p class="att-muted">Ketuk <b>Foto stiker QR</b>, arahkan kamera ke stiker di barang, lalu ambil foto. Kalau stiker rusak, ketik kode barang yang tercetak di bawah QR.</p>`,
+            confirmText: 'Foto stiker QR', cancelText: 'Tutup',
         });
-        if (!('BarcodeDetector' in window) || !navigator.mediaDevices?.getUserMedia) return fallback();
-        let stream;
-        try {
-            const formats = await window.BarcodeDetector.getSupportedFormats?.();
-            if (formats && !formats.includes('qr_code')) return fallback();
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-        } catch { return fallback(); }
-        const det = new window.BarcodeDetector({ formats: ['qr_code'] });
+        if (!ok) return;
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.setAttribute('capture', 'environment');
+        input.addEventListener('change', async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            try {
+                const img = new Image();
+                await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('Foto tidak bisa dibuka.')); img.src = url; });
+                const read = await makeQrReader();
+                const text = await read(img);
+                if (text) openScanned(text);
+                else toast('QR belum terbaca. Coba foto lebih dekat & tidak buram, atau ketik kode barangnya.', 'err');
+            } catch (err) {
+                toast(errMessage(err), 'err');
+            } finally { URL.revokeObjectURL(url); }
+        }, { once: true });
+        input.click();
+    }
+
+    /** Tombol "Scan QR barang": langsung buka kamera di dalam portal. */
+    async function openScanner() {
+        if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) {
+            return photoScan('Browser ini tidak bisa membuka kamera langsung dari portal.');
+        }
         const ov = document.createElement('div');
         ov.className = 'inv-cam';
-        ov.innerHTML = `<video playsinline muted></video><div class="inv-cam-frame"></div>
-            <div class="inv-cam-bar"><b>Arahkan ke stiker QR barang</b><button type="button" class="att-btn att-btn-ghost">Batal</button></div>`;
+        ov.innerHTML = `<video playsinline muted autoplay></video><div class="inv-cam-frame"></div>
+            <div class="inv-cam-bar"><b id="gCamMsg">Membuka kamera…</b><button type="button" class="att-btn att-btn-ghost">Batal</button></div>`;
         document.body.appendChild(ov);
+        let stream = null;
+        let done = false;
+        const stop = () => { done = true; stream?.getTracks().forEach((t) => t.stop()); ov.remove(); };
+        ov.querySelector('button').addEventListener('click', stop);
+        let read;
+        try {
+            [stream, read] = await Promise.all([
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }),
+                makeQrReader().catch(() => null),
+            ]);
+        } catch (err) {
+            const denied = err?.name === 'NotAllowedError' || err?.name === 'SecurityError';
+            stop();
+            return photoScan(denied
+                ? 'Izin kamera ditolak. Izinkan kamera untuk situs ini di pengaturan browser, atau pakai foto.'
+                : 'Kamera tidak bisa dibuka di HP ini.');
+        }
+        if (done) { stream.getTracks().forEach((t) => t.stop()); return; }
+        if (!read) { stop(); toast('Pemindai QR gagal dimuat. Periksa koneksi internet, atau ketik kode barang.', 'err'); return; }
         const video = ov.querySelector('video');
         video.srcObject = stream;
-        let done = false;
-        const stop = () => { done = true; stream.getTracks().forEach((t) => t.stop()); ov.remove(); };
-        ov.querySelector('button').addEventListener('click', stop);
         try { await video.play(); } catch { /* abaikan */ }
+        const msg = ov.querySelector('#gCamMsg');
+        if (msg) msg.textContent = 'Arahkan ke stiker QR barang';
         const tick = async () => {
             if (done) return;
             try {
-                const [hit] = await det.detect(video);
-                if (hit?.rawValue) { stop(); go(`/pinjam/${encodeURIComponent(Inv.codeFromScan(hit.rawValue))}`); return; }
+                const text = video.readyState >= 2 ? await read(video) : null;
+                if (text) { stop(); openScanned(text); return; }
             } catch { /* frame belum siap */ }
-            setTimeout(tick, 250);
+            setTimeout(tick, 200);
         };
         tick();
     }
