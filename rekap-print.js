@@ -270,13 +270,16 @@
     }
 
     // Gaya: 0 biasa, 1 judul tebal, 2 header tebal berbingkai, 3 sel berbingkai, 4 sel berbingkai tengah, 5 libur merah berbingkai, 6 tebal garis bawah
+    // Daftar hadir (meniru PDF): 7 judul besar, 8 KELAS kanan tebal, 9 header tabel, 10 sel tengah, 11 sel nama,
+    // 12 libur merah, 13 header libur merah, 14 keterangan kecil miring, 15 nama sekolah tebal,
+    // 16 teks kecil (tanda tangan), 17 nama penanda tangan tebal bergaris bawah
     const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="3"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="12"/><name val="Arial"/></font><font><b/><u/><sz val="10"/><name val="Arial"/></font></fonts>
+<fonts count="10"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="12"/><name val="Arial"/></font><font><b/><u/><sz val="10"/><name val="Arial"/></font><font><sz val="14"/><name val="Arial"/></font><font><sz val="8"/><name val="Arial"/></font><font><b/><sz val="8"/><name val="Arial"/></font><font><i/><sz val="7"/><name val="Arial"/></font><font><b/><sz val="14"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font><font><b/><u/><sz val="9"/><name val="Arial"/></font></fonts>
 <fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFF0000"/><bgColor indexed="64"/></patternFill></fill></fills>
 <borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border></borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="7">
+<cellXfs count="18">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
 <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
 <xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
@@ -284,6 +287,17 @@
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>
 <xf numFmtId="0" fontId="0" fillId="2" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>
 <xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+<xf numFmtId="0" fontId="5" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+<xf numFmtId="49" fontId="4" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="49" fontId="4" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" shrinkToFit="1"/></xf>
+<xf numFmtId="0" fontId="4" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="5" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="6" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="8" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="49" fontId="4" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>
+<xf numFmtId="0" fontId="9" fillId="0" borderId="0" xfId="0" applyFont="1"/>
 </cellXfs>
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
@@ -292,7 +306,7 @@
      * rows: array baris; tiap sel = nilai (string/number/null) atau { v, s } (s = indeks gaya).
      * merges: ['A1:F1', ...]; widths: [lebar kolom ...]; landscape: true
      */
-    function buildXlsx({ sheet = 'Rekap', rows, merges = [], widths = [], landscape = true, logoPng = null, logoPx = 64 }) {
+    function buildXlsx({ sheet = 'Rekap', rows, merges = [], widths = [], landscape = true, logoPng = null, logoPx = 64, heights = {}, showGrid = true, fitHeight = 0 }) {
         const hasLogo = logoPng && logoPng.length > 8 && logoPng[0] === 0x89 && logoPng[1] === 0x50;
         const emu = Math.round(logoPx * 9525);
         const sheetRows = rows.map((r, ri) => {
@@ -305,13 +319,15 @@
                 if (typeof c.v === 'number' && Number.isFinite(c.v)) return `<c r="${ref}"${s}><v>${c.v}</v></c>`;
                 return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${xmlEsc(c.v)}</t></is></c>`;
             }).join('');
-            return `<row r="${ri + 1}">${cells}</row>`;
+            const ht = heights[ri + 1] ? ` ht="${heights[ri + 1]}" customHeight="1"` : '';
+            return `<row r="${ri + 1}"${ht}>${cells}</row>`;
         }).join('');
         const cols = widths.length ? `<cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>` : '';
         const mergeXml = merges.length ? `<mergeCells count="${merges.length}">${merges.map((m) => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : '';
         const ws = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" right="0.3" top="0.3" bottom="0.3" header="0" footer="0"/><pageSetup paperSize="9" orientation="${landscape ? 'landscape' : 'portrait'}" fitToWidth="1" fitToHeight="0"/>${hasLogo ? '<drawing r:id="rId1"/>' : ''}
+<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"${showGrid ? '' : ' showGridLines="0"'}/></sheetViews>
+${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" right="0.3" top="0.3" bottom="0.3" header="0" footer="0"/><pageSetup paperSize="9" orientation="${landscape ? 'landscape' : 'portrait'}" fitToWidth="1" fitToHeight="${fitHeight}"/>${hasLogo ? '<drawing r:id="rId1"/>' : ''}
 </worksheet>`;
         const safeSheet = xmlEsc(String(sheet).replace(/[\\/?*[\]:]/g, ' ').slice(0, 31));
         const files = [
@@ -340,94 +356,117 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         return zipStore(files);
     }
 
-    function footerRows(header, opts, tanggal, g, width) {
+    /** Blok tanda tangan. compact = gaya daftar hadir (huruf kecil, posisi sejajar versi PDF). */
+    function footerRows(header, opts, tanggal, g, width, { mid = 3, right = Math.max(width - 8, 6), compact = false } = {}) {
         const kepsek = header.kepala_sekolah || {};
         const wali = pickWali(header, opts.wali || 1) || {};
-        const right = Math.max(width - 8, 6);
-        const row = (left, mid, r) => {
+        const t = (v) => (compact && v !== null && v !== '' && typeof v !== 'object' ? { v, s: 16 } : v);
+        const row = (left, m, r) => {
             const a = new Array(width).fill(null);
-            a[0] = left; a[3] = mid; a[right] = r;
+            a[0] = t(left); a[mid] = t(m); a[right] = t(r);
             return a;
         };
         const nip = (v) => (opts.showNip !== false ? `NIP. ${v || '-'}` : '');
+        const nm = (v) => ({ v: namaTtd(v), s: compact ? 17 : 6 });
         return [
             [],
             row(`Laki-laki = ${g.L}`, 'Mengetahui,', `${CITY}, ${tglPanjang(tanggal)}`),
             row(`Perempuan = ${g.P}`, 'Kepala Sekolah', 'Wali Kelas'),
             [], [],
-            row(null, { v: namaTtd(kepsek.nama), s: 6 }, { v: namaTtd(wali.nama), s: 6 }),
+            row(null, nm(kepsek.nama), nm(wali.nama)),
             row(null, nip(kepsek.nip), nip(wali.nip)),
         ];
     }
 
     function monthlyXlsx(recap, header, opts = {}) {
+        // Tata letak meniru versi PDF: logo + judul kiri, KELAS kanan atas, tabel rapat
+        // berhuruf kecil, kolom tanggal cukup lebar untuk 2 angka, Sabtu/Minggu/libur merah.
         const days = recap.hari || [];
         const siswa = recap.siswa || [];
         const width = 5 + days.length + 3;
         const last = colName(width - 1);
-        const B = (v) => ({ v, s: 2 });
+        const kelasCol = Math.max(width - 6, 5);
+        const H = (v) => ({ v, s: 9 });
+        const blank = (n) => new Array(n).fill(null);
+        const titleRow = (v, s, extra) => { const r = [null, null, null, { v, s }]; if (extra) { r.length = kelasCol; r.push(extra); } return r; };
         const rows = [
-            // Judul mulai kolom D: A1:C4 dipakai logo.
-            [null, null, null, { v: 'DAFTAR HADIR SISWA', s: 1 }],
-            [null, null, null, { v: `TAHUN PELAJARAN ${tpLabel(header.tahun_ajaran)}`, s: 1 }],
-            [null, null, null, { v: SCHOOL, s: 1 }],
-            [null, null, null, { v: `KELAS : ${romawi(header.kelas || recap.kelas)}`, s: 1 }],
+            titleRow('DAFTAR HADIR SISWA', 7, { v: `KELAS : ${romawi(header.kelas || recap.kelas)}`, s: 8 }),
+            titleRow(`TAHUN PELAJARAN ${tpLabel(header.tahun_ajaran)}`, 7),
+            titleRow(SCHOOL, 15),
             [],
-            [B('NO'), B(''), B(''), B('NAMA'), B('L/P'), B(`BULAN : ${BULAN[recap.bulan - 1].toUpperCase()} ${recap.tahun}`), ...days.slice(1).map(() => B('')), B('JUMLAH'), B(''), B('')],
-            [B('ABS'), B('NIS'), B('NISN'), B(''), B(''), ...days.map((d) => ({ v: Number(d.tanggal.slice(8)), s: d.libur ? 5 : 2 })), B('S'), B('I'), B('A')],
+            [H('NO'), H(''), H(''), H('NAMA'), H('L/P'), H(`BULAN : ${BULAN[recap.bulan - 1].toUpperCase()} ${recap.tahun}`), ...days.slice(1).map(() => H('')), H('JUMLAH'), H(''), H('')],
+            [H('ABS'), H('NIS'), H('NISN'), H(''), H(''), ...days.map((d) => ({ v: Number(d.tanggal.slice(8)), s: d.libur ? 13 : 9 })), H('S'), H('I'), H('A')],
         ];
         for (const s of siswa) {
             const t = counts(s.status);
             rows.push([
-                { v: s.no, s: 4 }, { v: s.nis || '', s: 4 }, { v: s.nisn || '', s: 4 }, { v: String(s.nama || '').toUpperCase(), s: 3 }, { v: s.jk || '', s: 4 },
+                { v: s.no, s: 10 }, { v: String(s.nis || ''), s: 10 }, { v: String(s.nisn || ''), s: 10 }, { v: String(s.nama || '').toUpperCase(), s: 11 }, { v: s.jk || '', s: 10 },
                 ...days.map((d) => {
                     const v = (s.status || {})[d.tanggal];
-                    return { v: d.libur || !v ? '' : (v === 'H' ? HADIR : v), s: d.libur ? 5 : 4 };
+                    return { v: d.libur || !v ? '' : (v === 'H' ? HADIR : v), s: d.libur ? 12 : 10 };
                 }),
-                { v: t.S, s: 4 }, { v: t.I, s: 4 }, { v: t.A, s: 4 },
+                { v: t.S, s: 10 }, { v: t.I, s: 10 }, { v: t.A, s: 10 },
             ]);
         }
-        rows.push([{ v: '✓ = hadir, S = sakit, I = izin, A = alpa, D = dispensasi. Kolom merah = Sabtu, Minggu, atau hari libur.' }]);
-        rows.push(...footerRows(header, opts, akhirBulan(recap.tahun, recap.bulan), genderTotals(siswa), width));
+        if (!siswa.length) rows.push([{ v: 'Belum ada siswa.', s: 10 }, ...blank(width - 1).map(() => ({ v: '', s: 10 }))]);
+        const legendRow = rows.length + 1;
+        rows.push([{ v: '✓ = hadir, S = sakit, I = izin, A = alpa, D = dispensasi. Kolom merah = Sabtu, Minggu, atau hari libur. Kolom kosong = absensi belum diisi.', s: 14 }]);
+        rows.push(...footerRows(header, opts, akhirBulan(recap.tahun, recap.bulan), genderTotals(siswa), width,
+            { mid: 6, right: Math.max(width - 11, 8), compact: true }));
         const d0 = colName(5);
         const dN = colName(4 + Math.max(days.length, 1));
+        const heights = { 1: 22, 2: 20, 3: 15, 4: 6, 5: 15, 6: 15, [legendRow]: 12 };
+        for (let i = 0; i < Math.max(siswa.length, 1); i++) heights[7 + i] = 13.5;
         return buildXlsx({
             sheet: `${romawi(header.kelas || recap.kelas)} ${BULAN[recap.bulan - 1]} ${recap.tahun}`,
             rows,
             logoPng: opts.logoPng,
-            merges: [`D1:${last}1`, `D2:${last}2`, `D3:${last}3`, `D4:${last}4`, 'A6:C6', 'D6:D7', 'E6:E7',
-                `${d0}6:${dN}6`, `${colName(width - 3)}6:${last}6`],
-            widths: [5, 8, 12, 32, 5, ...days.map(() => 3.2), 4, 4, 4],
+            logoPx: 52,
+            heights,
+            showGrid: false,
+            fitHeight: 1,
+            merges: [`D1:${colName(kelasCol - 1)}1`, `D2:${colName(kelasCol - 1)}2`, `D3:${colName(kelasCol - 1)}3`, `${colName(kelasCol)}1:${last}1`,
+                'A5:C5', 'D5:D6', 'E5:E6', `${d0}5:${dN}5`, `${colName(width - 3)}5:${last}5`,
+                `A${legendRow}:${last}${legendRow}`, ...(siswa.length ? [] : [`A7:${last}7`])],
+            widths: [4.5, 6.5, 10.5, 30, 4, ...days.map(() => 3.3), 3.3, 3.3, 3.3],
         });
     }
 
     function semesterXlsx(recap, header, opts = {}) {
+        // Gaya sama dengan daftar hadir bulanan (meniru versi PDF).
         const siswa = recap.siswa || [];
         const nama = recap.semester === 1 ? 'GANJIL' : 'GENAP';
-        const B = (v) => ({ v, s: 2 });
+        const H = (v) => ({ v, s: 9 });
         const width = 12;
+        const kelasCol = 9;
         const rows = [
-            [null, null, null, { v: `REKAP ABSENSI SEMESTER ${nama}`, s: 1 }],
-            [null, null, null, { v: `TAHUN PELAJARAN ${tpLabel(header.tahun_ajaran)}`, s: 1 }],
-            [null, null, null, { v: SCHOOL, s: 1 }],
-            [null, null, null, { v: `KELAS : ${romawi(header.kelas)}`, s: 1 }],
-            [`Periode ${tglPanjang(recap.mulai)} s.d. ${tglPanjang(recap.selesai)} · Hari efektif s.d. ${tglPanjang(recap.sampai_hari_ini)}: ${recap.hari_efektif} hari · Absensi terisi: ${recap.hari_terisi} hari`],
-            [B('NO'), B('NIS'), B('NISN'), B('NAMA'), B('L/P'), B('HADIR'), B('SAKIT'), B('IZIN'), B('ALPA'), B('DISPENSASI'), B('% KEHADIRAN'), B('KETERANGAN')],
+            [null, null, null, { v: `REKAP ABSENSI SEMESTER ${nama}`, s: 7 }, null, null, null, null, null, { v: `KELAS : ${romawi(header.kelas)}`, s: 8 }],
+            [null, null, null, { v: `TAHUN PELAJARAN ${tpLabel(header.tahun_ajaran)}`, s: 7 }],
+            [null, null, null, { v: SCHOOL, s: 15 }],
+            [{ v: `Periode ${tglPanjang(recap.mulai)} s.d. ${tglPanjang(recap.selesai)} · Hari efektif s.d. ${tglPanjang(recap.sampai_hari_ini)}: ${recap.hari_efektif} hari · Absensi terisi: ${recap.hari_terisi} hari`, s: 16 }],
+            [H('NO'), H('NIS'), H('NISN'), H('NAMA'), H('L/P'), H('HADIR'), H('SAKIT'), H('IZIN'), H('ALPA'), H('DISPENSASI'), H('% KEHADIRAN'), H('KETERANGAN')],
         ];
         for (const s of siswa) {
             const p = pct(s);
-            rows.push([{ v: s.no, s: 4 }, { v: s.nis || '', s: 4 }, { v: s.nisn || '', s: 4 }, { v: String(s.nama || '').toUpperCase(), s: 3 }, { v: s.jk || '', s: 4 },
-                { v: s.H, s: 4 }, { v: s.S, s: 4 }, { v: s.I, s: 4 }, { v: s.A, s: 4 }, { v: s.D, s: 4 }, { v: p === null ? '–' : p, s: 4 }, { v: '', s: 3 }]);
+            rows.push([{ v: s.no, s: 10 }, { v: String(s.nis || ''), s: 10 }, { v: String(s.nisn || ''), s: 10 }, { v: String(s.nama || '').toUpperCase(), s: 11 }, { v: s.jk || '', s: 10 },
+                { v: s.H, s: 10 }, { v: s.S, s: 10 }, { v: s.I, s: 10 }, { v: s.A, s: 10 }, { v: s.D, s: 10 }, { v: p === null ? '–' : `${String(p).replace('.', ',')}%`, s: 10 }, { v: '', s: 11 }]);
         }
-        rows.push(['% kehadiran = (hadir + dispensasi) ÷ hari yang terisi. Dispensasi (kegiatan resmi sekolah) dihitung hadir.']);
+        const legendRow = rows.length + 1;
+        rows.push([{ v: '% kehadiran = (hadir + dispensasi) ÷ hari yang terisi. Dispensasi (kegiatan resmi sekolah) dihitung hadir.', s: 14 }]);
         const tanggal = ttdSemester(recap);
-        rows.push(...footerRows(header, opts, tanggal, genderTotals(siswa), width));
+        rows.push(...footerRows(header, opts, tanggal, genderTotals(siswa), width, { mid: 4, right: 10, compact: true }));
+        const heights = { 1: 22, 2: 20, 3: 15, 4: 14, 5: 16, [legendRow]: 12 };
+        for (let i = 0; i < siswa.length; i++) heights[6 + i] = 13.5;
         return buildXlsx({
             sheet: `Semester ${nama} ${romawi(header.kelas)}`,
             rows,
             logoPng: opts.logoPng,
-            merges: ['D1:L1', 'D2:L2', 'D3:L3', 'D4:L4', 'A5:L5'],
-            widths: [5, 9, 13, 34, 5, 8, 8, 8, 8, 11, 13, 22],
+            logoPx: 52,
+            heights,
+            showGrid: false,
+            fitHeight: 1,
+            merges: [`D1:${colName(kelasCol - 1)}1`, 'D2:L2', 'D3:L3', `${colName(kelasCol)}1:L1`, 'A4:L4', `A${legendRow}:L${legendRow}`],
+            widths: [4.5, 7, 11.5, 36, 4.5, 8, 8, 8, 8, 11.5, 13, 24],
         });
     }
 

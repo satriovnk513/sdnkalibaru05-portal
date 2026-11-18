@@ -98,8 +98,8 @@ test('XLSX valid dibuka openpyxl: bulanan & semester', { skip: py.status !== 0 ?
 import sys, openpyxl
 m = openpyxl.load_workbook(sys.argv[1]).active
 s = openpyxl.load_workbook(sys.argv[2]).active
-print(m.title, '|', m['D1'].value, '|', m['D4'].value, '|', m['D8'].value, '|', m['F8'].value, '|', m['G8'].value, '|', m.cell(8, 5 + 31 + 1).value, '|', m['F6'].value, '|', m.cell(7, 5 + 19).fill.fgColor.rgb, '|', len(m.merged_cells.ranges))
-print(s.title, '|', s['D1'].value, '|', s['D7'].value, '|', s['F7'].value, '|', s['K7'].value, '|', s['K8'].value)
+print(m.title, '|', m['D1'].value, '|', m.cell(1, 5 + 31 + 3 - 6 + 1).value, '|', m['D7'].value, '|', m['F7'].value, '|', m['G7'].value, '|', m.cell(7, 5 + 31 + 1).value, '|', m['F5'].value, '|', m.cell(6, 5 + 19).fill.fgColor.rgb, '|', len(m.merged_cells.ranges), '|', m.column_dimensions['F'].width, '|', m.sheet_view.showGridLines, '|', m.page_setup.fitToHeight, '|', m.row_dimensions[7].height, '|', m['B7'].number_format)
+print(s.title, '|', s['D1'].value, '|', s['D6'].value, '|', s['F6'].value, '|', s['K6'].value, '|', s['K7'].value)
 import zipfile
 for f in sys.argv[1:3]:
     z = zipfile.ZipFile(f)
@@ -112,8 +112,9 @@ for f in sys.argv[1:3]:
         assert.deepEqual(i1, [String(logoPng.length), 'True'], 'logo tertanam di Excel bulanan');
         assert.deepEqual(i2, [String(logoPng.length), 'True'], 'logo tertanam di Excel semester');
         assert.deepEqual(l1.slice(0, 9), ['III.A Desember 2026', 'DAFTAR HADIR SISWA', 'KELAS : III.A', 'SISWA FIKTIF <SATU> & "DUA"', '✓', 'S', '1', 'BULAN : DESEMBER 2026', 'FFFF0000']);
-        assert.equal(Number(l1[9]), 9);
-        assert.deepEqual(l2, ['Semester GANJIL III.A', 'REKAP ABSENSI SEMESTER GANJIL', 'SISWA FIKTIF SATU', '8', '80', '–']);
+        assert.equal(Number(l1[9]), 10);
+        assert.deepEqual(l1.slice(10), ['3.3', 'False', '1', '13.5', '@'], 'kolom tanggal cukup lebar, tanpa garis grid, 1 halaman, NIS sebagai teks');
+        assert.deepEqual(l2, ['Semester GANJIL III.A', 'REKAP ABSENSI SEMESTER GANJIL', 'SISWA FIKTIF SATU', '8', '80%', '–']);
     } finally {
         rmSync(dir, { recursive: true, force: true });
     }

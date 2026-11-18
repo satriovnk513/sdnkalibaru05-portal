@@ -400,8 +400,8 @@ async function runUi() {
             await pop.close();
             const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#gRkXlsx')]);
             check(/^Daftar_Hadir_I\.A_.*\.xlsx$/.test(dl.suggestedFilename()), `guru: nama file Excel (${dl.suggestedFilename()})`);
-            const v = await xlsxCells(dl, ['D1', 'D4']);
-            check(!v || (v[0] === 'DAFTAR HADIR SISWA' && v[1] === 'KELAS : I.A' && v[2] === 'logo'), `guru: file Excel valid + logo tertanam (${v})`);
+            const v = await xlsxCells(dl, ['D1', 'D3']);
+            check(!v || (v[0] === 'DAFTAR HADIR SISWA' && v[1] === 'SDN KALIBARU 05 PAGI' && v[2] === 'logo'), `guru: file Excel valid + logo tertanam (${v})`);
             const pop2 = await popupFrom(page, () => page.click('#gRkSemPrint'));
             check(/REKAP ABSENSI SEMESTER/.test(await pop2.textContent('body')), 'guru: cetak rekap semester');
             await pop2.close();
@@ -840,8 +840,8 @@ async function runUi() {
         await popB.close();
         await page.uncheck('#lpBlnBlank');
         const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#lpBlnXlsx')]);
-        const v = await xlsxCells(dl, ['D1', 'D4', 'D8']);
-        check(!v || (v[0] === 'DAFTAR HADIR SISWA' && v[1] === 'KELAS : I.A' && v[2] === 'SISWA FIKTIF DUA' && v[3] === 'logo'), `${T} Excel bulanan valid + logo (${v})`);
+        const v = await xlsxCells(dl, ['D1', 'D3', 'D7']);
+        check(!v || (v[0] === 'DAFTAR HADIR SISWA' && v[1] === 'SDN KALIBARU 05 PAGI' && v[2] === 'SISWA FIKTIF DUA' && v[3] === 'logo'), `${T} Excel bulanan valid + logo (${v})`);
 
         await page.evaluate(() => showTab('tabRekapSemester'));
         await page.waitForSelector('#lpSemTable .att-table');
@@ -860,7 +860,7 @@ async function runUi() {
         }
         await popS.close();
         const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('#lpSemXlsx')]);
-        const v2 = await xlsxCells(dl2, ['D1', 'D7']);
+        const v2 = await xlsxCells(dl2, ['D1', 'D6']);
         check(!v2 || (/REKAP ABSENSI SEMESTER/.test(v2[0]) && v2[1] === 'SISWA FIKTIF DUA'), `${T} Excel semester valid (${v2})`);
         check(errors.length === 0, `${T} tidak ada error JavaScript di Laporan (${errors.join(' | ').slice(0, 160)})`);
 
