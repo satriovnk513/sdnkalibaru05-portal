@@ -275,7 +275,7 @@
     // 16 teks kecil (tanda tangan), 17 nama penanda tangan tebal bergaris bawah
     const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="10"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="12"/><name val="Arial"/></font><font><b/><u/><sz val="10"/><name val="Arial"/></font><font><sz val="14"/><name val="Arial"/></font><font><sz val="8"/><name val="Arial"/></font><font><b/><sz val="8"/><name val="Arial"/></font><font><i/><sz val="7"/><name val="Arial"/></font><font><b/><sz val="14"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font><font><b/><u/><sz val="9"/><name val="Arial"/></font></fonts>
+<fonts count="10"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="12"/><name val="Arial"/></font><font><b/><u/><sz val="10"/><name val="Arial"/></font><font><sz val="12"/><name val="Arial"/></font><font><sz val="8"/><name val="Arial"/></font><font><b/><sz val="8"/><name val="Arial"/></font><font><i/><sz val="7"/><name val="Arial"/></font><font><b/><sz val="12"/><name val="Arial"/></font><font><b/><sz val="9"/><name val="Arial"/></font><font><b/><u/><sz val="9"/><name val="Arial"/></font></fonts>
 <fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFF0000"/><bgColor indexed="64"/></patternFill></fill></fills>
 <borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border></borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
@@ -287,15 +287,15 @@
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>
 <xf numFmtId="0" fontId="0" fillId="2" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>
 <xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>
-<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="center"/></xf>
-<xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="bottom"/></xf>
+<xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="right" vertical="bottom"/></xf>
 <xf numFmtId="0" fontId="5" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
 <xf numFmtId="49" fontId="4" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 <xf numFmtId="49" fontId="4" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" shrinkToFit="1"/></xf>
 <xf numFmtId="0" fontId="4" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 <xf numFmtId="0" fontId="5" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 <xf numFmtId="0" fontId="6" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="center"/></xf>
-<xf numFmtId="0" fontId="8" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="8" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="bottom"/></xf>
 <xf numFmtId="49" fontId="4" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>
 <xf numFmtId="0" fontId="9" fillId="0" borderId="0" xfId="0" applyFont="1"/>
 </cellXfs>
@@ -388,11 +388,12 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         const kelasCol = Math.max(width - 6, 5);
         const H = (v) => ({ v, s: 9 });
         const blank = (n) => new Array(n).fill(null);
-        const titleRow = (v, s, extra) => { const r = [null, null, null, { v, s }]; if (extra) { r.length = kelasCol; r.push(extra); } return r; };
+        // Judul mulai kolom C (A–B untuk logo), KELAS di kanan sebaris dengan nama sekolah — sama seperti PDF.
+        const titleRow = (v, s, extra) => { const r = [null, null, { v, s }]; if (extra) { r.length = kelasCol; r.push(extra); } return r; };
         const rows = [
-            titleRow('DAFTAR HADIR SISWA', 7, { v: `KELAS : ${romawi(header.kelas || recap.kelas)}`, s: 8 }),
+            titleRow('DAFTAR HADIR SISWA', 7),
             titleRow(`TAHUN PELAJARAN ${tpLabel(header.tahun_ajaran)}`, 7),
-            titleRow(SCHOOL, 15),
+            titleRow(SCHOOL, 15, { v: `KELAS : ${romawi(header.kelas || recap.kelas)}`, s: 8 }),
             [],
             [H('NO'), H(''), H(''), H('NAMA'), H('L/P'), H(`BULAN : ${BULAN[recap.bulan - 1].toUpperCase()} ${recap.tahun}`), ...days.slice(1).map(() => H('')), H('JUMLAH'), H(''), H('')],
             [H('ABS'), H('NIS'), H('NISN'), H(''), H(''), ...days.map((d) => ({ v: Number(d.tanggal.slice(8)), s: d.libur ? 13 : 9 })), H('S'), H('I'), H('A')],
@@ -415,17 +416,17 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
             { mid: 6, right: Math.max(width - 11, 8), compact: true }));
         const d0 = colName(5);
         const dN = colName(4 + Math.max(days.length, 1));
-        const heights = { 1: 22, 2: 20, 3: 15, 4: 6, 5: 15, 6: 15, [legendRow]: 12 };
+        const heights = { 1: 15, 2: 15, 3: 15, 4: 4, 5: 13, 6: 13, [legendRow]: 12 };
         for (let i = 0; i < Math.max(siswa.length, 1); i++) heights[7 + i] = 13.5;
         return buildXlsx({
             sheet: `${romawi(header.kelas || recap.kelas)} ${BULAN[recap.bulan - 1]} ${recap.tahun}`,
             rows,
             logoPng: opts.logoPng,
-            logoPx: 52,
+            logoPx: 46,
             heights,
             showGrid: false,
             fitHeight: 1,
-            merges: [`D1:${colName(kelasCol - 1)}1`, `D2:${colName(kelasCol - 1)}2`, `D3:${colName(kelasCol - 1)}3`, `${colName(kelasCol)}1:${last}1`,
+            merges: [`C1:${colName(kelasCol - 1)}1`, `C2:${colName(kelasCol - 1)}2`, `C3:${colName(kelasCol - 1)}3`, `${colName(kelasCol)}3:${last}3`,
                 'A5:C5', 'D5:D6', 'E5:E6', `${d0}5:${dN}5`, `${colName(width - 3)}5:${last}5`,
                 `A${legendRow}:${last}${legendRow}`, ...(siswa.length ? [] : [`A7:${last}7`])],
             widths: [4.5, 6.5, 10.5, 30, 4, ...days.map(() => 3.3), 3.3, 3.3, 3.3],
@@ -440,9 +441,9 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         const width = 12;
         const kelasCol = 9;
         const rows = [
-            [null, null, null, { v: `REKAP ABSENSI SEMESTER ${nama}`, s: 7 }, null, null, null, null, null, { v: `KELAS : ${romawi(header.kelas)}`, s: 8 }],
-            [null, null, null, { v: `TAHUN PELAJARAN ${tpLabel(header.tahun_ajaran)}`, s: 7 }],
-            [null, null, null, { v: SCHOOL, s: 15 }],
+            [null, null, { v: `REKAP ABSENSI SEMESTER ${nama}`, s: 7 }],
+            [null, null, { v: `TAHUN PELAJARAN ${tpLabel(header.tahun_ajaran)}`, s: 7 }],
+            [null, null, { v: SCHOOL, s: 15 }, null, null, null, null, null, null, { v: `KELAS : ${romawi(header.kelas)}`, s: 8 }],
             [{ v: `Periode ${tglPanjang(recap.mulai)} s.d. ${tglPanjang(recap.selesai)} · Hari efektif s.d. ${tglPanjang(recap.sampai_hari_ini)}: ${recap.hari_efektif} hari · Absensi terisi: ${recap.hari_terisi} hari`, s: 16 }],
             [H('NO'), H('NIS'), H('NISN'), H('NAMA'), H('L/P'), H('HADIR'), H('SAKIT'), H('IZIN'), H('ALPA'), H('DISPENSASI'), H('% KEHADIRAN'), H('KETERANGAN')],
         ];
@@ -455,17 +456,17 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         rows.push([{ v: '% kehadiran = (hadir + dispensasi) ÷ hari yang terisi. Dispensasi (kegiatan resmi sekolah) dihitung hadir.', s: 14 }]);
         const tanggal = ttdSemester(recap);
         rows.push(...footerRows(header, opts, tanggal, genderTotals(siswa), width, { mid: 4, right: 10, compact: true }));
-        const heights = { 1: 22, 2: 20, 3: 15, 4: 14, 5: 16, [legendRow]: 12 };
+        const heights = { 1: 15, 2: 15, 3: 15, 4: 14, 5: 16, [legendRow]: 12 };
         for (let i = 0; i < siswa.length; i++) heights[6 + i] = 13.5;
         return buildXlsx({
             sheet: `Semester ${nama} ${romawi(header.kelas)}`,
             rows,
             logoPng: opts.logoPng,
-            logoPx: 52,
+            logoPx: 46,
             heights,
             showGrid: false,
             fitHeight: 1,
-            merges: [`D1:${colName(kelasCol - 1)}1`, 'D2:L2', 'D3:L3', `${colName(kelasCol)}1:L1`, 'A4:L4', `A${legendRow}:L${legendRow}`],
+            merges: ['C1:L1', 'C2:L2', `C3:${colName(kelasCol - 1)}3`, `${colName(kelasCol)}3:L3`, 'A4:L4', `A${legendRow}:L${legendRow}`],
             widths: [4.5, 7, 11.5, 36, 4.5, 8, 8, 8, 8, 11.5, 13, 24],
         });
     }

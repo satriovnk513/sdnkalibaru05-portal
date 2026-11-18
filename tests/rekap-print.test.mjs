@@ -98,8 +98,8 @@ test('XLSX valid dibuka openpyxl: bulanan & semester', { skip: py.status !== 0 ?
 import sys, openpyxl
 m = openpyxl.load_workbook(sys.argv[1]).active
 s = openpyxl.load_workbook(sys.argv[2]).active
-print(m.title, '|', m['D1'].value, '|', m.cell(1, 5 + 31 + 3 - 6 + 1).value, '|', m['D7'].value, '|', m['F7'].value, '|', m['G7'].value, '|', m.cell(7, 5 + 31 + 1).value, '|', m['F5'].value, '|', m.cell(6, 5 + 19).fill.fgColor.rgb, '|', len(m.merged_cells.ranges), '|', m.column_dimensions['F'].width, '|', m.sheet_view.showGridLines, '|', m.page_setup.fitToHeight, '|', m.row_dimensions[7].height, '|', m['B7'].number_format)
-print(s.title, '|', s['D1'].value, '|', s['D6'].value, '|', s['F6'].value, '|', s['K6'].value, '|', s['K7'].value)
+print(m.title, '|', m['C1'].value, '|', m.cell(3, 5 + 31 + 3 - 6 + 1).value, '|', m['D7'].value, '|', m['F7'].value, '|', m['G7'].value, '|', m.cell(7, 5 + 31 + 1).value, '|', m['F5'].value, '|', m.cell(6, 5 + 19).fill.fgColor.rgb, '|', len(m.merged_cells.ranges), '|', m.column_dimensions['F'].width, '|', m.sheet_view.showGridLines, '|', m.page_setup.fitToHeight, '|', m.row_dimensions[7].height, '|', m['B7'].number_format)
+print(s.title, '|', s['C1'].value, '|', s['D6'].value, '|', s['F6'].value, '|', s['K6'].value, '|', s['K7'].value)
 import zipfile
 for f in sys.argv[1:3]:
     z = zipfile.ZipFile(f)
