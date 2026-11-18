@@ -461,8 +461,8 @@ async function runUi() {
         // Statistik
         await page.click('.g-nav a[data-nav="statistik"]');
         await page.waitForSelector('#gStat .g-tiles');
-        check((await page.$$('.g-nav a')).length === 6 && await overflow(page) <= 0
-            && await page.$$eval('.g-nav a', (a) => a.every((x) => x.scrollWidth <= x.clientWidth + 1)), 'menu bawah 6 tombol (Statistik, Dokumen) muat di 360 px tanpa terpotong');
+        check((await page.$$('.g-nav a')).length === 7 && await overflow(page) <= 0
+            && await page.$$eval('.g-nav a', (a) => a.every((x) => x.scrollWidth <= x.clientWidth + 1)), 'menu bawah 7 tombol (termasuk Pinjam di tengah) muat di 360 px tanpa terpotong');
         check(await page.$('#gStKomposisi .ac-donut svg') !== null && await page.$('#gStTren svg rect') !== null, 'statistik bulanan: donat komposisi + batang tren');
         await page.click('[data-komposisi="batang"]');
         check(await page.$('#gStKomposisi .ac-bars') !== null && await page.$('#gStKomposisi .ac-donut') === null, 'komposisi bisa diganti ke grafik batang');
@@ -971,6 +971,20 @@ async function runUi() {
         await page.waitForSelector('#gLoans');
         const box = await page.textContent('#gLoans');
         check(/Laptop Acer Aspire 3/.test(box) && /Proyektor/.test(box) && /1 terlambat/.test(box), `dashboard menampilkan barang yang saya pinjam + jumlah terlambat (${box.replace(/\s+/g, ' ').slice(0, 90)})`);
+        check(await page.evaluate(() => {
+            const loans = document.getElementById('gLoans');
+            const firstOther = [...document.querySelectorAll('#gMain .g-box')].find((b) => b.id !== 'gLoans');
+            return !firstOther || Boolean(loans.compareDocumentPosition(firstOther) & Node.DOCUMENT_POSITION_FOLLOWING);
+        }), 'kotak pinjam barang ada di atas kotak wali kelas / absensi');
+        {
+            const fab = await page.$eval('.g-nav a.g-nav-fab', (a) => {
+                const nav = [...document.querySelectorAll('.g-nav a')].map((x) => x.dataset.nav);
+                const r = a.querySelector('.g-fab').getBoundingClientRect();
+                return { nav, round: getComputedStyle(a.querySelector('.g-fab')).borderRadius, raised: r.top < a.getBoundingClientRect().top, w: r.width };
+            });
+            check(fab.nav.join(',') === 'home,siswa,rekap,pinjam,statistik,dokumen,akun' && fab.round === '50%' && fab.raised && fab.w >= 48,
+                `menu bawah: tombol bulat Pinjam di tengah antara Rekap & Statistik (${JSON.stringify(fab)})`);
+        }
         await shot(page, 'inv-03-guru-dashboard-360.png');
 
         // Halaman Pinjam Barang + scan (fallback kamera) + ketik kode

@@ -418,7 +418,12 @@
         if (!home.is_school_day) {
             parts.push(`<div class="att-alert warn" style="margin-bottom:12px">Hari ini libur${home.holiday_name ? ` (${esc(home.holiday_name)})` : ''}. Absensi tidak perlu diisi.</div>`);
         }
+        // Pinjam barang: di atas kotak wali kelas (mulai absensi).
         if (myLoans?.aktif?.length) parts.push(loansBox(myLoans.aktif));
+        else {
+            parts.push(`<a class="g-sched g-chip g-pinjam-link" href="#/pinjam"><span class="g-sched-ico">${ICON.qr}</span>
+                <span class="g-sched-txt"><b>Pinjam barang</b><span>Laptop, proyektor, speaker — scan stiker QR</span></span>${ICON.chev}</a>`);
+        }
 
         for (const w of home.wali_kelas) {
             const t = w.hari_ini;
@@ -475,11 +480,6 @@
                     <p class="att-muted" style="margin:10px 0 0">Jam pelajaran per hari menyusul di fitur Jadwal Kelas. Untuk sekarang semua kelas yang Anda ajar ditampilkan.</p>
                 </div>
             </section>`);
-        }
-
-        if (!myLoans?.aktif?.length) {
-            parts.push(`<a class="g-sched g-chip g-pinjam-link" href="#/pinjam"><span class="g-sched-ico">${ICON.qr}</span>
-                <span class="g-sched-txt"><b>Pinjam barang</b><span>Laptop, proyektor, speaker — scan stiker QR</span></span>${ICON.chev}</a>`);
         }
 
         parts.push(`<section class="g-box g-soon">
@@ -561,7 +561,7 @@
     }
 
     async function renderPinjamList() {
-        setNav('');
+        setNav('pinjam');
         setTop('Pinjam Barang', 'Scan stiker QR di barang', true);
         loansStale = true;
         main(`<button type="button" class="att-btn att-btn-primary att-btn-block inv-scan-btn" id="gScan">${ICON.qr}Scan QR barang</button>
@@ -712,7 +712,7 @@
     }
 
     async function renderPinjamItem(code) {
-        setNav('');
+        setNav('pinjam');
         setTop('Pinjam Barang', 'Hasil scan', true);
         loading();
         let it;
