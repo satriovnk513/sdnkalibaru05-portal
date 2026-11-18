@@ -100,3 +100,10 @@ test('template impor baru: kolom Status & Keterangan rusak terbaca', async () =>
     assert.equal(it.keterangan_rusak, 'Lampu proyektor mati');
     assert.equal(it.catatan, '');
 });
+
+test('header Permissions-Policy mengizinkan kamera untuk situs sendiri (scan QR)', () => {
+    const cfg = JSON.parse(require('node:fs').readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+    const vals = (cfg.headers || []).flatMap((h) => h.headers).filter((h) => h.key.toLowerCase() === 'permissions-policy').map((h) => h.value);
+    assert.ok(vals.length > 0);
+    for (const v of vals) assert.match(v, /camera=\(self\)/);
+});
