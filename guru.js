@@ -418,7 +418,7 @@
         const wali0 = home.wali_kelas[0];
         const mapel0 = home.mapel.find((m) => !m.hari_ini) || home.mapel[0];
         const target = wali0
-            ? { kelas: wali0.kelas, label: wali0.posisi === 2 ? 'Wali Pendamping' : 'Wali Kelas', href: `#/absen?kelas=${wali0.class_id}&tanggal=${today}&jenis=harian`, done: Boolean(wali0.hari_ini) }
+            ? { kelas: wali0.kelas, label: wali0.posisi === 2 ? 'Wali Pendamping' : 'Wali Kelas', href: `#/absen?kelas=${wali0.class_id}&tanggal=${today}&jenis=harian`, done: Boolean(wali0.hari_ini), jam: wali0.hari_ini?.disimpan || '' }
             : mapel0 ? { kelas: mapel0.kelas, label: mapel0.kode, href: `#/absen?kelas=${mapel0.class_id}&tanggal=${today}&jenis=mapel&mapel=${mapel0.subject_id}`, done: Boolean(mapel0.hari_ini) } : null;
         const avatar = staffExtra?.image_url
             ? `<img src="${esc(staffExtra.image_url)}" alt="Foto ${esc(shortName(home.nama))}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${esc(initials(home.nama))}'}))">`
@@ -429,6 +429,7 @@
                 <small>JADWAL MENGAJAR TERDEKAT</small>
                 <strong>${target ? `KELAS ${esc(kelasTitik(target.kelas))}<i>— ${esc(target.label)}</i>` : esc(home.jabatan || 'Belum ada kelas')}</strong>
                 <div class="g-hero-meta"><span class="g-hero-day">Hari ${HARI[dow(today)]}</span><span>Jam pelajaran: <b>${esc(heroJam(target, today))}</b></span></div>
+                ${target && home.is_school_day ? `<div class="g-hero-st ${target.done ? 'ok' : 'todo'}">${target.done ? `Absensi hari ini sudah diisi${target.jam ? ` · ${esc(target.jam)}` : ''}` : 'Absensi hari ini belum diisi'}</div>` : ''}
             </div>
             ${target && home.is_school_day ? `<a class="g-hero-btn" href="${target.href}">${ICON.clip}${target.done ? 'Lihat Absensi' : 'Mulai Absensi'}</a>` : ''}
         </section>`);
@@ -449,31 +450,21 @@
         if (!home.is_school_day) {
             parts.push(`<div class="att-alert warn" style="margin-bottom:12px">Hari ini libur${home.holiday_name ? ` (${esc(home.holiday_name)})` : ''}. Absensi tidak perlu diisi.</div>`);
         }
-        // Pinjam barang: di atas kotak wali kelas (mulai absensi).
+        // Kelas wali tambahan (wali kelas pertama sudah ada di kartu utama).
+        for (const w of home.wali_kelas.slice(1)) {
+            const t = w.hari_ini;
+            parts.push(`<a class="g-sched g-chip g-wali-more" href="#/absen?kelas=${w.class_id}&tanggal=${today}&jenis=harian"><span class="g-sched-ico">${ICON.clip}</span>
+                <span class="g-sched-txt"><b>Absensi KELAS ${esc(kelasTitik(w.kelas))}</b><span>${w.posisi === 2 ? 'Wali pendamping' : 'Wali kelas'} · ${t ? `sudah diisi ${esc(t.disimpan)}` : (home.is_school_day ? 'belum diisi' : 'libur')}</span></span>${ICON.chev}</a>`);
+        }
+
+        if (home.wali_kelas.length || home.mapel.length || home.is_pimpinan) parts.push(nilaiCard());
+        if (home.wali_kelas.length || home.mapel.length) parts.push(jurnalCard());
+        // Pinjam barang: di bawah Jurnal mengajar.
         if (myLoans?.aktif?.length) parts.push(loansBox(myLoans.aktif));
         else {
             parts.push(`<a class="g-sched g-chip g-pinjam-link" href="#/pinjam"><span class="g-sched-ico">${ICON.qr}</span>
                 <span class="g-sched-txt"><b>Pinjam barang</b><span>Laptop, proyektor, speaker — scan stiker QR</span></span>${ICON.chev}</a>`);
         }
-
-        for (const w of home.wali_kelas) {
-            const t = w.hari_ini;
-            const rekap = t?.rekap || {};
-            const absen = ['S', 'I', 'A', 'D'].filter((k) => rekap[k]).map((k) => `${rekap[k]} ${window.Att.STATUS[k].toLowerCase()}`).join(', ');
-            const href = `#/absen?kelas=${w.class_id}&tanggal=${today}&jenis=harian`;
-            parts.push(`<section class="g-box g-task ${t ? 'done' : 'todo'}">
-                <header class="g-box-head"><span class="g-tag wali">${ICON.user}${w.posisi === 2 ? 'WALI PENDAMPING' : 'WALI KELAS'}</span><b>KELAS ${esc(kelasTitik(w.kelas))}</b>
-                    ${t ? `<span class="att-badge ok">Sudah diisi ${esc(t.disimpan)}</span>` : (home.is_school_day ? '<span class="att-badge bad">Belum diisi</span>' : '')}</header>
-                <div class="g-box-body">
-                    <p class="att-muted" style="margin:0 0 12px">Anda bisa mengisi absensi harian untuk seluruh siswa di kelas ini (${esc(w.jumlah_siswa)} siswa).${t ? ` Hari ini: ${rekap.H || 0} hadir${absen ? `, ${esc(absen)}` : ''}.` : ''}</p>
-                    <a class="att-btn att-btn-blue att-btn-block g-task-go" href="${href}">${ICON.clip}${t ? (t.terkunci ? `Lihat Absensi KELAS ${esc(kelasTitik(w.kelas))}` : `Lihat / Ubah Absensi KELAS ${esc(kelasTitik(w.kelas))}`) : `Absensi KELAS ${esc(kelasTitik(w.kelas))} Hari Ini`}</a>
-                    <p class="att-muted" style="margin:8px 0 0">Tanggal lain bisa dipilih di dalam halaman absensi.</p>
-                </div>
-            </section>`);
-        }
-
-        if (home.wali_kelas.length || home.mapel.length || home.is_pimpinan) parts.push(nilaiCard());
-        if (home.wali_kelas.length || home.mapel.length) parts.push(jurnalCard());
 
         if (myClasses().length) {
             if (!day.date) day.date = today;
