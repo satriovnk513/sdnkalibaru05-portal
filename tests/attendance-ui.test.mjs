@@ -272,8 +272,8 @@ async function runUi() {
             const monday = await page.getAttribute('.g-days [data-day]:first-child', 'data-day');
             const today = await page.evaluate(() => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date()));
             if (monday <= today) {
-                check((await page.getAttribute('.g-sched', 'href')).includes(`tanggal=${monday}`), 'tautan absen mapel memakai tanggal hari yang dipilih');
-                await page.click('.g-sched');
+                check((await page.getAttribute('.g-sched-list .g-sched', 'href')).includes(`tanggal=${monday}`), 'tautan absen mapel memakai tanggal hari yang dipilih');
+                await page.click('.g-sched-list .g-sched');
                 await page.waitForSelector('.att-list .att-item');
                 check(/Non-Muslim<\/b>, mohon diberi status <b>Dispensasi/.test(await page.innerHTML('#gSheet')), 'absen PAI menampilkan keterangan Non-Muslim → Dispensasi');
                 await page.click('#gSheet .att-back');
@@ -1197,6 +1197,166 @@ async function runUi() {
             check(!v || (/RIWAYAT PEMINJAMAN/.test(v[0]) && v[1] === 'Barang' && v[2] === 'logo'), `${T} Excel riwayat pinjam valid + logo (${v})`);
         }
         check(await overflow(page) <= 0, `${T} tidak bergeser ke samping`);
+        check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
+
+    // ============================================================ NILAI — guru (HP) + admin
+    {
+        const T = '[Nilai guru 360]';
+        const require = (await import('node:module')).createRequire(import.meta.url);
+        const NL = require('../nilai.js');
+        const XR = require('../xlsx-read.js');
+        const { writeFileSync } = await import('node:fs');
+        const C1A = '00000000-0000-4000-8000-0000000000c1';
+        const SID = (n) => `00000000-0000-4000-8000-00000000005${n}`;
+        const { ctx, page, errors } = await newPage('/guru#/nilai', { width: 360, height: 780 });
+        await page.waitForSelector('#gLogin:not(.g-hidden)');
+        await page.fill('#gId', '990000000000000001');
+        await page.fill('#gPw', 'benar123');
+        await page.click('#gLoginBtn');
+        await page.waitForSelector('.nl-mp');
+        const rows = await page.$$eval('.nl-mp', (a) => a.map((x) => x.textContent.replace(/\s+/g, ' ').trim()));
+        check(rows.length === 4 && /Matematika ?KKTP 75 · 1\/3 lengkap.*2 belum lengkap/.test(rows[1]) && /PAI ?Diisi guru mapel: Susy Nurhayati.*Lihat saja/.test(rows[2]) && /Belum mulai/.test(rows[0]),
+            `${T} daftar mapel: progres, KKTP, mapel guru mapel = lihat saja (${rows.join(' / ').slice(0, 200)})`);
+        check(/Kelas 1\.A · Wali kelas/.test(await page.textContent('#gSub')) && (await page.$$('#nlKelas option')).length === 2, `${T} judul kelas + pilihan kelas (wali 1 A, PAI 3 A)`);
+        await shot(page, 'nilai-01-mapel-360.png');
+        check(await overflow(page) <= 0, `${T} daftar mapel tidak bergeser ke samping`);
+
+        // Isi nilai Matematika
+        await page.click('.nl-mp:has-text("Matematika")');
+        await page.waitForSelector('#nlKktp');
+        const na = () => page.$$eval('[data-na]', (b) => b.map((x) => x.textContent));
+        check((await na()).join(',') === '83,68,–', `${T} NA dihitung: 83, 68 (UH sebagian), – (${await na()})`);
+        check(/UH 2, UH 3 belum diisi — NA dihitung dari UH yang ada/.test(await page.textContent(`[data-row="${SID(2)}"]`)), `${T} peringatan UH kosong`);
+        check(await page.evaluate(() => document.body.classList.contains('g-sheet-open')), `${T} menu bawah disembunyikan, bar Simpan menempel`);
+        await page.fill(`[data-s="${SID(2)}"][data-f="uh2"]`, '90');
+        check((await na())[1] === '73', `${T} NA langsung berubah saat mengetik (68 → 73)`);
+        await page.fill(`[data-s="${SID(3)}"][data-f="uh1"]`, '150');
+        check(await page.isDisabled('#nlSave') && /tidak valid/.test(await page.textContent('#nlDirty')), `${T} nilai 150 ditolak, tombol Simpan mati`);
+        await page.fill(`[data-s="${SID(3)}"][data-f="uh1"]`, '95');
+        await page.fill('#nlKktp', '70');
+        check(/3 nilai berubah/.test(await page.textContent('#nlDirty')), `${T} jumlah perubahan belum disimpan (${await page.textContent('#nlDirty')})`);
+        await shot(page, 'nilai-02-isi-360.png');
+        check(await overflow(page) <= 0, `${T} halaman isi nilai tidak bergeser ke samping`);
+        await page.click('#nlSave');
+        await page.waitForFunction(() => /Tersimpan/.test(document.getElementById('attToastHost')?.textContent || ''));
+        const saved = await page.evaluate(() => window.__fake.calls.filter((c) => c.fn === 'save_grades').pop()?.args);
+        check(saved && saved.p_semester === 1 && saved.p_items[0].kktp === 70 && JSON.stringify(saved.p_items[0].entries) === JSON.stringify([{ student_id: SID(2), uh2: 90 }, { student_id: SID(3), uh1: 95 }]),
+            `${T} save_grades hanya mengirim yang berubah + KKTP (${JSON.stringify(saved?.p_items).slice(0, 220)})`);
+
+        // Keluar dengan perubahan belum disimpan → konfirmasi
+        await page.waitForSelector('#nlKktp');
+        await page.fill(`[data-s="${SID(1)}"][data-f="sas"]`, '60');
+        await page.click('#gBack');
+        await page.waitForSelector('.att-sheet:has-text("Nilai belum disimpan")');
+        await page.click('.att-sheet [data-act="no"]');
+        check(await page.isVisible('#nlKktp') && /1 nilai berubah/.test(await page.textContent('#nlDirty')), `${T} pindah halaman saat nilai belum disimpan → ditanya dulu; Batal = tetap`);
+        await page.click('#gBack');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForSelector('.nl-mp');
+        check(true, `${T} Buang perubahan → kembali ke daftar mapel`);
+
+        // Riwayat
+        await page.click('[data-nv="riwayat"]');
+        await page.waitForSelector('.nl-h');
+        const hist = (await page.textContent('#nlHist')).replace(/\s+/g, ' ');
+        check((await page.$$('.nl-h')).length === 3 && /HARI INI/.test(hist) && /KKTP · Matematika.*75.*70/.test(hist) && /oleh Sunarsih/.test(hist), `${T} riwayat perubahan (lama → baru, oleh siapa) (${hist.slice(0, 160)})`);
+        await shot(page, 'nilai-03-riwayat-360.png');
+        await page.click('#gBack');
+        await page.waitForSelector('.nl-mp');
+
+        // Excel & PDF
+        await page.click('[data-nv="excel"]');
+        await page.waitForSelector('#nlTpl');
+        await shot(page, 'nilai-04-excel-360.png');
+        check(await overflow(page) <= 0, `${T} halaman Excel & PDF tidak bergeser ke samping`);
+        const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#nlTpl')]);
+        const tplPath = join(dlDir, 'tpl.xlsx');
+        await dl.saveAs(tplPath);
+        const book = await XR.readBook(readFileSync(tplPath));
+        check(book.map((b) => b.name).join(',') === 'Petunjuk,Bahasa Indonesia,Matematika,Bahasa Inggris' && /Template_Nilai_Kelas_1_A_Smt_1/.test(dl.suggestedFilename()),
+            `${T} template: hanya mapel yang bisa diisi (${book.map((b) => b.name)}) ${dl.suggestedFilename()}`);
+        check(book[2].rows[6].slice(4, 9).join(',') === '80,85,90,78,82' && book[2].rows[2][3] === '70', `${T} template berisi nilai & KKTP yang sudah ada`);
+        if (hasOpenpyxl) {
+            const r = spawnSync('python3', ['-c', 'import sys,openpyxl\nwb=openpyxl.load_workbook(sys.argv[1])\nws=wb["Matematika"]\nprint(ws.protection.sheet, ws["E7"].protection.locked, ws["K7"].protection.locked, ws.freeze_panes, len(ws.data_validations.dataValidation))', tplPath], { encoding: 'utf8' });
+            check(r.stdout.trim() === 'True False True E7 2', `${T} template terbuka di Excel: lembar terkunci kecuali kotak nilai, beku di E7, validasi 0–100 (${r.stdout.trim() || r.stderr.slice(0, 120)})`);
+        }
+        // Impor: file buatan guru (nilai diubah di Excel)
+        const data = await page.evaluate(async (c) => (await window.supabaseClient.rpc('get_class_grades', { p_class_id: c, p_semester: 1 })).data, C1A);
+        data.nilai.push({ s: SID(3), m: 'm-mtk', uh1: 95, uh2: 70, uh3: null, sts: 80, sas: 75 });
+        data.nilai.push({ s: SID(1), m: 'm-bin', uh1: 88, uh2: null, uh3: null, sts: null, sas: null });
+        const pai = data.nilai.find((n) => n.m === '00000000-0000-4000-8000-0000000000e1' && n.s === SID(1));
+        if (pai) pai.uh1 = 50;
+        const impPath = join(dlDir, 'Nilai 1A.xlsx');
+        writeFileSync(impPath, NL.buku(data));
+        await page.setInputFiles('#nlFile', impPath);
+        await page.waitForSelector('.att-sheet:has-text("Pratinjau impor")');
+        const prev = (await page.textContent('.att-sheet')).replace(/\s+/g, ' ');
+        check(/4 ?nilai baru/.test(prev) && /0 ?nilai berubah/.test(prev) && /Lembar PAI diabaikan — Diisi guru mapel \(Susy Nurhayati\)/.test(prev) && /Simpan 4 nilai/.test(prev),
+            `${T} pratinjau impor: baru/berubah/dilewati + alasan (${prev.slice(0, 260)})`);
+        await shot(page, 'nilai-05-pratinjau-impor-360.png');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => /Impor tersimpan/.test(document.getElementById('attToastHost')?.textContent || ''));
+        const imp = await page.evaluate(() => window.__fake.calls.filter((c) => c.fn === 'save_grades').pop()?.args);
+        check(imp.p_source === 'impor' && imp.p_keep_blank === true && imp.p_items.length === 2, `${T} impor → save_grades (sumber impor, kotak kosong tidak menghapus)`);
+        await page.waitForSelector('.nl-mp');
+        // PDF leger
+        await page.click('[data-nv="excel"]');
+        await page.waitForSelector('#nlPdfL');
+        const [pop] = await Promise.all([page.waitForEvent('popup'), page.click('#nlPdfL')]);
+        await pop.waitForLoadState();
+        const lg = (await pop.textContent('body')).replace(/\s+/g, ' ');
+        check(/LEGER NILAI AKHIR SISWA/.test(lg) && /SEMESTER GANJIL/.test(lg) && /KEPALA FIKTIF, S\.Pd\.SD/.test(lg) && /SUNARSIH, S\.Pd\./.test(lg), `${T} PDF leger nilai + tanda tangan (${lg.slice(0, 120)})`);
+        await shot(pop, 'nilai-06-leger-pdf.png');
+        await pop.close();
+        const [pop2] = await Promise.all([page.waitForEvent('popup'), page.click('#nlPdfM')]);
+        await pop2.waitForLoadState();
+        check(/DAFTAR NILAI BAHASA INDONESIA/.test(await pop2.textContent('body')), `${T} PDF daftar nilai per mapel`);
+        await pop2.close();
+
+        // Beranda: kartu pintasan Nilai
+        await page.evaluate(() => { location.hash = '#/'; });
+        await page.waitForSelector('.g-nilai-link');
+        check(true, `${T} Beranda punya pintasan Nilai siswa`);
+        check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
+
+    for (const vp of [{ width: 1366, height: 900, tag: '1366' }, { width: 390, height: 844, tag: '390' }]) {
+        const T = `[Nilai admin ${vp.tag}]`;
+        const { ctx, page, errors } = await newPage('/admin', { width: vp.width, height: vp.height });
+        await page.fill('#adminEmail', 'admin@fiktif.test');
+        await page.fill('#adminPassword', 'x');
+        await page.click('.btn-login');
+        await page.waitForSelector('#mainContent', { state: 'visible' });
+        await page.evaluate(() => showTab('tabNilai', document.querySelector('[data-tab="tabNilai"]')));
+        await page.waitForSelector('.nl-mx');
+        await page.waitForTimeout(400);
+        check(await page.evaluate(() => document.querySelector('[data-tab="tabNilai"]').classList.contains('active') && document.getElementById('topbarTitle').textContent === 'Nilai Siswa'), `${T} menu Nilai Siswa aktif`);
+        const cells = await page.$$eval('.nl-mx tbody tr:first-child td', (t) => t.map((x) => `${x.className.replace('nl-x ', '')}:${x.textContent}`));
+        check(cells.join(',') === 'none:0/3,part:1/3,part:1/3,none:0/3', `${T} matriks kelas × mapel (${cells})`);
+        await shot(page, `nilai-07-admin-matriks-${vp.tag}.png`);
+        check(await overflow(page) <= 0, `${T} matriks tidak bergeser ke samping`);
+        await page.click('.nl-mx tbody tr:first-child td:nth-child(3) button');
+        await page.waitForSelector('#nlKktp');
+        check(vp.tag !== '1366' || await page.isVisible('.nl-grid-head'), `${T} isi nilai tampil sebagai tabel di layar lebar`);
+        await page.fill('[data-s="00000000-0000-4000-8000-000000000053"][data-f="sas"]', '77');
+        await page.click('#nlSave');
+        await page.waitForFunction(() => /Tersimpan/.test(document.getElementById('attToastHost')?.textContent || ''));
+        check(true, `${T} admin bisa mengisi/memperbaiki nilai`);
+        await shot(page, `nilai-08-admin-isi-${vp.tag}.png`);
+        check(await overflow(page) <= 0, `${T} halaman isi tidak bergeser ke samping`);
+        await page.click('.nl-back');
+        await page.waitForSelector('.nl-mp');
+        await page.click('.nl-hide summary');
+        await page.uncheck('[data-hide="m-big"]');
+        await page.waitForFunction(() => window.__fake.calls.some((c) => c.fn === 'set_class_subject_hidden' && c.args.p_subject_id === 'm-big' && c.args.p_hidden === true));
+        await page.waitForFunction(() => document.querySelectorAll('.nl-mp').length === 3);
+        check(true, `${T} matikan mapel yang tidak diajarkan (Bahasa Inggris) → hilang dari daftar`);
+        await page.click('.nl-back');
+        await page.waitForSelector('.nl-mx');
+        check(/hid/.test(await page.getAttribute('.nl-mx tbody tr:first-child td:nth-child(5)', 'class')), `${T} matriks menandai mapel tidak diajarkan`);
         check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
         await ctx.close();
     }

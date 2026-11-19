@@ -9,6 +9,8 @@
 //   #/akun                     ganti password, keluar
 //   #/pinjam                   pinjam barang: scan QR, pinjaman saya
 //   #/pinjam/<token|kode>      halaman barang hasil scan stiker QR (pinjam / kembalikan)
+//   #/nilai?kelas=&smt=        nilai siswa: daftar mapel (nilai-ui.js)
+//   #/nilai/isi|riwayat|excel?kelas=&smt=&mapel=   isi nilai, riwayat perubahan, Excel & PDF
 // Semua data lewat RPC yang memeriksa hak akses di database.
 // =============================================================================
 (function () {
@@ -263,6 +265,7 @@
         wa: '<svg viewBox="0 0 24 24" class="fill"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.6-.3Z"/></svg>',
         bell: '<svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
         box: '<svg viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>',
+        grad: '<svg viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5M22 10v6"/></svg>',
         qr: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>',
     };
     let staffExtra = null;      // { image_url, nip } dari data Guru & Staf di website
@@ -359,6 +362,9 @@
         if (!home.wali_kelas.length && !home.mapel.length) {
             parts.push('<div class="att-alert info" style="margin-bottom:12px">Belum ada kelas yang ditugaskan kepada Anda. Hubungi admin sekolah.</div>');
         }
+        if (home.wali_kelas.length || home.mapel.length || home.is_pimpinan) {
+            parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/nilai" style="margin-bottom:10px">Nilai siswa (UH, STS, SAS · Excel)</a>`);
+        }
         parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/dokumen" style="margin-bottom:10px">Cetak &amp; Dokumen (daftar siswa, surat, biodata)</a>`);
         parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/pinjam" style="margin-bottom:14px">${myLoans?.aktif?.length ? `Barang yang saya pinjam (${myLoans.aktif.length})` : 'Pinjam / kembalikan barang (scan QR)'}</a>`);
         parts.push(`<p class="att-muted g-simple-help">Ketuk tombol di atas, pilih status tiap siswa, lalu tekan <b>Simpan absensi</b>. Untuk tanggal lain, ganti tanggal di halaman absensi.</p>`);
@@ -441,6 +447,8 @@
             </section>`);
         }
 
+        if (home.wali_kelas.length || home.mapel.length || home.is_pimpinan) parts.push(nilaiCard());
+
         if (myClasses().length) {
             if (!day.date) day.date = today;
             if (!day.classId || !myClasses().some((c) => c.class_id === day.classId)) day.classId = (wali0 || myClasses()[0]).class_id;
@@ -507,6 +515,29 @@
         }));
         if (keepY && staffExtra) window.scrollTo(0, keepY);
         wireDayCard();
+    }
+
+    function nilaiCard() {
+        return `<a class="g-sched g-chip g-pinjam-link g-nilai-link" href="#/nilai"><span class="g-sched-ico">${ICON.grad}</span>
+            <span class="g-sched-txt"><b>Nilai siswa</b><span>UH, STS, SAS → Nilai Akhir · impor &amp; unduh Excel/PDF</span></span>${ICON.chev}</a>`;
+    }
+
+    // ------------------------------------------------------------------ nilai (nilai-ui.js)
+    let nilaiUI = null;
+    function nilaiPath(view, p = {}) {
+        const q = new URLSearchParams();
+        for (const k of ['kelas', 'smt', 'mapel']) if (p[k] !== undefined && p[k] !== null && p[k] !== '') q.set(k, p[k]);
+        return `/nilai${view === 'kelas' ? '' : `/${view}`}${q.toString() ? `?${q}` : ''}`;
+    }
+    async function renderNilai(view, params) {
+        if (!nilaiUI) {
+            nilaiUI = window.NilaiUI.create({ rpc, nav: (v, p) => go(nilaiPath(v, p)), setTop: (t, sub) => setTop(t, sub, true) });
+        }
+        setNav('');
+        setTop('Nilai Siswa', '', true);
+        if (view === 'isi') document.body.classList.add('g-sheet-open');   // bar Simpan menggantikan menu bawah
+        main('<div id="gNilai"></div>');
+        await nilaiUI.render($('gNilai'), view, Object.fromEntries(params));
     }
 
     /** "13 Nov 2026" — bulan disingkat supaya tanggal muat satu baris di HP. */
@@ -1323,6 +1354,7 @@
         if (!home) return;
         document.body.classList.remove('g-sheet-open');
         if (forceChange) return renderForceChange();
+        curHash = location.hash;
         const { path, params } = parseHash();
         if (path === '/' || path === '') { alphaStale = true; return renderHome(); }
         if (path === '/absen') return renderAbsen(params);
@@ -1335,6 +1367,8 @@
         if (path === '/akun') return renderAkun();
         if (path === '/pinjam') return renderPinjamList();
         if (path.startsWith('/pinjam/')) return renderPinjamItem(decodeURIComponent(path.slice(8)));
+        if (path === '/nilai') return renderNilai('kelas', params);
+        if (['/nilai/isi', '/nilai/riwayat', '/nilai/excel'].includes(path)) return renderNilai(path.slice(7), params);
         go('/');
     }
 
@@ -1346,9 +1380,26 @@
         if (parseHash().path.startsWith('/dokumen/')) return go('/dokumen');
         if (parseHash().path.startsWith('/pinjam/')) return go('/pinjam');
         if (parseHash().path === '/pinjam') return go('/');
+        if (parseHash().path === '/nilai') return go('/');
+        if (parseHash().path.startsWith('/nilai/')) {
+            const p = parseHash().params;
+            return go(nilaiPath('kelas', { kelas: p.get('kelas'), smt: p.get('smt') }));
+        }
         if (history.length > 1) history.back(); else go('/');
     });
-    window.addEventListener('hashchange', route);
+    // Nilai yang belum disimpan: tanya dulu sebelum pindah halaman.
+    let curHash = location.hash;
+    let skipHash = false;
+    window.addEventListener('hashchange', async () => {
+        if (skipHash) { skipHash = false; return; }
+        if (window.NilaiUI?.isDirty() && !(await window.NilaiUI.confirmLeave())) {
+            skipHash = true;
+            location.hash = curHash;
+            return;
+        }
+        curHash = location.hash;
+        route();
+    });
 
     async function boot() {
         const { data: { session } } = await sb.auth.getSession();
