@@ -237,7 +237,8 @@ async function runUi() {
         check(/JADWAL MENGAJAR TERDEKAT/.test(await page.textContent('.g-hero')) && /KELAS 1\.A/.test(await page.textContent('.g-hero')) && await page.$('.g-hero-ava') !== null
             && /Mulai Absensi/.test(await page.textContent('.g-hero-btn')), 'kartu utama: foto/inisial guru, kelas, tombol Mulai Absensi');
         check(/Absensi KELAS 1\.A Hari Ini/.test(await page.textContent('.g-task-go')) && !/Isi tanggal lain/.test(await page.textContent('#gMain')), 'kartu wali kelas: satu tombol "Absensi KELAS … Hari Ini"');
-        check(/Segera hadir/.test(await page.textContent('.g-soon')), 'kartu Jadwal Kelas bertanda segera hadir');
+        await page.waitForFunction(() => document.getElementById('gJadwal') && !/Memuat/.test(document.getElementById('gJadwal').textContent));
+        check(/JADWAL KELAS/.test(await page.textContent('#gJadwal')) && await page.$('#gJadwal a[href^="#/jadwal?kelas="]') !== null, 'kartu Jadwal Kelas wali: jadwal hari ini + tautan ubah jadwal');
         await page.waitForSelector('.g-pin-nudge');
         check(/PIN pemulihan/.test(await page.textContent('.g-pin-nudge')), 'dashboard mengingatkan guru yang belum punya PIN');
         check(await page.isVisible('#gTopOut'), 'tombol keluar ada di pojok kanan atas');
@@ -1357,6 +1358,136 @@ async function runUi() {
         await page.click('.nl-back');
         await page.waitForSelector('.nl-mx');
         check(/hid/.test(await page.getAttribute('.nl-mx tbody tr:first-child td:nth-child(5)', 'class')), `${T} matriks menandai mapel tidak diajarkan`);
+        check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
+
+    // ============================================================ JADWAL — guru (HP) + admin
+    {
+        const T = '[Jadwal guru 360]';
+        const require = (await import('node:module')).createRequire(import.meta.url);
+        const XR = require('../xlsx-read.js');
+        const { ctx, page, errors } = await newPage('/guru#/jadwal', { width: 360, height: 780 });
+        await page.waitForSelector('#gLogin:not(.g-hidden)');
+        await page.fill('#gId', '990000000000000001');
+        await page.fill('#gPw', 'benar123');
+        await page.click('#gLoginBtn');
+        await page.waitForSelector('.jd-slot');
+        await page.click('.jd-days [data-hari="1"]');
+        const senin = async () => page.$$eval('.jd-list .jd-slot', (a) => a.map((x) => x.textContent.replace(/\s+/g, ' ').trim()));
+        let s1 = await senin();
+        check(/^1–2\s*06\.30–07\.40\s*Upacara Bendera/.test(s1[0]) && /Istirahat\s*Terkunci untuk kelas 1–2/.test(s1.find((x) => /Istirahat/.test(x)) || '') && /08\.50–09\.25/.test(s1.find((x) => /Istirahat/.test(x)) || ''),
+            `${T} jadwal baru: upacara terisi, istirahat kelas 1–2 08.50–09.25 terkunci (${s1.slice(0, 5).join(' | ')})`);
+        check(/Jadwal belum diisi/.test(await page.textContent('#jdBody')), `${T} petunjuk saat jadwal belum diisi`);
+        await shot(page, 'jadwal-01-hari-360.png');
+        check(await overflow(page) <= 0, `${T} tampilan per hari tidak bergeser ke samping`);
+
+        // Isi PAI jam 3 → bentrok dengan kelas lain
+        await page.click('.jd-slot[data-h="1"][data-j="3"]');
+        await page.waitForSelector('.jd-sheet');
+        check(await page.isHidden('.jd-sheet #jdGpWrap'), `${T} guru pengajar disembunyikan untuk mapel tanpa guru mapel`);
+        await page.selectOption('#jdMp', '00000000-0000-4000-8000-0000000000e1');
+        check(await page.isVisible('.jd-sheet #jdGpWrap') && (await page.textContent('#jdGp')).includes('Susy Nurhayati'), `${T} PAI → pilihan guru pengajar (Susy Nurhayati)`);
+        await page.click('#jdSave');
+        await page.waitForSelector('.jd-err:not([hidden])');
+        const bentrok = await page.textContent('.jd-err');
+        check(/Gagal disimpan\. Susy Nurhayati sudah mengajar PAI di kelas 2 B pada Senin jam ke-3 \(07\.40–08\.15\)/.test(bentrok) && await page.isVisible('.jd-sheet'),
+            `${T} jadwal bentrok → gagal + notifikasi jelas, lembar tetap terbuka (${bentrok.slice(0, 100)})`);
+        await shot(page, 'jadwal-02-bentrok-360.png');
+        await page.click('.jd-sheet [data-close]');
+        // PAI jam 6–7 (tidak bentrok)
+        await page.click('.jd-slot[data-h="1"][data-j="6"]');
+        await page.selectOption('#jdMp', '00000000-0000-4000-8000-0000000000e1');
+        await page.selectOption('#jdN', '2');
+        await page.click('#jdSave');
+        await page.waitForSelector('.jd-sheet', { state: 'detached' });
+        s1 = await senin();
+        check(s1.some((x) => /^6–7\s*09\.25–10\.35\s*PAI\s*Susy Nurhayati · 2 jam/.test(x)), `${T} isi 2 jam sekaligus (PAI jam 6–7, guru mapel tercatat) (${s1.join(' | ').slice(0, 220)})`);
+        // Kegiatan Pulang Jumat 9–11
+        await page.click('.jd-days [data-hari="5"]');
+        await page.click('.jd-slot[data-h="5"][data-j="9"]');
+        await page.click('.jd-jenis [data-j="kegiatan"]');
+        await page.fill('#jdKg', 'Pulang');
+        await page.selectOption('#jdN', '3');
+        await page.click('#jdSave');
+        await page.waitForSelector('.jd-sheet', { state: 'detached' });
+        check((await page.textContent('.jd-list')).includes('Pulang'), `${T} kegiatan Pulang Jumat jam 9–11`);
+        // Ubah waktu: format salah ditolak, benar tersimpan
+        await page.click('.jd-slot[data-h="5"][data-j="3"]');
+        await page.fill('#jdM', '25:00');
+        await page.click('#jdSave');
+        await page.waitForSelector('.jd-err:not([hidden])');
+        check(/HH:MM/.test(await page.textContent('.jd-err')), `${T} format jam salah ditolak (HH:MM 00:00–23:59)`);
+        await page.fill('#jdM', '7.45');
+        await page.fill('#jdS', '08:15');
+        await page.selectOption('#jdMp', { label: 'Matematika' });
+        await page.click('#jdSave');
+        await page.waitForSelector('.jd-sheet', { state: 'detached' });
+        const setCall = await page.evaluate(() => window.__fake.calls.filter((c) => c.fn === 'set_schedule_slot').pop()?.args);
+        check(setCall?.p_mulai === '7:45' && /07\.45–08\.15/.test(await page.textContent('.jd-list')), `${T} waktu jam opsional bisa diubah (7.45 → 07.45)`);
+        // Tabel
+        await page.click('[data-mode="tabel"]');
+        await page.waitForSelector('.jd-t');
+        check(await page.$eval('.jd-t tbody tr:nth-child(6) td:nth-child(3)', (td) => td.getAttribute('rowspan')) === '2' && (await page.textContent('.jd-t tr.ist')).includes('Istirahat'),
+            `${T} tabel: PAI jam 6–7 digabung, baris istirahat`);
+        await shot(page, 'jadwal-03-tabel-360.png');
+        check(await overflow(page) <= 0, `${T} tabel bisa digeser di dalam kotak, halaman tidak bergeser`);
+        // Unduh
+        const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#jdXls')]);
+        const xp = join(dlDir, 'jadwal.xlsx');
+        await dl.saveAs(xp);
+        const [sh] = await XR.readBook(readFileSync(xp));
+        check(sh.rows[0][0] === 'JADWAL PELAJARAN KELAS 1.A' && sh.rows[10][2] === 'PAI\nSusy Nurhayati' && sh.rows[9][2] === 'ISTIRAHAT', `${T} Excel jadwal (${sh.rows[0][0]} / ${JSON.stringify(sh.rows[10][2])})`);
+        const [pop] = await Promise.all([page.waitForEvent('popup'), page.click('#jdPdf')]);
+        await pop.waitForLoadState();
+        check(/JADWAL PELAJARAN/.test(await pop.textContent('body')) && /KELAS : I\.A/.test(await pop.textContent('body')), `${T} cetak / PDF jadwal`);
+        await shot(pop, 'jadwal-04-pdf.png');
+        await pop.close();
+        // Hapus baris jam
+        await page.click('[data-mode="hari"]');
+        await page.click('.jd-days [data-hari="2"]');
+        await page.click('.jd-slot[data-h="2"][data-j="11"]');
+        await page.click('#jdDelRow');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => window.__fake.calls.some((c) => c.fn === 'delete_schedule_slot' && c.args.p_slot === 11));
+        check(true, `${T} hapus satu baris jam (dengan konfirmasi)`);
+        // Jadwal mengajar saya
+        await page.evaluate(() => { location.hash = '#/jadwal/saya'; });
+        await page.waitForSelector('.jd-week');
+        check((await page.$$('.jd-day')).length === 5 && /Sunarsih/.test(await page.textContent('#gSub')), `${T} jadwal mengajar saya: 5 hari`);
+        // Beranda
+        await page.evaluate(() => { location.hash = '#/'; });
+        await page.waitForSelector('#gJadwal');
+        await page.waitForFunction(() => !/Memuat/.test(document.getElementById('gJadwal').textContent));
+        check(!/segera hadir/i.test(await page.textContent('#gMain')), `${T} Beranda: kartu jadwal kelas aktif, tidak ada lagi "segera hadir"`);
+        await shot(page, 'jadwal-05-beranda-360.png');
+        check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
+
+    for (const vp of [{ width: 1366, height: 900, tag: '1366' }, { width: 390, height: 844, tag: '390' }]) {
+        const T = `[Jadwal admin ${vp.tag}]`;
+        const { ctx, page, errors } = await newPage('/admin', { width: vp.width, height: vp.height });
+        await page.fill('#adminEmail', 'admin@fiktif.test');
+        await page.fill('#adminPassword', 'x');
+        await page.click('.btn-login');
+        await page.waitForSelector('#mainContent', { state: 'visible' });
+        await page.evaluate(() => showTab('tabJadwal', document.querySelector('[data-tab="tabJadwal"]')));
+        await page.waitForSelector('.jd-t');
+        await page.waitForTimeout(400);
+        check((await page.$$('.jd-t tbody tr')).length === 11 && (await page.$$('#jdKelas option')).length === 2, `${T} tabel jadwal kelas (11 jam, pilih kelas)`);
+        await page.click('.jd-t button[data-h="3"][data-j="1"]');
+        await page.click('.jd-jenis [data-j="kegiatan"]');
+        await page.fill('#jdKg', 'Senam Pagi');
+        await page.click('#jdSave');
+        await page.waitForSelector('.jd-sheet', { state: 'detached' });
+        check((await page.textContent('.jd-t')).includes('Senam Pagi'), `${T} admin mengisi kegiatan dari tabel`);
+        await shot(page, `jadwal-06-admin-${vp.tag}.png`);
+        check(await overflow(page) <= 0, `${T} tidak bergeser ke samping`);
+        await page.click('#jdSeg [data-v="saya"]');
+        await page.waitForSelector('#jdGuru');
+        check((await page.$$('#jdGuru option')).length === 2 && (await page.$$('.jd-day')).length === 5, `${T} jadwal per guru mapel`);
+        await shot(page, `jadwal-07-admin-guru-${vp.tag}.png`);
         check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
         await ctx.close();
     }

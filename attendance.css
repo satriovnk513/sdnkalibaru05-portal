@@ -526,3 +526,81 @@
 .nl-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-top: 10px; font-size: .8rem; color: var(--att-muted); }
 .nl-legend span { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--att-line); display: inline-block; margin-right: -8px; }
 .nl-legend .full { background: var(--t-green-bg); } .nl-legend .part { background: var(--t-amber-bg); } .nl-legend .none { background: var(--t-surface); } .nl-legend .hid { background: var(--t-surface-2); }
+
+/* =============================================================================
+   Jadwal pelajaran (jadwal-ui.js)
+   ========================================================================== */
+.jd-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.jd-mode { margin-bottom: 0; }
+.jd-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.jd-tools svg, .jd-addrow svg, .jd-slot svg, .jd-t svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: none; vertical-align: -3px; }
+.jd-note { margin-bottom: 12px; font-size: .86rem; }
+.jd-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 4px; background: var(--t-surface-3); border-radius: 12px; margin-bottom: 12px; }
+.jd-days button { min-height: 44px; border: none; border-radius: 9px; background: transparent; font: 600 .9rem 'Inter', sans-serif; color: var(--t-text); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+.jd-days button i { font-style: normal; font-size: .6rem; font-weight: 700; color: var(--att-brand); }
+.jd-days button[aria-selected="true"] { background: var(--t-surface); color: var(--att-ink); box-shadow: 0 1px 3px rgba(15, 23, 42, .18); }
+.jd-list { background: var(--t-surface); border: 1px solid var(--att-line); border-radius: 16px; overflow: hidden; }
+.jd-slot { width: 100%; display: grid; grid-template-columns: 34px 92px 1fr auto; align-items: center; gap: 8px; padding: 10px 12px; border: none; border-bottom: 1px solid var(--att-line); background: var(--t-surface); text-align: left; font: inherit; color: var(--att-ink); }
+.jd-slot:last-child { border-bottom: none; }
+button.jd-slot { cursor: pointer; }
+button.jd-slot:hover { background: var(--t-surface-2); }
+.jd-slot.keg { background: var(--t-violet-bg); }
+.jd-slot.gm .jd-txt small { color: var(--t-blue-ink); font-weight: 600; }
+.jd-slot.ist { background: var(--t-amber-bg); color: var(--t-amber-ink); }
+.jd-slot.empty .jd-txt b { font-weight: 500; }
+.jd-no { font-weight: 800; font-size: .84rem; color: var(--t-text); text-align: center; }
+.jd-time { font-size: .8rem; font-weight: 600; color: var(--att-muted); font-variant-numeric: tabular-nums; }
+.jd-txt { display: flex; flex-direction: column; min-width: 0; }
+.jd-txt b { font-size: .95rem; overflow: hidden; text-overflow: ellipsis; }
+.jd-txt small { font-size: .76rem; color: var(--att-muted); }
+.jd-ed { color: var(--att-muted); }
+.jd-addrow { margin-top: 10px; }
+.jd-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: .78rem; color: var(--att-muted); }
+.jd-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1px solid var(--att-line); }
+.jd-legend i.keg { background: var(--t-violet-bg); } .jd-legend i.gm { background: var(--t-blue-bg); } .jd-legend i.ist { background: var(--t-amber-bg); }
+.jd-wrap { overflow-x: auto; border: 1px solid var(--att-line); border-radius: 14px; background: var(--t-surface); }
+.jd-t { border-collapse: collapse; width: 100%; min-width: 640px; font-size: .8rem; }
+.jd-t th, .jd-t td { border: 1px solid var(--att-line); text-align: center; padding: 0; height: 40px; }
+.jd-t thead th { background: var(--t-surface-2); padding: 8px 4px; font-weight: 700; color: var(--t-text); }
+.jd-t thead th.now { color: var(--att-brand); }
+.jd-t td:first-child { width: 36px; font-weight: 700; color: var(--t-text); }
+.jd-t td.jd-w { width: 96px; font-size: .74rem; color: var(--att-muted); font-variant-numeric: tabular-nums; white-space: nowrap; padding: 0 4px; }
+.jd-t td b { display: block; font-size: .8rem; color: var(--att-ink); }
+.jd-t td small { display: block; font-size: .68rem; color: var(--t-blue-ink); }
+.jd-t td > b, .jd-t td > small { padding: 0 4px; }
+.jd-t td button { width: 100%; height: 100%; min-height: 40px; border: none; background: transparent; font: inherit; color: inherit; cursor: pointer; padding: 4px; }
+.jd-t td button:hover { outline: 2px solid var(--att-brand); outline-offset: -2px; }
+.jd-t td.keg { background: var(--t-violet-bg); }
+.jd-t td.gm { background: var(--t-blue-bg); }
+.jd-t tr.ist td { background: var(--t-amber-bg); color: var(--t-amber-ink); font-weight: 700; }
+.jd-t tr.ist td[colspan] { letter-spacing: .08em; }
+.jd-t tr.ist td.jd-w, .jd-t tr.ist td:nth-child(2) { font-size: .74rem; white-space: nowrap; }
+.jd-add { color: var(--t-line-2); font-size: 1.1rem; }
+.jd-sheet h3 .att-muted { font-weight: 500; font-size: .85rem; }
+.jd-sheet .jd-f { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+.jd-sheet .att-field { flex: none; margin-bottom: 10px; }
+.jd-sheet .jd-f .att-field { margin-bottom: 0; }
+.jd-sheet .jd-jenis { margin-bottom: 12px; }
+.jd-time-f { border: 1px dashed var(--t-line-2); border-radius: 12px; padding: 8px 12px 0; margin: 0; }
+.jd-time-f legend { font-size: .82rem; font-weight: 600; color: var(--t-text); padding: 0 4px; }
+.jd-time-f .att-field { flex: 1 1 100px; }
+.jd-err { margin-top: 10px; }
+.jd-delrow { display: block; margin: 12px auto 0; border: none; background: none; color: var(--t-red-ink); font: 600 .82rem 'Inter', sans-serif; cursor: pointer; text-decoration: underline; }
+.jd-week { display: grid; gap: 10px; }
+.jd-wide .jd-week { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.jd-day { background: var(--t-surface); border: 1px solid var(--att-line); border-radius: 14px; overflow: hidden; }
+.jd-day.now { border-color: var(--att-brand); }
+.jd-day header { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 8px 12px; font-weight: 700; color: var(--att-ink); background: var(--t-surface-2); border-bottom: 1px solid var(--att-line); }
+.jd-day header i { font-style: normal; font-size: .7rem; color: var(--att-brand); margin-right: auto; }
+.jd-teach { display: grid; grid-template-columns: 92px 1fr; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--att-line); align-items: center; }
+.jd-teach:last-child { border-bottom: none; }
+.jd-wide .jd-teach { grid-template-columns: 1fr; gap: 2px; }
+/* Beranda */
+.g-jd-today { list-style: none; margin: 0; padding: 0; }
+.g-jd-today li { display: grid; grid-template-columns: 34px 86px 1fr; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--att-line); font-size: .9rem; }
+.g-jd-today li:last-child { border-bottom: none; }
+.g-jd-today li.now { background: var(--t-blue-bg); border-radius: 8px; padding: 7px 6px; margin: 0 -6px; }
+.g-jd-today li.ist { color: var(--t-amber-ink); }
+.g-jd-today b { color: var(--att-ink); }
+.g-jd-today small { display: block; font-size: .74rem; color: var(--att-muted); }
+.jd-sheet [hidden] { display: none !important; }

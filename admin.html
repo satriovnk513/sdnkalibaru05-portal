@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#ffffff">
     <script src="theme.js?v=1"></script>
     <link rel="stylesheet" href="theme.css?v=1">
-    <link rel="stylesheet" href="attendance.css?v=12">
+    <link rel="stylesheet" href="attendance.css?v=13">
     <style>
         /* ── Reset & Base ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -731,6 +731,10 @@
                     <svg viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5M22 10v6"/></svg>
                     Nilai Siswa
                 </a>
+                <a class="nav-item" data-tab="tabJadwal" onclick="showTab('tabJadwal', this)">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h3M8 18h3M14 14h2"/></svg>
+                    Jadwal Pelajaran
+                </a>
                 <a class="nav-item" data-tab="tabClasses" onclick="showTab('tabClasses', this)">
                     <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 22h8M12 18v4"/></svg>
                     Data Kelas
@@ -950,6 +954,17 @@
                     <div class="section-header ak-head"><div><h2>Nilai Siswa</h2>
                         <p class="att-muted" style="margin:4px 0 0">Pantau pengisian nilai rapor semua kelas. Nilai diisi guru di Portal Guru (wali kelas, atau guru mapel untuk mapel yang punya guru mapel); admin bisa ikut mengisi atau memperbaiki — semua perubahan tercatat di riwayat.</p></div></div>
                     <div class="admin-card" id="nlHost"><div class="att-muted">Memuat…</div></div>
+                </div>
+
+                <!-- ═══ TAB JADWAL ═══ -->
+                <div id="tabJadwal" class="tab-content">
+                    <div class="section-header ak-head"><div><h2>Jadwal Pelajaran</h2>
+                        <p class="att-muted" style="margin:4px 0 0">Jadwal tiap kelas diisi wali kelas di Portal Guru; admin bisa ikut mengatur. Mapel yang punya guru mapel (PAI, PLBJ, PJOK…) otomatis masuk jadwal mengajar gurunya — jadwal yang bentrok ditolak.</p></div></div>
+                    <div class="inv-seg" id="jdSeg" role="tablist" aria-label="Tampilan jadwal">
+                        <button type="button" role="tab" data-v="kelas" aria-selected="true">Per kelas</button>
+                        <button type="button" role="tab" data-v="saya" aria-selected="false">Per guru mapel</button>
+                    </div>
+                    <div class="admin-card" id="jdHost"><div class="att-muted">Memuat…</div></div>
                 </div>
 
                 <!-- ═══ TAB INVENTARIS ═══ -->
@@ -1468,6 +1483,9 @@
     <script src="nilai.js?v=1"></script>
     <script src="nilai-ui.js?v=1"></script>
     <script src="admin-nilai.js?v=1"></script>
+    <script src="jadwal.js?v=1"></script>
+    <script src="jadwal-ui.js?v=1"></script>
+    <script src="admin-jadwal.js?v=1"></script>
     <script src="inventaris.js?v=2"></script>
     <script src="admin-inventaris.js?v=2"></script>
     <script>
