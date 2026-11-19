@@ -216,7 +216,7 @@ async function runUi() {
         await page.waitForSelector('#gApp:not(.g-hidden)');
         // Password masih password awal (NIP/NUPTK) → wajib buat password baru dulu
         await page.waitForSelector('#gForceForm');
-        check(/password awal \(NIP\/NUPTK\)/.test(await page.textContent('#gMain')) && !(await page.isVisible('.g-nav')) && await page.$('.g-task') === null,
+        check(/password awal \(NIP\/NUPTK\)/.test(await page.textContent('#gMain')) && !(await page.isVisible('.g-nav')) && await page.$('.g-hero') === null,
             'login pertama: wajib buat password baru, menu lain belum bisa dibuka');
         await page.evaluate(() => { location.hash = '#/siswa'; });
         await page.waitForTimeout(200);
@@ -230,20 +230,20 @@ async function runUi() {
         await page.fill('#gF1', 'RahasiaBaru7');
         await page.fill('#gF2', 'RahasiaBaru7');
         await page.click('#gForceBtn');
-        await page.waitForSelector('.g-task');
+        await page.waitForSelector('.g-hero');
         check(apiCalls.some((c) => c.api === 'changepw' && c.password === 'RahasiaBaru7' && /^Bearer /.test(c.auth || '')) && await page.isVisible('.g-nav'),
             'setelah password diganti langsung masuk dashboard');
         check(/Selamat datang, Sunarsih/.test(await page.textContent('.g-welcome')) && /Dashboard Guru/.test(await page.textContent('#gTitle')), 'dashboard menyapa nama guru');
         check(/JADWAL MENGAJAR TERDEKAT/.test(await page.textContent('.g-hero')) && /KELAS 1\.A/.test(await page.textContent('.g-hero')) && await page.$('.g-hero-ava') !== null
             && /Mulai Absensi/.test(await page.textContent('.g-hero-btn')), 'kartu utama: foto/inisial guru, kelas, tombol Mulai Absensi');
-        check(/Absensi KELAS 1\.A Hari Ini/.test(await page.textContent('.g-task-go')) && !/Isi tanggal lain/.test(await page.textContent('#gMain')), 'kartu wali kelas: satu tombol "Absensi KELAS … Hari Ini"');
+        check(await page.$('.g-task') === null && (await page.$$('#gMain a[href*="jenis=harian"]')).length === 1, 'tidak ada lagi kotak wali kelas ganda — tombol absensi cukup di kartu utama');
         await page.waitForFunction(() => document.getElementById('gJadwal') && !/Memuat/.test(document.getElementById('gJadwal').textContent));
         check(/JADWAL KELAS/.test(await page.textContent('#gJadwal')) && await page.$('#gJadwal a[href^="#/jadwal?kelas="]') !== null, 'kartu Jadwal Kelas wali: jadwal hari ini + tautan ubah jadwal');
         await page.waitForSelector('.g-pin-nudge');
         check(/PIN pemulihan/.test(await page.textContent('.g-pin-nudge')), 'dashboard mengingatkan guru yang belum punya PIN');
         check(await page.isVisible('#gTopOut'), 'tombol keluar ada di pojok kanan atas');
         check(await overflow(page) <= 0, 'dashboard tidak bergeser ke samping');
-        check(/Belum diisi/.test(await page.textContent('.g-task')), 'kartu menandai absensi belum diisi');
+        check(/Absensi hari ini belum diisi/.test(await page.textContent('.g-hero')), 'kartu utama menandai absensi belum diisi');
         check(await overflow(page) <= 0, 'beranda tidak bergeser ke samping');
         await shot(page, 'guru-02-beranda-360.png');
 
@@ -278,11 +278,11 @@ async function runUi() {
                 await page.waitForSelector('.att-list .att-item');
                 check(/Non-Muslim<\/b>, mohon diberi status <b>Dispensasi/.test(await page.innerHTML('#gSheet')), 'absen PAI menampilkan keterangan Non-Muslim → Dispensasi');
                 await page.click('#gSheet .att-back');
-                await page.waitForSelector('.g-task');
+                await page.waitForSelector('.g-hero');
                 check(true, 'tombol Kembali ke Menu Utama membawa ke dashboard');
             }
         }
-        await page.click('.g-task a.g-task-go');
+        await page.click('.g-hero-btn');
         await page.waitForSelector('.att-list .att-item');
         check((await page.$$('.att-list .att-item')).length === 3, 'lembar absensi memuat 3 siswa');
         check(await overflow(page) <= 0, 'lembar absensi tidak bergeser ke samping (nama panjang)');
@@ -368,7 +368,7 @@ async function runUi() {
 
         // Kembali ke beranda lewat tombol kembali, lalu Siswa + profil
         await page.click('#gBack');
-        await page.waitForSelector('.g-task');
+        await page.waitForSelector('.g-hero');
         check(await page.isVisible('.g-nav'), 'navigasi bawah muncul lagi di beranda');
         await page.click('.g-nav a[data-nav="siswa"]');
         await page.waitForSelector('.att-table tbody tr');
@@ -550,7 +550,7 @@ async function runUi() {
         await page.waitForSelector('#gDokForm');
         check((await page.inputValue('#gDk_keperluan')) === 'persyaratan KJP', 'isian formulir diingat saat kembali ke dokumen yang sama');
         await page.click('.g-nav a[data-nav="home"]');
-        await page.waitForSelector('.g-task');
+        await page.waitForSelector('.g-hero');
 
         // Akun
         await page.click('.g-nav a[data-nav="akun"]');
@@ -974,9 +974,9 @@ async function runUi() {
         check(/Laptop Acer Aspire 3/.test(box) && /Proyektor/.test(box) && /1 terlambat/.test(box), `dashboard menampilkan barang yang saya pinjam + jumlah terlambat (${box.replace(/\s+/g, ' ').slice(0, 90)})`);
         check(await page.evaluate(() => {
             const loans = document.getElementById('gLoans');
-            const firstOther = [...document.querySelectorAll('#gMain .g-box')].find((b) => b.id !== 'gLoans');
-            return !firstOther || Boolean(loans.compareDocumentPosition(firstOther) & Node.DOCUMENT_POSITION_FOLLOWING);
-        }), 'kotak pinjam barang ada di atas kotak wali kelas / absensi');
+            const jurnal = document.querySelector('#gMain .g-jurnal-link');
+            return Boolean(jurnal.compareDocumentPosition(loans) & Node.DOCUMENT_POSITION_FOLLOWING);
+        }), 'kotak pinjam barang ada di bawah Jurnal mengajar');
         {
             const fab = await page.$eval('.g-nav a.g-nav-fab', (a) => {
                 const nav = [...document.querySelectorAll('.g-nav a')].map((x) => x.dataset.nav);
