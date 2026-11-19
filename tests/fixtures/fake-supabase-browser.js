@@ -216,6 +216,7 @@
             if (fn.startsWith('inv_')) return Promise.resolve(invRpc(fn, args, user));
             if (GRADE_RPC.includes(fn)) return Promise.resolve(gradeRpc(fn, args, user));
             if (JADWAL_RPC.includes(fn)) return Promise.resolve(jadwalRpc(fn, args, user));
+            if (fn.includes('journal')) return Promise.resolve(jurnalRpc(fn, args, user));
             return Promise.resolve(ok(null));
         }
     }
@@ -569,6 +570,62 @@
             default: return ok(null);
             }
         } catch (e) { return err(e.message); }
+    }
+
+    // ------------------------------------------------------------------ jurnal tiruan
+    const JR = F.jurnal = F.jurnal || { list: [], seq: 1 };
+    function jurnalDay(tgl) {
+        const [y, m, d] = tgl.split('-').map(Number);
+        const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+        const jadwal = [];
+        if (dow >= 1 && dow <= 5) {
+            for (const c of [C1A, C3A]) {
+                if (!JD.isi[c]) continue;
+                for (const e of JD.isi[c]) {
+                    if (e.hari !== dow || e.jenis !== 'mapel') continue;
+                    if (!(e.staff_id === 'st-sun' || (!e.staff_id && c === C1A))) continue;
+                    const sl = JD.slots[c].find((x) => x.no === e.jam);
+                    const mp = MAPEL.find((x) => x.id === e.subject_id);
+                    jadwal.push({ class_id: c, kelas: kelasNama(c), subject_id: e.subject_id, kode: mp.kode, mapel: mp.singkat, jam: e.jam, mulai: sl.mulai, selesai: sl.selesai });
+                }
+            }
+        }
+        jadwal.sort((a, b) => String(a.mulai).localeCompare(String(b.mulai)) || a.jam - b.jam);
+        return {
+            tanggal: tgl, hari_ini: today, hari_sekolah: dow >= 1 && dow <= 5, libur: null, jadwal,
+            catatan: JR.list.filter((n) => n.tanggal === tgl).map((n) => ({ ...n, kelas: n.class_id ? kelasNama(n.class_id) : null, mapel: n.subject_id ? MAPEL.find((x) => x.id === n.subject_id).singkat : null })),
+            kelas: [{ id: C1A, nama: '1 A' }, { id: C3A, nama: '3 A' }],
+        };
+    }
+    function jurnalRpc(fn, a) {
+        switch (fn) {
+        case 'get_my_journal_day': return ok(jurnalDay(a.p_tanggal));
+        case 'save_journal_entry': {
+            if (a.p_tanggal > today) return err('Jurnal tidak bisa diisi untuk tanggal yang belum tiba.');
+            const val = { status: a.p_status, materi: (a.p_materi || '').trim() || null, keterangan: (a.p_keterangan || '').trim() || null };
+            let n = a.p_id ? JR.list.find((x) => x.id === a.p_id)
+                : (!a.p_judul ? JR.list.find((x) => x.tanggal === a.p_tanggal && !x.judul && x.class_id === a.p_class_id && x.subject_id === a.p_subject_id) : null);
+            if (n) Object.assign(n, val);
+            else {
+                if (!a.p_judul && !a.p_subject_id) return err('Isi judul catatan.');
+                n = { id: `j${JR.seq++}`, tanggal: a.p_tanggal, class_id: a.p_class_id || null, subject_id: a.p_subject_id || null, judul: a.p_judul || null, jam: a.p_jam || null, ...val };
+                JR.list.push(n);
+            }
+            return ok(jurnalDay(a.p_tanggal));
+        }
+        case 'delete_journal_entry': {
+            const n = JR.list.find((x) => x.id === a.p_id);
+            JR.list = JR.list.filter((x) => x !== n);
+            return ok(jurnalDay(n.tanggal));
+        }
+        case 'get_my_journal_month': {
+            const pre = `${a.p_tahun}-${String(a.p_bulan).padStart(2, '0')}`;
+            return ok({ tahun: a.p_tahun, bulan: a.p_bulan, guru: { nama: 'Sunarsih, S.Pd.', nip: '990000000000000001' },
+                catatan: JR.list.filter((n) => n.tanggal.startsWith(pre)).sort((x, y) => x.tanggal.localeCompare(y.tanggal))
+                    .map((n) => ({ tanggal: n.tanggal, kelas: n.class_id ? kelasNama(n.class_id) : null, mapel: n.subject_id ? MAPEL.find((x) => x.id === n.subject_id).singkat : null, judul: n.judul, jam: n.jam, status: n.status, materi: n.materi, keterangan: n.keterangan })) });
+        }
+        default: return ok(null);
+        }
     }
 
     // ------------------------------------------------------------------ tabel tiruan (stateful)

@@ -1065,6 +1065,82 @@ begin
     execute 'reset role';
     end;
 
+    -- ======================================================== S. Jurnal mengajar
+    declare
+        v_rabu  date := (select max(g)::date from generate_series(public.jakarta_today() - 6, public.jakarta_today(), interval '1 day') g where extract(isodow from g) = 3);
+        v_senin date := (select max(g)::date from generate_series(public.jakarta_today() - 6, public.jakarta_today(), interval '1 day') g where extract(isodow from g) = 1);
+        v_mtk uuid := (select id from public.subjects where code = 'MTK');
+        v_bin uuid := (select id from public.subjects where code = 'BIN');
+        v_note uuid;
+    begin
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    perform public.save_schedule_entry(c1a, 3::smallint, 1::smallint, 2::smallint, 'mapel', v_mtk);
+    perform public.save_schedule_entry(c1a, 3::smallint, 5::smallint, 1::smallint, 'mapel', v_bin);
+    v_j := public.get_my_journal_day(v_rabu);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'S Jurnal', 'u', 'Jurnal Rabu wali kelas terisi dari jadwal kelasnya (MTK jam 1–2, BIN), belum ada catatan',
+        'ok', jsonb_array_length(v_j -> 'jadwal') = 3 and v_j -> 'jadwal' -> 0 ->> 'kode' = 'MTK' and v_j -> 'jadwal' -> 0 ->> 'mulai' = '06:30'
+          and jsonb_array_length(v_j -> 'catatan') = 0 and jsonb_array_length(v_j -> 'kelas') = 1);
+    v_j := public.save_journal_entry(v_rabu, 'terlaksana', null, c1a, v_mtk, null, '1–2', '  Penjumlahan 1–20  ');
+    v_j := public.save_journal_entry(v_rabu, 'tidak', null, c1a, v_mtk, null, '1–2', null, 'Rapat guru');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'S Jurnal', 'u', 'Tandai jadwal: simpan ulang menimpa (satu catatan per kelas-mapel-hari), materi opsional',
+        'ok', jsonb_array_length(v_j -> 'catatan') = 1 and v_j -> 'catatan' -> 0 ->> 'status' = 'tidak'
+          and v_j -> 'catatan' -> 0 -> 'materi' = 'null'::jsonb and v_j -> 'catatan' -> 0 ->> 'keterangan' = 'Rapat guru' and v_j -> 'catatan' -> 0 ->> 'jam' = '1–2');
+    v_j := public.save_journal_entry(v_rabu, 'terlaksana', null, c1a, null, 'Rapat orang tua murid', null, 'Pembagian rapor sisipan');
+    select (x ->> 'id')::uuid into v_note from jsonb_array_elements(v_j -> 'catatan') x where x ->> 'judul' = 'Rapat orang tua murid';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'S Jurnal', 'u', 'Catatan lain (judul bebas) tersimpan', 'ok', jsonb_array_length(v_j -> 'catatan') = 2 and v_note is not null);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'S Jurnal', 'u', 'Tanggal yang belum tiba, status salah, dan catatan tanpa judul ditolak',
+        'ok', public.t_try(format($q$select public.save_journal_entry(%L, 'terlaksana', null, %L, %L)$q$, public.jakarta_today() + 1, c1a, v_mtk)) = '22023'
+          and public.t_try(format($q$select public.save_journal_entry(%L, 'oke', null, %L, %L)$q$, v_rabu, c1a, v_mtk)) = '22023'
+          and public.t_try(format($q$select public.save_journal_entry(%L, 'terlaksana')$q$, v_rabu)) = '22023');
+    v_no := v_no + 1; v_r := public.t_try(format($q$select public.save_journal_entry(%L, 'terlaksana', null, %L, %L)$q$, v_rabu, c4a, v_mtk));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'S Hak', 'u', 'Tidak bisa mencatat untuk kelas yang bukan kelasnya', 'ok', v_r = '42501');
+    v_j := public.get_my_journal_month(extract(year from v_rabu)::int, extract(month from v_rabu)::int);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'S Jurnal', 'u', 'Unduhan bulanan berisi catatan + nama guru',
+        'ok', jsonb_array_length(v_j -> 'catatan') = 2 and v_j -> 'guru' ->> 'nama' = 'Sunarsih, S.Pd.');
+    v_no := v_no + 1; v_r := public.t_try('select count(*) from public.teaching_journal');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'S Hak', 'u', 'Tabel jurnal tidak bisa dibaca langsung', 'ok', v_r = '42501');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_my_journal_day(v_senin);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'S Jurnal', 'u', 'Guru PAI: jurnal Senin berisi jam PAI-nya di semua kelas (1 A & 3 A)',
+        'ok', jsonb_array_length(v_j -> 'jadwal') = 4 and not exists (select 1 from jsonb_array_elements(v_j -> 'jadwal') x where x ->> 'kode' <> 'PAI')
+          and jsonb_array_length(v_j -> 'catatan') = 0);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'S Hak', 'u', 'Jurnal pribadi: guru lain tidak melihat / tidak bisa mengubah / menghapus catatan wali',
+        'ok', jsonb_array_length(public.get_my_journal_day(v_rabu) -> 'catatan') = 0
+          and public.t_try(format($q$select public.save_journal_entry(%L, 'tidak', %L)$q$, v_rabu, v_note)) = '22023'
+          and public.t_try(format('select public.delete_journal_entry(%L)', v_note)) = '22023');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'S Hak', 'u', 'Admin pun tidak bisa membaca jurnal guru lain', 'ok', jsonb_array_length(public.get_my_journal_day(v_rabu) -> 'catatan') = 0);
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.delete_journal_entry(v_note);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'S Jurnal', 'u', 'Hapus catatan lain milik sendiri', 'ok', jsonb_array_length(v_j -> 'catatan') = 1);
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_my_journal_day(%L)', v_rabu));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'S Hak', 'u', 'Anon tidak bisa membuka jurnal', 'ok', v_r = '42501');
+    execute 'reset role';
+    end;
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end
