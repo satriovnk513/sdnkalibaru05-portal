@@ -819,6 +819,132 @@ begin
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'P Hak', 'u', 'Anon tidak bisa membaca tabel inventaris', 'ok', v_r = '42501');
     execute 'reset role';
 
+    -- ======================================================== Q. Nilai rapor
+    declare
+        s_mtk uuid := (select id from public.subjects where code = 'MTK');
+    begin
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', '14 mapel dengan urutan tetap (BIN pertama, SER terakhir)',
+        'ok', (select count(*) from public.subjects where sort_order between 1 and 14) = 14
+          and (select code from public.subjects order by sort_order limit 1) = 'BIN');
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_class_grades(c1a, 1::smallint);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', 'Wali kelas melihat semua mapel; PAI diisi guru mapel (tidak bisa diubah wali), MTK bisa',
+        'ok', jsonb_array_length(v_j -> 'mapel') = (select count(*) from public.subjects) and jsonb_array_length(v_j -> 'siswa') = 3
+          and exists (select 1 from jsonb_array_elements(v_j -> 'mapel') m where m ->> 'kode' = 'PAI' and not (m ->> 'can_edit')::boolean and m -> 'guru_mapel' = '["Susy Nurhayati"]'::jsonb)
+          and exists (select 1 from jsonb_array_elements(v_j -> 'mapel') m where m ->> 'kode' = 'MTK' and (m ->> 'can_edit')::boolean));
+    v_j := public.save_grades(c1a, 1::smallint, jsonb_build_array(jsonb_build_object('subject_id', s_mtk, 'kktp', 75, 'entries', jsonb_build_array(
+        jsonb_build_object('student_id', st1, 'uh1', 80, 'uh2', 85, 'uh3', 90, 'sts', 78, 'sas', 82),
+        jsonb_build_object('student_id', st2, 'uh1', '70')))));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', 'Wali menyimpan KKTP + nilai MTK (6 nilai baru, KKTP tercatat)',
+        'ok', v_j = '{"baru":6,"berubah":0,"dihapus":0,"kktp":1}'::jsonb);
+    v_j := public.save_grades(c1a, 1::smallint, jsonb_build_array(jsonb_build_object('subject_id', s_mtk, 'entries', jsonb_build_array(
+        jsonb_build_object('student_id', st1, 'uh1', 85, 'uh2', 85)))));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', 'Mengubah satu nilai → 1 berubah; nilai sama tidak dicatat',
+        'ok', v_j ->> 'berubah' = '1' and v_j ->> 'baru' = '0');
+    v_j := public.save_grades(c1a, 1::smallint, jsonb_build_array(jsonb_build_object('subject_id', s_mtk, 'kktp', null, 'entries', jsonb_build_array(
+        jsonb_build_object('student_id', st1, 'uh2', null, 'sts', '')))), 'impor', true);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Impor', 'u', 'Impor: kotak kosong di Excel tidak menghapus nilai/KKTP yang sudah ada',
+        'ok', v_j = '{"baru":0,"berubah":0,"dihapus":0,"kktp":0}'::jsonb);
+    v_j := public.save_grades(c1a, 1::smallint, jsonb_build_array(jsonb_build_object('subject_id', s_mtk, 'entries', jsonb_build_array(
+        jsonb_build_object('student_id', st2, 'uh1', null)))));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', 'Di portal, mengosongkan kotak menghapus nilai (tercatat)',
+        'ok', v_j ->> 'dihapus' = '1');
+    v_no := v_no + 1; v_r := public.t_try(format($q$select public.save_grades(%L, 1::smallint, '[{"subject_id":"%s","entries":[{"student_id":"%s","uh1":101}]}]')$q$, c1a, s_mtk, st1));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', 'Nilai di atas 100 ditolak', 'ok', v_r = '22023');
+    v_no := v_no + 1; v_r := public.t_try(format($q$select public.save_grades(%L, 1::smallint, '[{"subject_id":"%s","entries":[{"student_id":"%s","uh1":80.5}]}]')$q$, c1a, s_mtk, st1));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', 'Nilai pecahan ditolak (harus bulat)', 'ok', v_r = '22023');
+    v_no := v_no + 1; v_r := public.t_try(format($q$select public.save_grades(%L, 1::smallint, '[{"subject_id":"%s","entries":[{"student_id":"%s","uh1":80}]}]')$q$, c1a, s_mtk, st4));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', 'Siswa kelas lain ditolak', 'ok', v_r = '22023');
+    v_no := v_no + 1; v_r := public.t_try(format($q$select public.save_grades(%L, 1::smallint, '[{"subject_id":"%s","entries":[{"student_id":"%s","uh1":80}]}]')$q$, c1a, s_pai, st1));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Hak', 'u', 'Wali kelas tidak bisa mengisi PAI (punya guru mapel)', 'ok', v_r = '42501');
+    v_no := v_no + 1; v_r := public.t_try(format($q$select public.save_grades(%L, 1::smallint, '[{"subject_id":"%s","entries":[{"student_id":"%s","uh1":80}]}]')$q$, c3a, s_mtk, st4));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Hak', 'u', 'Wali kelas tidak bisa mengisi nilai kelas lain', 'ok', v_r = '42501');
+    perform public.set_class_subject_hidden(c1a, (select id from public.subjects where code = 'IPAS'), true);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', 'Wali menandai IPAS tidak diajarkan di kelasnya',
+        'ok', exists (select 1 from jsonb_array_elements(public.get_class_grades(c1a, 1::smallint) -> 'mapel') m where m ->> 'kode' = 'IPAS' and (m ->> 'hidden')::boolean));
+    v_j := public.get_my_grade_classes();
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', 'Kelas di menu Nilai: wali kelas 1 A',
+        'ok', jsonb_array_length(v_j) = 1 and v_j -> 0 ->> 'nama' = '1 A' and (v_j -> 0 ->> 'wali')::boolean);
+    v_no := v_no + 1; v_r := public.t_try('select count(*) from public.student_grades');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Hak', 'u', 'Tabel nilai tidak bisa dibaca langsung (hanya lewat RPC)', 'ok', v_r = '42501');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_class_grades(c1a, 1::smallint);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Hak', 'u', 'Guru PAI hanya melihat mapel PAI di kelas yang diajarnya (tidak melihat nilai MTK)',
+        'ok', jsonb_array_length(v_j -> 'mapel') = 1 and v_j -> 'mapel' -> 0 ->> 'kode' = 'PAI' and (v_j -> 'mapel' -> 0 ->> 'can_edit')::boolean
+          and jsonb_array_length(v_j -> 'nilai') = 0);
+    v_j := public.save_grades(c1a, 1::smallint, jsonb_build_array(jsonb_build_object('subject_id', s_pai, 'kktp', 70, 'entries', jsonb_build_array(
+        jsonb_build_object('student_id', st1, 'uh1', 88)))));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Hak', 'u', 'Guru PAI mengisi nilai & KKTP PAI', 'ok', v_j ->> 'baru' = '1' and v_j ->> 'kktp' = '1');
+    v_no := v_no + 1; v_r := public.t_try(format($q$select public.save_grades(%L, 1::smallint, '[{"subject_id":"%s","entries":[{"student_id":"%s","uh1":80}]}]')$q$, c1a, s_mtk, st1));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Hak', 'u', 'Guru PAI tidak bisa mengisi Matematika', 'ok', v_r = '42501');
+    v_no := v_no + 1; v_r := public.t_try(format('select public.set_class_subject_hidden(%L, %L, true)', c1a, s_mtk));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Hak', 'u', 'Guru mapel tidak bisa menyembunyikan mapel kelas', 'ok', v_r = '42501');
+    v_j := public.get_grade_history(c1a, 1::smallint);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Riwayat', 'u', 'Riwayat guru PAI hanya berisi perubahan PAI',
+        'ok', jsonb_array_length(v_j) = 2 and not exists (select 1 from jsonb_array_elements(v_j) x where x ->> 'mapel' <> 'PAI'));
+    v_j := public.get_my_grade_classes();
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', 'Guru PAI kelas 1–3 melihat semua kelas yang diajarnya',
+        'ok', jsonb_array_length(v_j) = (select count(*) from public.classes where grade between 1 and 3)
+          and v_j -> 0 -> 'mapel' = '["PAI"]'::jsonb);
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_grade_history(c1a, 1::smallint);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Riwayat', 'u', 'Riwayat wali: semua perubahan kelasnya (lama → baru, siapa)',
+        'ok', jsonb_array_length(v_j) = 11
+          and exists (select 1 from jsonb_array_elements(v_j) x where x ->> 'kolom' = 'uh1' and x ->> 'lama' = '80' and x ->> 'baru' = '85' and x ->> 'oleh' = 'Sunarsih, S.Pd.')
+          and exists (select 1 from jsonb_array_elements(v_j) x where x ->> 'kolom' = 'kktp' and x ->> 'baru' = '75'));
+    v_j := public.get_class_grades(c1a, 1::smallint, s_mtk);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', 'Nilai tersimpan benar (uh1 85, uh2 85, uh3 90, sts 78, sas 82; KKTP 75)',
+        'ok', v_j -> 'mapel' -> 0 ->> 'kktp' = '75'
+          and exists (select 1 from jsonb_array_elements(v_j -> 'nilai') n where n ->> 's' = st1::text
+                      and n ->> 'uh1' = '85' and n ->> 'uh2' = '85' and n ->> 'uh3' = '90' and n ->> 'sts' = '78' and n ->> 'sas' = '82'));
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_lilis, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Hak', 'u', 'Kepala sekolah melihat semua mapel tapi tidak bisa mengubah',
+        'ok', jsonb_array_length(public.get_class_grades(c1a, 1::smallint) -> 'mapel') = (select count(*) from public.subjects)
+          and public.t_try(format($q$select public.save_grades(%L, 1::smallint, '[{"subject_id":"%s","entries":[{"student_id":"%s","uh1":80}]}]')$q$, c1a, s_mtk, st1)) = '42501');
+    v_j := public.get_grades_admin_matrix(1::smallint);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Admin', 'u', 'Matriks admin: 17 kelas × 14 mapel; MTK 1 A: 1 lengkap, 1 terisi',
+        'ok', jsonb_array_length(v_j -> 'kelas') = 17 and jsonb_array_length(v_j -> 'mapel') = (select count(*) from public.subjects)
+          and (select (k -> 'sel' -> s_mtk::text ->> 'lengkap') = '1' and (k -> 'sel' -> s_mtk::text ->> 'terisi') = '1' and (k ->> 'siswa') = '3'
+               from jsonb_array_elements(v_j -> 'kelas') k where k ->> 'nama' = '1 A'));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', 'Kepala sekolah: menu Nilai berisi semua kelas; data nilai memuat kepala sekolah untuk tanda tangan',
+        'ok', jsonb_array_length(public.get_my_grade_classes()) = 17
+          and public.get_class_grades(c1a, 1::smallint) -> 'kepala_sekolah' ->> 'nama' = 'Lilis Kholisoh, S.Pd.SD');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_class_grades(%L, 1::smallint)', c1a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Hak', 'u', 'Anon tidak bisa membuka nilai', 'ok', v_r = '42501');
+    execute 'reset role';
+    end;
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end

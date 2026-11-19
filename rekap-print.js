@@ -523,7 +523,8 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         return `${kind} ${romawi(header.kelas)} ${extra}`.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_');
     }
 
-    const api = { monthlyHtml, semesterHtml, monthlyXlsx, semesterXlsx, buildXlsx, crc32, print: printDoc, download, loadLogo, fileName, akhirBulan, ttdSemester, HADIR, romawi, namaTtd, pct, BULAN };
+    const api = { monthlyHtml, semesterHtml, monthlyXlsx, semesterXlsx, buildXlsx, crc32, print: printDoc, download, loadLogo, fileName, akhirBulan, ttdSemester, HADIR, romawi, namaTtd, pct, BULAN,
+        zipStore, colName, xmlEsc, kopHtml, wrapDoc, fit, tglPanjang, tpLabel, SCHOOL, CITY };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.RekapPrint = Object.freeze(api);
 })(typeof window !== 'undefined' ? window : globalThis);

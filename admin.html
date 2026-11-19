@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#ffffff">
     <script src="theme.js?v=1"></script>
     <link rel="stylesheet" href="theme.css?v=1">
-    <link rel="stylesheet" href="attendance.css?v=11">
+    <link rel="stylesheet" href="attendance.css?v=12">
     <style>
         /* ── Reset & Base ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -727,6 +727,10 @@
                 </a>
 
                 <div class="nav-section-label">AKADEMIK</div>
+                <a class="nav-item" data-tab="tabNilai" onclick="showTab('tabNilai', this)">
+                    <svg viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5M22 10v6"/></svg>
+                    Nilai Siswa
+                </a>
                 <a class="nav-item" data-tab="tabClasses" onclick="showTab('tabClasses', this)">
                     <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 22h8M12 18v4"/></svg>
                     Data Kelas
@@ -939,6 +943,13 @@
                         <div class="att-field" style="max-width:480px"><label for="dkTypes">Jenis dokumen</label><select class="att-select" id="dkTypes"></select></div>
                     </div>
                     <div class="admin-card g-dok-host" id="dkHost"><div class="att-muted">Memuat…</div></div>
+                </div>
+
+                <!-- ═══ TAB NILAI ═══ -->
+                <div id="tabNilai" class="tab-content">
+                    <div class="section-header ak-head"><div><h2>Nilai Siswa</h2>
+                        <p class="att-muted" style="margin:4px 0 0">Pantau pengisian nilai rapor semua kelas. Nilai diisi guru di Portal Guru (wali kelas, atau guru mapel untuk mapel yang punya guru mapel); admin bisa ikut mengisi atau memperbaiki — semua perubahan tercatat di riwayat.</p></div></div>
+                    <div class="admin-card" id="nlHost"><div class="att-muted">Memuat…</div></div>
                 </div>
 
                 <!-- ═══ TAB INVENTARIS ═══ -->
@@ -1452,7 +1463,11 @@
     <script src="dokumen-ui.js?v=2"></script>
     <script src="admin-dokumen.js?v=1"></script>
     <script src="qr.js?v=1"></script>
-    <script src="xlsx-read.js?v=1"></script>
+    <script src="xlsx-read.js?v=2"></script>
+    <script src="xlsx-book.js?v=1"></script>
+    <script src="nilai.js?v=1"></script>
+    <script src="nilai-ui.js?v=1"></script>
+    <script src="admin-nilai.js?v=1"></script>
     <script src="inventaris.js?v=2"></script>
     <script src="admin-inventaris.js?v=2"></script>
     <script>

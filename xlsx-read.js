@@ -2,6 +2,7 @@
 // Pembaca Excel (.xlsx) & CSV mini, tanpa library luar. Mengambil lembar
 // pertama sebagai array baris berisi teks. Cukup untuk impor daftar barang.
 //   await XlsxRead.read(arrayBuffer, fileName) → [['Kode','Nama barang',…], …]
+//   await XlsxRead.readBook(arrayBuffer) → [{ name, rows }] untuk semua lembar.
 // Butuh DecompressionStream('deflate-raw') — ada di Chrome/Edge/Safari/Firefox modern.
 // =============================================================================
 (function (root) {
@@ -64,23 +65,7 @@
         return n - 1;
     }
 
-    async function readXlsx(buf) {
-        const zip = listZip(buf);
-        const get = async (name) => (zip.has(name) ? dec.decode(await zip.get(name)()) : null);
-        let sheetPath = null;
-        const wb = await get('xl/workbook.xml');
-        const rels = await get('xl/_rels/workbook.xml.rels');
-        if (wb && rels) {
-            const rid = /<sheet\b[^>]*\br:id="([^"]+)"/.exec(wb)?.[1];
-            const target = rid && new RegExp(`<Relationship\\b[^>]*Id="${rid}"[^>]*Target="([^"]+)"`).exec(rels)?.[1]
-                || rid && new RegExp(`<Relationship\\b[^>]*Target="([^"]+)"[^>]*Id="${rid}"`).exec(rels)?.[1];
-            if (target) sheetPath = target.startsWith('/') ? target.slice(1) : `xl/${target.replace(/^\.\//, '')}`;
-        }
-        if (!sheetPath || !zip.has(sheetPath)) sheetPath = [...zip.keys()].filter((k) => /^xl\/worksheets\/[^/]+\.xml$/.test(k)).sort()[0];
-        if (!sheetPath) throw new Error('Lembar kerja tidak ditemukan di file Excel.');
-        const sstXml = await get('xl/sharedStrings.xml');
-        const sst = sstXml ? [...sstXml.matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => texts(m[1])) : [];
-        const xml = await get(sheetPath);
+    function parseSheet(xml, sst) {
         const rows = [];
         for (const rm of xml.matchAll(/<row\b([^>]*)>([\s\S]*?)<\/row>/g)) {
             const rNum = Number(/\br="(\d+)"/.exec(rm[1])?.[1] || rows.length + 1);
@@ -101,6 +86,40 @@
             rows[rNum - 1] = Array.from(row, (x) => x ?? '');
         }
         return Array.from(rows, (r) => r || []);
+    }
+
+    /** Semua lembar sesuai urutan di buku kerja → [{ name, rows }]. */
+    async function readBook(buf) {
+        const zip = listZip(buf);
+        const get = async (name) => (zip.has(name) ? dec.decode(await zip.get(name)()) : null);
+        const wb = await get('xl/workbook.xml');
+        const rels = await get('xl/_rels/workbook.xml.rels');
+        const list = [];
+        if (wb && rels) {
+            for (const m of wb.matchAll(/<sheet\b([^>]*)\/?>/g)) {
+                const name = unxml(/\bname="([^"]*)"/.exec(m[1])?.[1] || '');
+                const rid = /\br:id="([^"]+)"/.exec(m[1])?.[1];
+                const target = rid && (new RegExp(`<Relationship\\b[^>]*Id="${rid}"[^>]*Target="([^"]+)"`).exec(rels)?.[1]
+                    || new RegExp(`<Relationship\\b[^>]*Target="([^"]+)"[^>]*Id="${rid}"`).exec(rels)?.[1]);
+                if (!target) continue;
+                const path = target.startsWith('/') ? target.slice(1) : `xl/${target.replace(/^\.\//, '')}`;
+                if (zip.has(path)) list.push({ name, path });
+            }
+        }
+        if (!list.length) {
+            [...zip.keys()].filter((k) => /^xl\/worksheets\/[^/]+\.xml$/.test(k)).sort()
+                .forEach((path, i) => list.push({ name: `Sheet${i + 1}`, path }));
+        }
+        if (!list.length) throw new Error('Lembar kerja tidak ditemukan di file Excel.');
+        const sstXml = await get('xl/sharedStrings.xml');
+        const sst = sstXml ? [...sstXml.matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => texts(m[1])) : [];
+        const out = [];
+        for (const s of list) out.push({ name: s.name, rows: parseSheet(await get(s.path), sst) });
+        return out;
+    }
+
+    async function readXlsx(buf) {
+        return (await readBook(buf))[0].rows;
     }
 
     /** CSV sederhana: koma atau titik koma, tanda kutip ganda didukung. */
@@ -130,7 +149,7 @@
         return readCsv(dec.decode(b).replace(/^﻿/, ''));
     }
 
-    const api = { read, readXlsx, readCsv };
+    const api = { read, readBook, readXlsx, readCsv };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.XlsxRead = api;
 }(typeof window !== 'undefined' ? window : globalThis));
