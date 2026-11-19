@@ -604,3 +604,42 @@ button.jd-slot:hover { background: var(--t-surface-2); }
 .g-jd-today b { color: var(--att-ink); }
 .g-jd-today small { display: block; font-size: .74rem; color: var(--att-muted); }
 .jd-sheet [hidden] { display: none !important; }
+
+/* =============================================================================
+   Jurnal mengajar (jurnal-ui.js)
+   ========================================================================== */
+.jr-date { display: grid; grid-template-columns: 48px 1fr 48px; gap: 8px; align-items: center; margin-bottom: 8px; }
+.jr-date > .att-btn { padding: 0; height: 48px; }
+.jr-date svg, .jr-st svg, .jr-foot svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.jr-date-mid { position: relative; text-align: center; display: flex; flex-direction: column; background: var(--t-surface); border: 1px solid var(--att-line); border-radius: 12px; padding: 6px 8px; cursor: pointer; }
+.jr-date-mid b { font-size: 1rem; color: var(--att-ink); }
+.jr-date-mid small { font-size: .78rem; color: var(--att-muted); }
+.jr-date-mid input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.jr-prog { height: 6px; border-radius: 99px; background: var(--t-surface-3); overflow: hidden; margin-bottom: 12px; }
+.jr-prog i { display: block; height: 100%; background: var(--att-h); }
+.jr-note { margin-bottom: 12px; font-size: .86rem; }
+.jr-list { display: flex; flex-direction: column; gap: 10px; }
+.jr-card { background: var(--t-surface); border: 1px solid var(--att-line); border-radius: 14px; padding: 12px 14px; }
+.jr-card.saved.terlaksana { border-left: 4px solid var(--att-h); }
+.jr-card.saved.tidak { border-left: 4px solid var(--att-a); }
+.jr-card header { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.jr-card header > div { display: flex; flex-direction: column; min-width: 0; }
+.jr-card header b { font-size: 1rem; color: var(--att-ink); }
+.jr-card header small { font-size: .78rem; color: var(--att-muted); margin-top: 2px; }
+.jr-tag { color: var(--t-violet-ink) !important; font-weight: 600; }
+.jr-form { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.jr-l { font-size: .8rem; font-weight: 600; color: var(--t-text); margin-top: 4px; }
+.jr-st { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.jr-st button { min-height: 44px; border-radius: 10px; border: 1px solid var(--t-line-2); background: var(--t-surface); color: var(--t-text); font: 600 .88rem 'Inter', sans-serif; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.jr-st button[data-st="terlaksana"][aria-checked="true"] { background: var(--t-green-bg); border-color: var(--att-h); color: var(--t-green-ink); }
+.jr-st button[data-st="tidak"][aria-checked="true"] { background: var(--t-red-bg); border-color: var(--att-a); color: var(--t-red-ink); }
+.jr-act { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+.jr-act .att-btn-primary { min-width: 120px; }
+.jr-view { margin-top: 8px; font-size: .9rem; color: var(--att-ink); }
+.jr-view p { margin: 2px 0; }
+.jr-ubah { border: none; background: none; padding: 4px 0; color: var(--att-brand); font: 600 .84rem 'Inter', sans-serif; cursor: pointer; }
+.jr-add { margin-top: 10px; border-style: dashed; }
+.jr-foot { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.jr-dl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.jr-dl > span { flex: 1 1 100%; }
+.jr-priv { text-align: center; margin-top: 14px; }

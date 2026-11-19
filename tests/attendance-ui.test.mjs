@@ -1491,4 +1491,88 @@ async function runUi() {
         check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
         await ctx.close();
     }
+
+    // ============================================================ JURNAL MENGAJAR — guru (HP)
+    {
+        const T = '[Jurnal 360]';
+        const require = (await import('node:module')).createRequire(import.meta.url);
+        const XR = require('../xlsx-read.js');
+        const todayJ = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+        const back = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) - n * 86400000).toISOString().slice(0, 10);
+        const dowOf = (iso) => new Date(`${iso}T00:00:00Z`).getUTCDay();
+        let rabu = todayJ; while (dowOf(rabu) !== 3) rabu = back(rabu, 1);
+        let sabtu = todayJ; while (dowOf(sabtu) !== 6) sabtu = back(sabtu, 1);
+        const C1A = '00000000-0000-4000-8000-0000000000c1';
+        const { ctx, page, errors } = await newPage('/guru#/', { width: 360, height: 780 });
+        await page.waitForSelector('#gLogin:not(.g-hidden)');
+        await page.fill('#gId', '990000000000000001');
+        await page.fill('#gPw', 'benar123');
+        await page.click('#gLoginBtn');
+        await page.waitForSelector('.g-jurnal-link');
+        check(true, `${T} Beranda punya pintasan Jurnal mengajar`);
+        // Siapkan jadwal Rabu kelas 1 A: MTK jam 1–2, BIN jam 6
+        await page.evaluate(async (c) => {
+            const sb = window.supabaseClient;
+            await sb.rpc('get_class_schedule', { p_class_id: c });
+            await sb.rpc('save_schedule_entry', { p_class_id: c, p_hari: 3, p_slot: 1, p_jumlah: 2, p_jenis: 'mapel', p_subject_id: 'm-mtk' });
+            await sb.rpc('save_schedule_entry', { p_class_id: c, p_hari: 3, p_slot: 6, p_jumlah: 1, p_jenis: 'mapel', p_subject_id: 'm-bin' });
+        }, C1A);
+        await page.evaluate((t) => { location.hash = `#/jurnal?tanggal=${t}`; }, rabu);
+        await page.waitForSelector('.jr-card');
+        const cards = await page.$$eval('.jr-card header', (h) => h.map((x) => x.textContent.replace(/\s+/g, ' ').trim()));
+        check(cards.length === 2 && /Matematika ?Kelas 1\.A · Jam ke-1–2 · 06\.30–07\.40 ?Belum/.test(cards[0]) && /Indonesia/.test(cards[1]),
+            `${T} daftar hari terisi otomatis dari jadwal (${cards.join(' / ')})`);
+        check(/0 dari 2 sudah dicatat/.test(await page.textContent('.jr-date')) && /Rabu/.test(await page.textContent('.jr-date')), `${T} tanggal & progres`);
+        check(await page.isDisabled('.jr-card[data-i="0"] [data-simpan]'), `${T} Simpan mati sebelum status dipilih`);
+        await page.click('.jr-card[data-i="0"] [data-st="terlaksana"]');
+        await page.fill('.jr-card[data-i="0"] textarea', 'Penjumlahan 1–20');
+        await page.click('.jr-card[data-i="0"] [data-simpan]');
+        await page.waitForSelector('.jr-card[data-i="0"].saved');
+        check(/Materi: Penjumlahan 1–20/.test(await page.textContent('.jr-card[data-i="0"]')) && /1 dari 2 sudah dicatat/.test(await page.textContent('.jr-date')),
+            `${T} tandai terlaksana + materi tersimpan`);
+        await page.click('.jr-card[data-i="1"] [data-st="tidak"]');
+        await page.fill('.jr-card[data-i="1"] input', 'Rapat guru');
+        await page.click('.jr-card[data-i="1"] [data-simpan]');
+        await page.waitForSelector('.jr-card[data-i="1"].saved.tidak');
+        const call = await page.evaluate(() => window.__fake.calls.filter((c) => c.fn === 'save_journal_entry').pop()?.args);
+        check(call.p_status === 'tidak' && call.p_keterangan === 'Rapat guru' && call.p_subject_id === 'm-bin' && call.p_jam === '6' && !call.p_materi, `${T} tidak terlaksana + keterangan, materi boleh kosong`);
+        // Ubah
+        await page.click('.jr-card[data-i="0"] [data-ubah]');
+        await page.fill('.jr-card[data-i="0"] textarea', 'Penjumlahan & pengurangan 1–20');
+        await page.click('.jr-card[data-i="0"] [data-simpan]');
+        await page.waitForFunction(() => /pengurangan/.test(document.querySelector('.jr-card[data-i="0"]').textContent));
+        check(await page.evaluate(() => window.__fake.jurnal.list.length === 2), `${T} ubah catatan menimpa, tidak dobel`);
+        // Catatan lain
+        await page.click('#jrAdd');
+        await page.fill('#jrJ', 'Rapat orang tua murid');
+        await page.selectOption('#jrKls', C1A);
+        await page.fill('#jrAM', 'Pembagian rapor sisipan');
+        await page.click('#jrAddSave');
+        await page.waitForFunction(() => document.querySelectorAll('.jr-card[data-i]').length === 3);
+        check(/Catatan lain/.test(await page.textContent('.jr-card[data-i="2"]')), `${T} catatan lain ditambahkan`);
+        await shot(page, 'jurnal-01-hari-360.png');
+        check(await overflow(page) <= 0, `${T} tidak bergeser ke samping`);
+        // Unduh
+        const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#jrXls')]);
+        const xp = join(dlDir, 'jurnal.xlsx');
+        await dl.saveAs(xp);
+        const [sh] = await XR.readBook(readFileSync(xp));
+        check(/^JURNAL MENGAJAR — /.test(sh.rows[0][0]) && sh.rows[3][4] === 'Mapel / Catatan' && sh.rows.slice(4).filter((r) => r.length).length === 3,
+            `${T} Excel jurnal sebulan (${sh.rows[0][0]}, ${sh.rows.length - 4} baris)`);
+        const [pop] = await Promise.all([page.waitForEvent('popup'), page.click('#jrPdf')]);
+        await pop.waitForFunction(() => /JURNAL MENGAJAR/.test(document.body?.textContent || ''));
+        const ptxt = (await pop.textContent('body')).replace(/\s+/g, ' ');
+        check(/CATATAN HARIAN GURU/.test(ptxt) && /Sunarsih/.test(ptxt) && /Tidak terlaksana/.test(ptxt), `${T} PDF jurnal sebulan`);
+        await shot(pop, 'jurnal-02-pdf.png');
+        await pop.close();
+        // Hari ini: tombol berikutnya mati; Sabtu: tidak ada jadwal
+        await page.evaluate(() => { location.hash = '#/jurnal'; });
+        await page.waitForSelector('#jrNext');
+        check(await page.isDisabled('#jrNext'), `${T} tidak bisa maju ke tanggal yang belum tiba`);
+        await page.evaluate((t) => { location.hash = `#/jurnal?tanggal=${t}`; }, sabtu);
+        await page.waitForFunction(() => /tidak ada jadwal pelajaran/.test(document.getElementById('gMain').textContent));
+        check(true, `${T} Sabtu: keterangan tidak ada jadwal, catatan lain tetap bisa`);
+        check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
 }

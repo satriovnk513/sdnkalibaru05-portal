@@ -10,6 +10,7 @@
 //   #/pinjam                   pinjam barang: scan QR, pinjaman saya
 //   #/pinjam/<token|kode>      halaman barang hasil scan stiker QR (pinjam / kembalikan)
 //   #/jadwal?kelas=            jadwal pelajaran kelas (jadwal-ui.js); #/jadwal/saya = jadwal mengajar
+//   #/jurnal?tanggal=          jurnal mengajar pribadi (jurnal-ui.js)
 //   #/nilai?kelas=&smt=        nilai siswa: daftar mapel (nilai-ui.js)
 //   #/nilai/isi|riwayat|excel?kelas=&smt=&mapel=   isi nilai, riwayat perubahan, Excel & PDF
 // Semua data lewat RPC yang memeriksa hak akses di database.
@@ -386,6 +387,7 @@
         if (home.wali_kelas.length || home.mapel.length || home.is_pimpinan) {
             parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/nilai" style="margin-bottom:10px">Nilai siswa (UH, STS, SAS · Excel)</a>`);
             parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/jadwal${home.wali_kelas.length ? '' : '/saya'}" style="margin-bottom:10px">Jadwal pelajaran</a>`);
+            if (home.wali_kelas.length || home.mapel.length) parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/jurnal" style="margin-bottom:10px">Jurnal mengajar hari ini</a>`);
         }
         parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/dokumen" style="margin-bottom:10px">Cetak &amp; Dokumen (daftar siswa, surat, biodata)</a>`);
         parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/pinjam" style="margin-bottom:14px">${myLoans?.aktif?.length ? `Barang yang saya pinjam (${myLoans.aktif.length})` : 'Pinjam / kembalikan barang (scan QR)'}</a>`);
@@ -471,6 +473,7 @@
         }
 
         if (home.wali_kelas.length || home.mapel.length || home.is_pimpinan) parts.push(nilaiCard());
+        if (home.wali_kelas.length || home.mapel.length) parts.push(jurnalCard());
 
         if (myClasses().length) {
             if (!day.date) day.date = today;
@@ -616,6 +619,20 @@
         setTop(view === 'saya' ? 'Jadwal Mengajar Saya' : 'Jadwal Pelajaran', '', true);
         main('<div id="gJadwalHost"></div>');
         await jadwalUI.render($('gJadwalHost'), view, Object.fromEntries(params));
+    }
+
+    function jurnalCard() {
+        return `<a class="g-sched g-chip g-pinjam-link g-jurnal-link" href="#/jurnal"><span class="g-sched-ico">${ICON.clip}</span>
+            <span class="g-sched-txt"><b>Jurnal mengajar</b><span>Tandai terlaksana &amp; catat materi hari ini · catatan pribadi</span></span>${ICON.chev}</a>`;
+    }
+
+    let jurnalUI = null;
+    async function renderJurnal(params) {
+        if (!jurnalUI) jurnalUI = window.JurnalUI.create({ rpc, nav: (tgl) => go(`/jurnal?tanggal=${tgl}`) });
+        setNav('');
+        setTop('Jurnal Mengajar', 'Catatan harian guru', true);
+        main('<div id="gJurnalHost"></div>');
+        await jurnalUI.render($('gJurnalHost'), params.get('tanggal'));
     }
 
     function nilaiCard() {
@@ -1468,6 +1485,7 @@
         if (path === '/akun') return renderAkun();
         if (path === '/pinjam') return renderPinjamList();
         if (path.startsWith('/pinjam/')) return renderPinjamItem(decodeURIComponent(path.slice(8)));
+        if (path === '/jurnal') return renderJurnal(params);
         if (path === '/jadwal') return renderJadwal('kelas', params);
         if (path === '/jadwal/saya') return renderJadwal('saya', params);
         if (path === '/nilai') return renderNilai('kelas', params);
@@ -1484,7 +1502,7 @@
         if (parseHash().path.startsWith('/pinjam/')) return go('/pinjam');
         if (parseHash().path === '/pinjam') return go('/');
         if (parseHash().path === '/nilai') return go('/');
-        if (parseHash().path.startsWith('/jadwal')) return go('/');
+        if (parseHash().path.startsWith('/jadwal') || parseHash().path === '/jurnal') return go('/');
         if (parseHash().path.startsWith('/nilai/')) {
             const p = parseHash().params;
             return go(nilaiPath('kelas', { kelas: p.get('kelas'), smt: p.get('smt') }));
