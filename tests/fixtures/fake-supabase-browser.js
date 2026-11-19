@@ -215,6 +215,7 @@
         default:
             if (fn.startsWith('inv_')) return Promise.resolve(invRpc(fn, args, user));
             if (GRADE_RPC.includes(fn)) return Promise.resolve(gradeRpc(fn, args, user));
+            if (JADWAL_RPC.includes(fn)) return Promise.resolve(jadwalRpc(fn, args, user));
             return Promise.resolve(ok(null));
         }
     }
@@ -450,6 +451,124 @@
         default:
             return ok(null);
         }
+    }
+
+    // ------------------------------------------------------------------ jadwal tiruan
+    const JADWAL_RPC = ['get_class_schedule', 'save_schedule_entry', 'set_schedule_slot', 'add_schedule_slot', 'delete_schedule_slot', 'get_teaching_schedule', 'get_schedule_teachers'];
+    const JD = F.jadwal = F.jadwal || { slots: {}, isi: {}, lain: [
+        // kelas lain (tidak terlihat): Susy mengajar PAI di 2 B Senin jam 3 07:40–08:15
+        { kelas: '2 B', class_id: 'c-2b', hari: 1, jam: 3, mulai: '07:40', selesai: '08:15', staff_id: 'st-susy', subject_id: PAI },
+    ] };
+    const jdStaff = { 'st-susy': 'Susy Nurhayati', 'st-sun': 'Sunarsih, S.Pd.' };
+    const hh = (t) => { const [a, b] = t.split(':').map(Number); return a * 60 + b; };
+    const mm = (n) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+    function jdEnsure(c) {
+        if (JD.slots[c]) return;
+        const g = c === C1A ? 1 : 3;
+        const br = g <= 2 ? 5 : 6;
+        let t = hh('06:30');
+        JD.slots[c] = [];
+        for (let i = 1; i <= 11; i++) {
+            const len = i === br ? (g <= 2 ? 35 : 20) : 35;
+            JD.slots[c].push({ no: i, mulai: mm(t), selesai: mm(t + len), istirahat: i === br });
+            t += len;
+        }
+        JD.isi[c] = [
+            { hari: 1, jam: 1, jenis: 'kegiatan', kegiatan: 'Upacara Bendera' }, { hari: 1, jam: 2, jenis: 'kegiatan', kegiatan: 'Upacara Bendera' },
+            { hari: 5, jam: 1, jenis: 'kegiatan', kegiatan: "Dhuha & Gema Qur'an" }, { hari: 5, jam: 2, jenis: 'kegiatan', kegiatan: "Dhuha & Gema Qur'an" },
+        ];
+    }
+    const jdGuruMapel = (c, m) => (m === PAI ? (c === C1A ? [{ id: 'st-susy', nama: 'Susy Nurhayati' }] : [{ id: 'st-sun', nama: 'Sunarsih, S.Pd.' }]) : null);
+    function jdData(c, user) {
+        jdEnsure(c);
+        return {
+            kelas: { id: c, nama: kelasNama(c), tingkat: c === C1A ? 1 : 3, rombel: 'A', tahun_ajaran: '2026/2027' },
+            can_edit: user === 'admin' || c === C1A,
+            wali: [{ nama: c === C1A ? 'Sunarsih, S.Pd.' : 'Taripah, S.Pd.', nip: '990000000000000001', posisi: 1 }],
+            kepala_sekolah: { nama: 'Kepala Fiktif, S.Pd.SD', nip: '990000000000000009' },
+            slot: JD.slots[c].map((x) => ({ ...x })),
+            isi: JD.isi[c].map((e) => {
+                const m = MAPEL.find((x) => x.id === e.subject_id);
+                return { hari: e.hari, jam: e.jam, jenis: e.jenis, subject_id: e.subject_id || null, kode: m?.kode || null, mapel: m?.nama || null, singkat: m?.singkat || null,
+                    kegiatan: e.kegiatan || null, staff_id: e.staff_id || null, guru: e.staff_id ? jdStaff[e.staff_id] : null };
+            }).sort((a, b) => a.hari - b.hari || a.jam - b.jam),
+            mapel: MAPEL.map((m) => ({ ...m, hidden: Boolean(G.hidden[`${c}|${m.id}`]), guru: jdGuruMapel(c, m.id) })),
+        };
+    }
+    function jdBentrok(c, hari, jam, staff) {
+        const s = JD.slots[c].find((x) => x.no === jam);
+        const others = [...JD.lain, ...Object.entries(JD.isi).filter(([k]) => k !== c).flatMap(([k, list]) => list.map((e) => {
+            const sl = JD.slots[k].find((x) => x.no === e.jam);
+            return { ...e, kelas: kelasNama(k), mulai: sl.mulai, selesai: sl.selesai };
+        }))];
+        const o = others.find((e) => e.staff_id === staff && e.hari === hari && (s.mulai && s.selesai && e.mulai && e.selesai ? s.mulai < e.selesai && e.mulai < s.selesai : e.jam === jam));
+        return o ? `Gagal disimpan. ${jdStaff[staff]} sudah mengajar PAI di kelas ${o.kelas} pada ${['', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'][hari]} jam ke-${o.jam} (${o.mulai.replace(':', '.')}–${o.selesai.replace(':', '.')}). Ubah jadwal salah satu kelas dulu.` : null;
+    }
+    function jdJam(t) {
+        if (!t) return null;
+        const m = /^(\d{1,2})[:.](\d{2})$/.exec(t.trim());
+        if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) throw new Error('Format jam harus HH:MM (00:00–23:59), contoh 07:40.');
+        return `${m[1].padStart(2, '0')}:${m[2]}`;
+    }
+    function jadwalRpc(fn, a, user) {
+        try {
+            const c = a.p_class_id;
+            if (c) jdEnsure(c);
+            const edit = () => { if (!(user === 'admin' || c === C1A)) throw new Error('Hanya wali kelas atau admin yang bisa mengubah jadwal kelas ini.'); };
+            switch (fn) {
+            case 'get_class_schedule': return ok(jdData(c, user));
+            case 'save_schedule_entry': {
+                edit();
+                const range = Array.from({ length: a.p_jumlah || 1 }, (_, i) => a.p_slot + i);
+                if (range.some((j) => JD.slots[c].find((x) => x.no === j)?.istirahat)) throw new Error('Jam istirahat terkunci dan tidak bisa diisi.');
+                JD.isi[c] = JD.isi[c].filter((e) => !(e.hari === a.p_hari && range.includes(e.jam)));
+                if (a.p_jenis === 'kosong') return ok(jdData(c, user));
+                let staff = null;
+                if (a.p_jenis === 'mapel') { const g = jdGuruMapel(c, a.p_subject_id); staff = g ? (a.p_staff_id || g[0].id) : null; }
+                const add = [];
+                for (const j of range) {
+                    if (staff) { const msg = jdBentrok(c, a.p_hari, j, staff); if (msg) { jdEnsure(c); return err(msg); } }
+                    add.push(a.p_jenis === 'mapel' ? { hari: a.p_hari, jam: j, jenis: 'mapel', subject_id: a.p_subject_id, staff_id: staff }
+                        : { hari: a.p_hari, jam: j, jenis: 'kegiatan', kegiatan: String(a.p_kegiatan).trim() });
+                }
+                JD.isi[c].push(...add);
+                return ok(jdData(c, user));
+            }
+            case 'set_schedule_slot': {
+                edit();
+                const s = JD.slots[c].find((x) => x.no === a.p_slot);
+                if (s.istirahat) throw new Error('Jam istirahat terkunci.');
+                const m0 = jdJam(a.p_mulai); const s0 = jdJam(a.p_selesai);
+                if (m0 && s0 && m0 >= s0) throw new Error('Jam selesai harus setelah jam mulai.');
+                Object.assign(s, { mulai: m0, selesai: s0 });
+                return ok(jdData(c, user));
+            }
+            case 'add_schedule_slot': {
+                edit();
+                JD.slots[c].push({ no: JD.slots[c].length + 1, mulai: jdJam(a.p_mulai), selesai: jdJam(a.p_selesai), istirahat: false });
+                return ok(jdData(c, user));
+            }
+            case 'delete_schedule_slot': {
+                edit();
+                if (JD.slots[c].find((x) => x.no === a.p_slot)?.istirahat) throw new Error('Jam istirahat terkunci dan tidak bisa dihapus.');
+                JD.slots[c] = JD.slots[c].filter((x) => x.no !== a.p_slot).map((x) => (x.no > a.p_slot ? { ...x, no: x.no - 1 } : x));
+                JD.isi[c] = JD.isi[c].filter((e) => e.jam !== a.p_slot).map((e) => (e.jam > a.p_slot ? { ...e, jam: e.jam - 1 } : e));
+                return ok(jdData(c, user));
+            }
+            case 'get_teaching_schedule': {
+                const sid = a.p_staff_id || (user === 'admin' ? null : 'st-sun');
+                const isi = Object.entries(JD.isi).flatMap(([k, list]) => list.filter((e) => e.staff_id === sid).map((e) => {
+                    const sl = JD.slots[k].find((x) => x.no === e.jam);
+                    const m = MAPEL.find((x) => x.id === e.subject_id);
+                    return { class_id: k, kelas: kelasNama(k), hari: e.hari, jam: e.jam, mulai: sl.mulai, selesai: sl.selesai, subject_id: e.subject_id, kode: m.kode, mapel: m.singkat };
+                })).sort((x, y) => x.hari - y.hari || x.jam - y.jam);
+                return ok({ guru: sid ? { id: sid, nama: jdStaff[sid] } : null, isi });
+            }
+            case 'get_schedule_teachers':
+                return ok([{ id: 'st-sun', nama: 'Sunarsih, S.Pd.', mapel: ['PAI'], jam: 0 }, { id: 'st-susy', nama: 'Susy Nurhayati', mapel: ['PAI'], jam: 1 }]);
+            default: return ok(null);
+            }
+        } catch (e) { return err(e.message); }
     }
 
     // ------------------------------------------------------------------ tabel tiruan (stateful)

@@ -945,6 +945,126 @@ begin
     execute 'reset role';
     end;
 
+    -- ======================================================== R. Jadwal pelajaran
+    declare
+        s_mtk2 uuid := (select id from public.subjects where code = 'MTK');
+        sf_susy uuid := (select id from public.staff where name = 'Susy Nurhayati');
+        v_msg text;
+    begin
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_class_schedule(c1a);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Jadwal', 'u', 'Jadwal baru: 11 jam, istirahat kelas 1 di jam ke-5 08:50–09:25, upacara & dhuha terisi',
+        'ok', jsonb_array_length(v_j -> 'slot') = 11 and (v_j ->> 'can_edit')::boolean
+          and v_j -> 'slot' -> 0 ->> 'mulai' = '06:30' and v_j -> 'slot' -> 0 ->> 'selesai' = '07:05'
+          and (v_j -> 'slot' -> 4 ->> 'istirahat')::boolean and v_j -> 'slot' -> 4 ->> 'mulai' = '08:50' and v_j -> 'slot' -> 4 ->> 'selesai' = '09:25'
+          and v_j -> 'slot' -> 10 ->> 'selesai' = '12:55'
+          and jsonb_array_length(v_j -> 'isi') = 4
+          and exists (select 1 from jsonb_array_elements(v_j -> 'isi') x where x ->> 'hari' = '1' and x ->> 'kegiatan' = 'Upacara Bendera'));
+    v_j := public.save_schedule_entry(c1a, 1::smallint, 3::smallint, 2::smallint, 'mapel', s_pai);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Jadwal', 'u', 'Wali mengisi PAI Senin jam 3–4 → guru PAI terisi otomatis (satu-satunya guru mapel)',
+        'ok', (select count(*) from jsonb_array_elements(v_j -> 'isi') x where x ->> 'kode' = 'PAI' and x ->> 'guru' = 'Susy Nurhayati' and x ->> 'hari' = '1') = 2);
+    v_j := public.save_schedule_entry(c1a, 2::smallint, 1::smallint, 3::smallint, 'mapel', s_mtk2);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Jadwal', 'u', 'Mapel tanpa guru mapel (MTK) tidak mencatat guru',
+        'ok', (select count(*) from jsonb_array_elements(v_j -> 'isi') x where x ->> 'kode' = 'MTK' and x -> 'staff_id' = 'null'::jsonb) = 3);
+    v_j := public.save_schedule_entry(c1a, 5::smallint, 9::smallint, 3::smallint, 'kegiatan', null, '  Pulang  ');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Jadwal', 'u', 'Kegiatan "Pulang" Jumat jam 9–11',
+        'ok', (select count(*) from jsonb_array_elements(v_j -> 'isi') x where x ->> 'kegiatan' = 'Pulang' and x ->> 'hari' = '5') = 3);
+    v_no := v_no + 1; v_r := public.t_try(format($q$select public.save_schedule_entry(%L, 2::smallint, 4::smallint, 2::smallint, 'mapel', %L)$q$, c1a, s_mtk2));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Jadwal', 'u', 'Jam istirahat terkunci (tidak bisa diisi)', 'ok', v_r = '22023');
+    v_no := v_no + 1; v_r := public.t_try(format($q$select public.set_schedule_slot(%L, 5::smallint, '09:00', '09:30')$q$, c1a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Jadwal', 'u', 'Waktu istirahat tidak bisa diubah', 'ok', v_r = '22023');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Jadwal', 'u', 'Format jam salah / selesai sebelum mulai ditolak',
+        'ok', public.t_try(format($q$select public.set_schedule_slot(%L, 7::smallint, '24:00', '')$q$, c1a)) = '22023'
+          and public.t_try(format($q$select public.set_schedule_slot(%L, 7::smallint, '10:00', '09:00')$q$, c1a)) = '22023'
+          and public.t_try(format($q$select public.set_schedule_slot(%L, 7::smallint, '7.5', '')$q$, c1a)) = '22023');
+    v_j := public.set_schedule_slot(c1a, 11::smallint, '', '');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Jadwal', 'u', 'Waktu boleh dikosongkan (opsional)',
+        'ok', v_j -> 'slot' -> 10 -> 'mulai' = 'null'::jsonb and v_j -> 'slot' -> 10 -> 'selesai' = 'null'::jsonb);
+    v_no := v_no + 1; v_r := public.t_try(format($q$select public.save_schedule_entry(%L, 1::smallint, 3::smallint, 1::smallint, 'kegiatan', null, 'X')$q$, c3a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Hak', 'u', 'Wali 1 A tidak bisa mengubah jadwal kelas lain', 'ok', v_r = '42501');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_taripah, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    begin
+        perform public.save_schedule_entry(c3a, 1::smallint, 3::smallint, 1::smallint, 'mapel', s_pai);
+        v_msg := 'tidak gagal';
+    exception when others then v_msg := sqlstate || ' ' || sqlerrm;
+    end;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Bentrok', 'u', 'PAI 3 A Senin jam 3 bentrok dengan 1 A → gagal + pesan jelas (' || left(v_msg, 120) || ')',
+        'ok', v_msg like '23P01 Gagal disimpan. Susy Nurhayati sudah mengajar PAI di kelas 1 A pada Senin jam ke-3 (07.40–08.15)%');
+    v_j := public.save_schedule_entry(c3a, 1::smallint, 7::smallint, 2::smallint, 'mapel', s_pai);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Bentrok', 'u', 'PAI 3 A Senin jam 7–8 (tidak bentrok) tersimpan; istirahat kelas 3 di jam ke-6 09:25–09:45',
+        'ok', (select count(*) from jsonb_array_elements(v_j -> 'isi') x where x ->> 'kode' = 'PAI') = 2
+          and (v_j -> 'slot' -> 5 ->> 'istirahat')::boolean and v_j -> 'slot' -> 5 ->> 'mulai' = '09:25' and v_j -> 'slot' -> 5 ->> 'selesai' = '09:45');
+    v_no := v_no + 1; v_r := public.t_try(format($q$select public.set_schedule_slot(%L, 7::smallint, '07:50', '08:30')$q$, c3a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Bentrok', 'u', 'Menggeser waktu jam sampai beririsan dengan kelas lain juga ditolak', 'ok', v_r = '23P01');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_teaching_schedule();
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Guru mapel', 'u', 'Guru PAI melihat jadwal mengajarnya dari semua kelas (1 A jam 3–4, 3 A jam 7–8)',
+        'ok', jsonb_array_length(v_j -> 'isi') = 4 and v_j -> 'guru' ->> 'nama' = 'Susy Nurhayati'
+          and v_j -> 'isi' -> 0 ->> 'kelas' = '1 A' and v_j -> 'isi' -> 0 ->> 'mulai' = '07:40' and v_j -> 'isi' -> 3 ->> 'kelas' = '3 A');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Hak', 'u', 'Guru mapel bisa melihat jadwal kelas yang diajar, tapi tidak bisa mengubah',
+        'ok', jsonb_array_length(public.get_class_schedule(c1a) -> 'slot') = 11 and not (public.get_class_schedule(c1a) ->> 'can_edit')::boolean
+          and public.t_try(format($q$select public.save_schedule_entry(%L, 1::smallint, 6::smallint, 1::smallint, 'kosong')$q$, c1a)) = '42501');
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_teaching_schedule(%L)', (select id from public.staff where name = 'Sunarsih, S.Pd.')));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Hak', 'u', 'Guru tidak bisa membuka jadwal mengajar guru lain', 'ok', v_r = '42501');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.add_schedule_slot(c1a, '12:55', '13:30');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Jadwal', 'u', 'Tambah jam ke-12', 'ok', jsonb_array_length(v_j -> 'slot') = 12 and v_j -> 'slot' -> 11 ->> 'mulai' = '12:55');
+    v_j := public.delete_schedule_slot(c1a, 2::smallint);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Jadwal', 'u', 'Hapus jam ke-2: isi jam sesudahnya ikut naik (PAI jadi jam 2–3, istirahat jam 4)',
+        'ok', jsonb_array_length(v_j -> 'slot') = 11 and (v_j -> 'slot' -> 3 ->> 'istirahat')::boolean
+          and (select string_agg(x ->> 'jam', ',' order by (x ->> 'jam')::int) from jsonb_array_elements(v_j -> 'isi') x where x ->> 'kode' = 'PAI') = '2,3'
+          and (select count(*) from jsonb_array_elements(v_j -> 'isi') x where x ->> 'kegiatan' = 'Upacara Bendera') = 1);
+    v_no := v_no + 1; v_r := public.t_try(format('select public.delete_schedule_slot(%L, 4::smallint)', c1a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Jadwal', 'u', 'Baris istirahat tidak bisa dihapus', 'ok', v_r = '22023');
+    v_j := public.save_schedule_entry(c1a, 2::smallint, 1::smallint, 3::smallint, 'kosong');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Jadwal', 'u', 'Kosongkan Selasa jam 1–3',
+        'ok', not exists (select 1 from jsonb_array_elements(v_j -> 'isi') x where x ->> 'hari' = '2'));
+    v_no := v_no + 1; v_r := public.t_try('select count(*) from public.class_schedule_entries');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Hak', 'u', 'Tabel jadwal tidak bisa dibaca langsung', 'ok', v_r = '42501');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_schedule_teachers();
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Admin', 'u', 'Admin: daftar guru mapel + jumlah jam terjadwal',
+        'ok', exists (select 1 from jsonb_array_elements(v_j) x where x ->> 'nama' = 'Susy Nurhayati' and x ->> 'jam' = '4'));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Admin', 'u', 'Admin bisa melihat jadwal mengajar guru lain & mengubah jadwal kelas mana pun',
+        'ok', jsonb_array_length(public.get_teaching_schedule(sf_susy) -> 'isi') = 4
+          and (public.save_schedule_entry(c4a, 3::smallint, 1::smallint, 1::smallint, 'kegiatan', null, 'Senam') -> 'isi') @> '[{"kegiatan":"Senam"}]'::jsonb);
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_class_schedule(%L)', c1a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'R Hak', 'u', 'Anon tidak bisa membuka jadwal', 'ok', v_r = '42501');
+    execute 'reset role';
+    end;
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end

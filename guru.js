@@ -9,6 +9,7 @@
 //   #/akun                     ganti password, keluar
 //   #/pinjam                   pinjam barang: scan QR, pinjaman saya
 //   #/pinjam/<token|kode>      halaman barang hasil scan stiker QR (pinjam / kembalikan)
+//   #/jadwal?kelas=            jadwal pelajaran kelas (jadwal-ui.js); #/jadwal/saya = jadwal mengajar
 //   #/nilai?kelas=&smt=        nilai siswa: daftar mapel (nilai-ui.js)
 //   #/nilai/isi|riwayat|excel?kelas=&smt=&mapel=   isi nilai, riwayat perubahan, Excel & PDF
 // Semua data lewat RPC yang memeriksa hak akses di database.
@@ -278,6 +279,8 @@
     let alphaStale = true;      // dimuat ulang setiap kali dashboard dibuka
     let myLoans = null;         // hasil inv_my_loans (barang yang sedang saya pinjam)
     let loansStale = true;
+    let jadwalHome = null;      // { wali: get_class_schedule kelas wali pertama, mengajar: get_teaching_schedule.isi }
+    let jadwalStale = true;
 
     async function refreshMyLoans() {
         if (!loansStale) return;
@@ -286,6 +289,24 @@
         try { next = await rpc('inv_my_loans'); } catch { return; }
         const changed = JSON.stringify(next) !== JSON.stringify(myLoans);
         myLoans = next;
+        if (changed && home && parseHash().path === '/' && !forceChange) renderHome();
+    }
+
+    /** Jadwal untuk beranda: kelas wali pertama + jadwal mengajar sendiri. */
+    async function refreshJadwalHome() {
+        if (!jadwalStale) return;
+        jadwalStale = false;
+        let next = null;
+        try {
+            const w = home.wali_kelas[0];
+            const [wali, ajar] = await Promise.all([
+                w ? rpc('get_class_schedule', { p_class_id: w.class_id }) : null,
+                home.mapel.length ? rpc('get_teaching_schedule') : null,
+            ]);
+            next = { wali, mengajar: ajar?.isi || [] };
+        } catch { return; }
+        const changed = JSON.stringify(next) !== JSON.stringify(jadwalHome);
+        jadwalHome = next;
         if (changed && home && parseHash().path === '/' && !forceChange) renderHome();
     }
 
@@ -364,6 +385,7 @@
         }
         if (home.wali_kelas.length || home.mapel.length || home.is_pimpinan) {
             parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/nilai" style="margin-bottom:10px">Nilai siswa (UH, STS, SAS · Excel)</a>`);
+            parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/jadwal${home.wali_kelas.length ? '' : '/saya'}" style="margin-bottom:10px">Jadwal pelajaran</a>`);
         }
         parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/dokumen" style="margin-bottom:10px">Cetak &amp; Dokumen (daftar siswa, surat, biodata)</a>`);
         parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/pinjam" style="margin-bottom:14px">${myLoans?.aktif?.length ? `Barang yang saya pinjam (${myLoans.aktif.length})` : 'Pinjam / kembalikan barang (scan QR)'}</a>`);
@@ -380,6 +402,7 @@
         loadStaffExtra();
         refreshAlphaAlerts();
         refreshMyLoans();
+        refreshJadwalHome();
         const today = home.today;
         const monday = isoAdd(today, -((dow(today) + 6) % 7));
         const week = [0, 1, 2, 3, 4].map((i) => isoAdd(monday, i));
@@ -403,7 +426,7 @@
             <div class="g-hero-body">
                 <small>JADWAL MENGAJAR TERDEKAT</small>
                 <strong>${target ? `KELAS ${esc(kelasTitik(target.kelas))}<i>— ${esc(target.label)}</i>` : esc(home.jabatan || 'Belum ada kelas')}</strong>
-                <div class="g-hero-meta"><span class="g-hero-day">Hari ${HARI[dow(today)]}</span><span>Jam pelajaran: <b>segera hadir</b></span></div>
+                <div class="g-hero-meta"><span class="g-hero-day">Hari ${HARI[dow(today)]}</span><span>Jam pelajaran: <b>${esc(heroJam(target, today))}</b></span></div>
             </div>
             ${target && home.is_school_day ? `<a class="g-hero-btn" href="${target.href}">${ICON.clip}${target.done ? 'Lihat Absensi' : 'Mulai Absensi'}</a>` : ''}
         </section>`);
@@ -468,12 +491,22 @@
 
         if (home.mapel.length) {
             const future = homeDay > today;
-            const rows = home.mapel.map((m) => {
+            const ajar = window.Jadwal.mengajarHari(jadwalHome?.mengajar || [], window.Jadwal.hariDari(homeDay));
+            const jamOf = (m) => ajar.filter((x) => x.class_id === m.class_id && x.subject_id === m.subject_id);
+            const urut = [...home.mapel].sort((a, b) => {
+                const ja = jamOf(a)[0]; const jb = jamOf(b)[0];
+                return (ja ? ja.jamAwal : 99) - (jb ? jb.jamAwal : 99) || String(ja?.mulai || '').localeCompare(String(jb?.mulai || ''));
+            });
+            const rows = urut.map((m) => {
                 const done = homeDay === today && m.hari_ini;
+                const j = jamOf(m);
+                const jamTxt = !jadwalHome ? 'Jam: memuat…'
+                    : (j.length ? j.map((x) => `Jam ke-${x.jamAwal}${x.jamAkhir > x.jamAwal ? `–${x.jamAkhir}` : ''}${x.mulai ? ` · ${window.Jadwal.titik(x.mulai)}${x.selesai ? `–${window.Jadwal.titik(x.selesai)}` : ''}` : ''}`).join(', ')
+                        : 'Tidak ada di jadwal hari ini');
                 const inner = `<span class="g-sched-ico">${ICON.board}</span>
                     <span class="g-sched-txt"><b>KELAS ${esc(kelasTitik(m.kelas))}${done ? ' ✓' : ''}</b>
                         <span>${ICON.book}${esc(m.mapel)}</span>
-                        <span class="g-time">${ICON.clock}Jam: segera hadir</span></span>${ICON.chev}`;
+                        <span class="g-time">${ICON.clock}${esc(jamTxt)}</span></span>${ICON.chev}`;
                 return future
                     ? `<div class="g-sched off" aria-disabled="true">${inner}</div>`
                     : `<a class="g-sched g-chip ${done ? 'done' : ''}" href="#/absen?kelas=${m.class_id}&tanggal=${homeDay}&jenis=mapel&mapel=${m.subject_id}">${inner}</a>`;
@@ -485,15 +518,12 @@
                     <div class="g-days" role="tablist" aria-label="Pilih hari">${week.map((d) => `<button type="button" role="tab" data-day="${d}" aria-selected="${d === homeDay}">${HARI[dow(d)].slice(0, 3)}<small>${Number(d.slice(8))}</small></button>`).join('')}</div>
                     ${future ? '<div class="att-alert info" style="margin-bottom:10px">Tanggal ini belum tiba, absensi belum bisa diisi.</div>' : ''}
                     <div class="g-sched-list">${rows}</div>
-                    <p class="att-muted" style="margin:10px 0 0">Jam pelajaran per hari menyusul di fitur Jadwal Kelas. Untuk sekarang semua kelas yang Anda ajar ditampilkan.</p>
+                    <a class="att-btn att-btn-ghost att-btn-block" href="#/jadwal/saya" style="margin-top:10px">${ICON.cal} Jadwal mengajar saya (semua kelas)</a>
                 </div>
             </section>`);
         }
 
-        parts.push(`<section class="g-box g-soon">
-            <header class="g-box-head"><span class="g-tag soon">${ICON.cal}JADWAL KELAS</span><b>Jadwal pelajaran</b><span class="att-badge warn">Segera hadir</span></header>
-            <div class="g-box-body"><p class="att-muted" style="margin:0">Jadwal pelajaran per kelas lengkap dengan jam mengajar akan tampil di sini.</p></div>
-        </section>`);
+        if (home.wali_kelas.length) parts.push(jadwalBox(today));
 
         if (home.is_pimpinan && home.semua_kelas.length) {
             parts.push(`<section class="g-box"><header class="g-box-head"><span class="g-tag soon">${ICON.board}PANTAU SEKOLAH</span><b>Rekap semua kelas</b></header>
@@ -515,6 +545,77 @@
         }));
         if (keepY && staffExtra) window.scrollTo(0, keepY);
         wireDayCard();
+    }
+
+    /** "07.40" jam pertama hari ini (guru mapel) / "06.30–12.40" (wali kelas). */
+    function heroJam(target, today) {
+        const J = window.Jadwal;
+        const h = J.hariDari(today);
+        if (!jadwalHome) return 'memuat…';
+        if (!h || !home.is_school_day) return 'tidak ada (libur)';
+        if (home.wali_kelas.length && jadwalHome.wali) {
+            const blok = J.hariIni(jadwalHome.wali, h).filter((b) => b.e);
+            if (!blok.length) return 'belum diatur';
+            const a = blok[0].dari.mulai; const z = blok[blok.length - 1].sampai.selesai;
+            return a ? `${J.titik(a)}${z ? `–${J.titik(z)}` : ''}` : `jam ke-${blok[0].dari.no}–${blok[blok.length - 1].sampai.no}`;
+        }
+        const ajar = J.mengajarHari(jadwalHome.mengajar, h);
+        if (!ajar.length) return 'tidak ada hari ini';
+        return ajar[0].mulai ? J.titik(ajar[0].mulai) : `jam ke-${ajar[0].jamAwal}`;
+    }
+
+    /** Kartu jadwal kelas wali hari ini. */
+    function jadwalBox(today) {
+        const J = window.Jadwal;
+        const w = home.wali_kelas[0];
+        const h = J.hariDari(today);
+        const d = jadwalHome?.wali;
+        let body;
+        if (!d) body = '<div class="g-loading">Memuat…</div>';
+        else if (!h) body = '<p class="att-muted" style="margin:0">Hari ini tidak ada pelajaran.</p>';
+        else {
+            const blok = J.hariIni(d, h);
+            const ada = blok.some((b) => b.e && b.e.jenis === 'mapel');
+            const now = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+            const adaMapel = (d.isi || []).some((e) => e.jenis === 'mapel');
+            body = !ada && !blok.some((b) => b.e)
+                ? (adaMapel ? '<p class="att-muted" style="margin:0">Belum ada jadwal untuk hari ini.</p>'
+                    : '<div class="att-alert warn" style="margin:0">Jadwal kelas belum diisi. Ketuk tombol di bawah untuk mengisi.</div>')
+                : `<ul class="g-jd-today">${blok.filter((b) => b.e || b.istirahat).map((b) => {
+                    const sedang = b.dari.mulai && b.sampai.selesai && b.dari.mulai <= now && now < b.sampai.selesai && today === home.today;
+                    if (b.istirahat) return `<li class="ist ${sedang ? 'now' : ''}"><span>–</span><span>${esc(J.rentangWaktu(b))}</span><span>Istirahat</span></li>`;
+                    return `<li class="${sedang ? 'now' : ''}"><span><b>${esc(J.rentangJam(b))}</b></span><span>${esc(J.rentangWaktu(b)) || '–'}</span>
+                        <span><b>${esc(J.teks(b.e))}</b>${b.e.guru ? `<small>${esc(b.e.guru)}</small>` : ''}</span></li>`;
+                }).join('')}</ul>`;
+        }
+        return `<section class="g-box" id="gJadwal">
+            <header class="g-box-head"><span class="g-tag soon">${ICON.cal}JADWAL KELAS</span><b>${h ? `${J.HARI[h - 1]} · ` : ''}Kelas ${esc(kelasTitik(w.kelas))}</b></header>
+            <div class="g-box-body">${body}
+                <a class="att-btn att-btn-ghost att-btn-block" href="#/jadwal?kelas=${esc(w.class_id)}" style="margin-top:10px">${ICON.cal} Lihat / ubah jadwal pelajaran</a></div>
+        </section>`;
+    }
+
+    // ------------------------------------------------------------------ jadwal (jadwal-ui.js)
+    let jadwalUI = null;
+    let gradeClasses = null;
+    async function renderJadwal(view, params) {
+        if (!jadwalUI) {
+            jadwalUI = window.JadwalUI.create({
+                rpc,
+                classes: async () => (gradeClasses ||= await rpc('get_my_grade_classes')),
+                nav: (v, p = {}) => {
+                    const q = new URLSearchParams();
+                    for (const k of ['kelas', 'hari', 'guru']) if (p[k]) q.set(k, p[k]);
+                    go(`/jadwal${v === 'saya' ? '/saya' : ''}${q.toString() ? `?${q}` : ''}`);
+                },
+                setTop: (t, sub) => setTop(t, sub, true),
+            });
+        }
+        jadwalStale = true;
+        setNav('');
+        setTop(view === 'saya' ? 'Jadwal Mengajar Saya' : 'Jadwal Pelajaran', '', true);
+        main('<div id="gJadwalHost"></div>');
+        await jadwalUI.render($('gJadwalHost'), view, Object.fromEntries(params));
     }
 
     function nilaiCard() {
@@ -1367,6 +1468,8 @@
         if (path === '/akun') return renderAkun();
         if (path === '/pinjam') return renderPinjamList();
         if (path.startsWith('/pinjam/')) return renderPinjamItem(decodeURIComponent(path.slice(8)));
+        if (path === '/jadwal') return renderJadwal('kelas', params);
+        if (path === '/jadwal/saya') return renderJadwal('saya', params);
         if (path === '/nilai') return renderNilai('kelas', params);
         if (['/nilai/isi', '/nilai/riwayat', '/nilai/excel'].includes(path)) return renderNilai(path.slice(7), params);
         go('/');
@@ -1381,6 +1484,7 @@
         if (parseHash().path.startsWith('/pinjam/')) return go('/pinjam');
         if (parseHash().path === '/pinjam') return go('/');
         if (parseHash().path === '/nilai') return go('/');
+        if (parseHash().path.startsWith('/jadwal')) return go('/');
         if (parseHash().path.startsWith('/nilai/')) {
             const p = parseHash().params;
             return go(nilaiPath('kelas', { kelas: p.get('kelas'), smt: p.get('smt') }));

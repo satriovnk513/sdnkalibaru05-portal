@@ -56,6 +56,8 @@ run "Migration status inventaris"   "$ROOT/supabase/migrations/20261118000002_in
 run "Migration status inventaris (ulang, idempotent)" "$ROOT/supabase/migrations/20261118000002_inventory_status.sql"
 run "Migration nilai"                "$ROOT/supabase/migrations/20261119000001_grades.sql"
 run "Migration nilai (ulang, idempotent)" "$ROOT/supabase/migrations/20261119000001_grades.sql"
+run "Migration jadwal"               "$ROOT/supabase/migrations/20261120000001_schedule.sql"
+run "Migration jadwal (ulang, idempotent)" "$ROOT/supabase/migrations/20261120000001_schedule.sql"
 
 echo "→ Tes Absensi"
 {
