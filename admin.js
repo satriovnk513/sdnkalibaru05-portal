@@ -111,12 +111,9 @@ function sapaanWaktu(date) {
     return 'Malam';
 }
 
-/** "Satrio Vianka Manaman, S.Kom." → "Satrio"; gelar depan (H., Hj., Drs., …) dilewati. */
-function namaPanggilan(nama) {
-    const kata = String(nama || '').split(',')[0].trim().split(/\s+/).filter(Boolean);
-    while (kata.length > 1 && /^(h|hj|drs|dra|dr|ir|prof)\.?$/i.test(kata[0])) kata.shift();
-    const k = kata[0] || 'Admin';
-    return k.charAt(0).toUpperCase() + k.slice(1);
+/** Nama lengkap + gelar seperti di data staf, mis. "Satrio Vianka Manaman, S.Kom.". */
+function namaSapaan(nama) {
+    return String(nama || '').replace(/\s+/g, ' ').trim().replace(/\.$/, '') || 'Admin';
 }
 
 function drawGreeting() {
@@ -140,10 +137,10 @@ async function loadAdminGreeting() {
     try {
         const { data, error } = await supabaseClient.rpc('get_admin_name');
         if (error) throw error;
-        greetName = namaPanggilan(data);
+        greetName = namaSapaan(data);
     } catch {
         const { data: { user } } = await supabaseClient.auth.getUser();
-        greetName = namaPanggilan(String(user?.email || '').split('@')[0]);
+        greetName = namaSapaan(String(user?.email || '').split('@')[0]);
     }
     drawGreeting();
     clearInterval(greetTimer);
