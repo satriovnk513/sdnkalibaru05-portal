@@ -62,6 +62,8 @@ run "Migration jurnal"               "$ROOT/supabase/migrations/20261121000001_j
 run "Migration jurnal (ulang, idempotent)" "$ROOT/supabase/migrations/20261121000001_journal.sql"
 run "Migration piket"                "$ROOT/supabase/migrations/20261122000001_piket.sql"
 run "Migration piket (ulang, idempotent)" "$ROOT/supabase/migrations/20261122000001_piket.sql"
+run "Migration catatan siswa"        "$ROOT/supabase/migrations/20261123000001_student_notes.sql"
+run "Migration catatan (ulang, idempotent)" "$ROOT/supabase/migrations/20261123000001_student_notes.sql"
 
 echo "→ Tes Absensi"
 {

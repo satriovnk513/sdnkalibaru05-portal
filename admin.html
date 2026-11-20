@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#ffffff">
     <script src="theme.js?v=1"></script>
     <link rel="stylesheet" href="theme.css?v=1">
-    <link rel="stylesheet" href="attendance.css?v=16">
+    <link rel="stylesheet" href="attendance.css?v=17">
     <style>
         /* ── Reset & Base ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -735,6 +735,14 @@
                     <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h3M8 18h3M14 14h2"/></svg>
                     Jadwal Pelajaran
                 </a>
+                <a class="nav-item" data-tab="tabCatatan" onclick="showTab('tabCatatan', this)">
+                    <svg viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4z"/><path d="M8 10h8M8 14h8M8 18h5"/></svg>
+                    Catatan Siswa
+                </a>
+                <a class="nav-item" data-tab="tabJurnalAdmin" onclick="showTab('tabJurnalAdmin', this)">
+                    <svg viewBox="0 0 24 24"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v16H6.5a2.5 2.5 0 0 0 0 5H20"/><path d="M9 7h7M9 11h5"/></svg>
+                    Jurnal Mengajar
+                </a>
                 <a class="nav-item" data-tab="tabClasses" onclick="showTab('tabClasses', this)">
                     <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 22h8M12 18v4"/></svg>
                     Data Kelas
@@ -966,6 +974,20 @@
                         <button type="button" role="tab" data-v="piket" aria-selected="false">Piket kelas</button>
                     </div>
                     <div class="admin-card" id="jdHost"><div class="att-muted">Memuat…</div></div>
+                </div>
+
+                <!-- ═══ TAB CATATAN SISWA ═══ -->
+                <div id="tabCatatan" class="tab-content">
+                    <div class="section-header ak-head"><div><h2>Catatan Siswa</h2>
+                        <p class="att-muted" style="margin:4px 0 0">Semua catatan apresiasi, perilaku, dan catatan khusus yang ditulis guru. Admin/operator bisa merapikan atau menghapus — tidak bisa menulis catatan baru atas nama guru.</p></div></div>
+                    <div class="admin-card" id="csAdmHost"><div class="att-muted">Memuat…</div></div>
+                </div>
+
+                <!-- ═══ TAB JURNAL MENGAJAR ═══ -->
+                <div id="tabJurnalAdmin" class="tab-content">
+                    <div class="section-header ak-head"><div><h2>Jurnal Mengajar Guru</h2>
+                        <p class="att-muted" style="margin:4px 0 0">Riwayat jurnal mengajar tiap guru. Operator bisa membantu merapikan dengan menghapus catatan yang dobel atau salah — tanpa perlu masuk ke akun guru.</p></div></div>
+                    <div class="admin-card" id="jrAdmHost"><div class="att-muted">Memuat…</div></div>
                 </div>
 
                 <!-- ═══ TAB INVENTARIS ═══ -->
@@ -1489,6 +1511,9 @@
     <script src="piket.js?v=1"></script>
     <script src="piket-ui.js?v=1"></script>
     <script src="admin-jadwal.js?v=2"></script>
+    <script src="jurnal.js?v=1"></script>
+    <script src="catatan.js?v=1"></script>
+    <script src="admin-catatan.js?v=1"></script>
     <script src="inventaris.js?v=2"></script>
     <script src="admin-inventaris.js?v=2"></script>
     <script>

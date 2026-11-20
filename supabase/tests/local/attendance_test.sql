@@ -1237,6 +1237,137 @@ begin
     execute 'reset role';
     end;
 
+    -- ======================================================== U. Catatan Siswa + panel admin
+    declare
+        v_ids jsonb; v_n_susy uuid; v_n_josua uuid; v_n_wali uuid;
+        v_tgl date := public.jakarta_today();
+        v_jid uuid;
+        v_sun uuid := (select id from public.staff where name = 'Sunarsih, S.Pd.');
+    begin
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_ids := public.save_student_note('apresiasi', '  Juara 2   lomba mewarnai ', v_tgl, array[st1, st2], c1a, 'serius', 'FLS2N kecamatan', null,
+                                      array[u_wali1a::text || '/a.jpg']) -> 'ids';
+    v_n_wali := (v_ids ->> 0)::uuid;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Catatan', 'u', 'Wali menulis apresiasi untuk 2 siswa sekaligus (+1 foto); tingkat diabaikan untuk non-perilaku',
+        'ok', jsonb_array_length(v_ids) = 2
+          and (select count(distinct x ->> 'group_id') from jsonb_array_elements(public.get_class_notes(c1a, (case when extract(month from v_tgl) >= 7 then 1 else 2 end)::smallint) -> 'catatan') x
+               where v_ids ? (x ->> 'id')) = 1
+          and (select x ->> 'judul' from jsonb_array_elements(public.get_student_notes(st1) -> 'catatan') x limit 1) = 'Juara 2 lomba mewarnai'
+          and (select x -> 'tingkat' from jsonb_array_elements(public.get_student_notes(st1) -> 'catatan') x limit 1) = 'null'::jsonb);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Catatan', 'u', 'Validasi: tanggal masa depan, judul kosong, siswa bukan di kelas itu, foto dari folder orang lain',
+        'ok', public.t_try(format($q$select public.save_student_note('catatan', 'X', %L, array[%L]::uuid[], %L)$q$, v_tgl + 1, st1, c1a)) = '22023'
+          and public.t_try(format($q$select public.save_student_note('catatan', '  ', %L, array[%L]::uuid[], %L)$q$, v_tgl, st1, c1a)) = '22023'
+          and public.t_try(format($q$select public.save_student_note('catatan', 'X', %L, array[%L]::uuid[], %L)$q$, v_tgl, st4, c1a)) = '22023'
+          and public.t_try(format($q$select public.save_student_note('catatan', 'X', %L, array[%L]::uuid[], %L, null, null, null, array['orang-lain/x.jpg'])$q$, v_tgl, st1, c1a)) = '22023');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_n_susy := (public.save_student_note('perilaku', 'Berkelahi saat istirahat', v_tgl, array[st1], c1a, 'serius', null, null, array[u_susy::text || '/b.jpg']) -> 'ids' ->> 0)::uuid;
+    v_j := public.get_class_notes(c1a, (case when extract(month from v_tgl) >= 7 then 1 else 2 end)::smallint);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Catatan', 'u', 'Guru mapel menulis perilaku serius; di halaman kelas hanya melihat catatannya sendiri',
+        'ok', not (v_j ->> 'lihat_semua')::boolean and jsonb_array_length(v_j -> 'catatan') = 1
+          and v_j -> 'catatan' -> 0 ->> 'tingkat' = 'serius' and (v_j -> 'catatan' -> 0 ->> 'milik_saya')::boolean
+          and jsonb_array_length(v_j -> 'siswa') = 3);
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_josua, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_n_josua := (public.save_student_note('catatan', 'Sering mengantuk', v_tgl, array[st1], c1a) -> 'ids' ->> 0)::uuid;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Hak', 'u', 'Guru lain (tidak mengajar kelas itu) boleh menulis, tapi tidak melihat catatan guru lain / foto / mengubah',
+        'ok', jsonb_array_length(public.get_student_notes(st1, true) -> 'catatan') = 1
+          and not public.note_foto_boleh(u_susy::text || '/b.jpg')
+          and public.t_try(format($q$select public.save_student_note('perilaku', 'Ubah', %L, null, null, 'ringan', null, null, '{}', %L)$q$, v_tgl, v_n_susy)) = '42501'
+          and public.t_try(format($q$select public.set_note_followup(%L, 'x')$q$, v_n_susy)) = '42501'
+          and public.t_try(format('select public.delete_student_note(%L)', v_n_susy)) = '42501'
+          and public.t_try('select count(*) from public.student_notes') = '42501');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_class_notes(c1a, (case when extract(month from v_tgl) >= 7 then 1 else 2 end)::smallint);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Catatan', 'u', 'Wali kelas melihat semua catatan siswanya (dari guru lain juga) + foto, bisa isi tindak lanjut',
+        'ok', (v_j ->> 'lihat_semua')::boolean and jsonb_array_length(v_j -> 'catatan') = 4
+          and public.note_foto_boleh(u_susy::text || '/b.jpg')
+          and public.set_note_followup(v_n_susy, 'Orang tua dipanggil') ->> 'tindak_lanjut_oleh' = 'Sunarsih, S.Pd.'
+          and public.t_try(format($q$select public.save_student_note('perilaku', 'Ubah', %L, null, null, 'ringan', null, null, '{}', %L)$q$, v_tgl, v_n_susy)) = '42501');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_lilis, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Hak', 'u', 'Kepala sekolah melihat semua catatan kelas',
+        'ok', jsonb_array_length(public.get_class_notes(c1a, (case when extract(month from v_tgl) >= 7 then 1 else 2 end)::smallint) -> 'catatan') = 4
+          and public.t_try('select public.get_notes_admin(1::smallint)') = '42501');
+    execute 'reset role';
+
+    -- penulis mengubah sendiri: tidak masuk log admin
+    perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    perform public.save_student_note('perilaku', 'Berkelahi saat istirahat (dorong teman)', v_tgl, null, null, 'serius', null, 'Orang tua dipanggil', array[u_susy::text || '/b.jpg'], v_n_susy);
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_notes_admin((case when extract(month from v_tgl) >= 7 then 1 else 2 end)::smallint);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Admin', 'u', 'Admin/operator melihat semua catatan + ringkasan + filter',
+        'ok', jsonb_array_length(v_j -> 'catatan') = 4 and (v_j -> 'ringkas' ->> 'serius')::int = 1 and (v_j -> 'ringkas' ->> 'serius_terbuka')::int = 0
+          and jsonb_array_length(public.get_notes_admin((case when extract(month from v_tgl) >= 7 then 1 else 2 end)::smallint, null, 'perilaku') -> 'catatan') = 1
+          and jsonb_array_length(public.get_notes_admin((case when extract(month from v_tgl) >= 7 then 1 else 2 end)::smallint, null, null, null, 'mengantuk') -> 'catatan') = 1);
+    perform public.save_student_note('catatan', 'Sering mengantuk di jam pertama', v_tgl, null, null, null, null, null, '{}', v_n_josua);
+    perform public.delete_student_note(v_n_wali);
+    v_j := public.get_admin_audit('catatan_siswa');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Admin', 'u', 'Admin merapikan & menghapus catatan guru → tercatat di log + tanda "dirapikan"',
+        'ok', jsonb_array_length(v_j) = 2 and v_j -> 0 ->> 'aksi' = 'hapus' and v_j -> 1 ->> 'aksi' = 'ubah' and v_j -> 1 -> 'data_lama' ->> 'judul' = 'Sering mengantuk'
+          and (select x ->> 'dirapikan_oleh' from jsonb_array_elements(public.get_student_notes(st1, true) -> 'catatan') x where x ->> 'id' = v_n_josua::text) is not null);
+    -- Jurnal: admin melihat & menghapus
+    v_j := public.get_journal_admin(v_sun, extract(year from v_tgl)::int, extract(month from v_tgl)::int);
+    select (x ->> 'id')::uuid into v_jid from jsonb_array_elements(v_j -> 'catatan') x limit 1;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Admin', 'u', 'Admin melihat jurnal guru per bulan + daftar guru',
+        'ok', exists (select 1 from jsonb_array_elements(v_j -> 'guru') g where g ->> 'nama' = 'Sunarsih, S.Pd.')
+          and (v_jid is not null or extract(day from v_tgl) < 7));
+    v_n := case when v_jid is null then 1 else public.admin_delete_journal(array[v_jid]) end;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Admin', 'u', 'Admin menghapus jurnal guru → tercatat di log',
+        'ok', v_n = 1 and (v_jid is null or public.get_admin_audit('jurnal_mengajar') -> 0 ->> 'aksi' = 'hapus'));
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Hak', 'u', 'Guru tidak bisa membuka panel admin (catatan, jurnal, log)',
+        'ok', public.t_try('select public.get_notes_admin(1::smallint)') = '42501'
+          and public.t_try(format('select public.get_journal_admin(%L, 2026, 11)', v_sun)) = '42501'
+          and public.t_try('select public.admin_delete_journal(array[gen_random_uuid()])') = '42501'
+          and public.t_try('select public.get_admin_audit()') = '42501');
+    -- Storage: unggah hanya ke folder sendiri
+    insert into storage.objects (bucket_id, name) values ('catatan-siswa', u_wali1a::text || '/c.jpg');
+    v_no := v_no + 1; v_r := public.t_try(format($q$insert into storage.objects (bucket_id, name) values ('catatan-siswa', %L)$q$, u_susy::text || '/d.jpg'));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Foto', 'u', 'Foto hanya bisa diunggah ke folder sendiri', 'ok', v_r = '42501');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.delete_student_note(v_n_susy);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Catatan', 'u', 'Penulis menghapus catatannya; foto yang tak terpakai dikembalikan untuk dihapus dari penyimpanan',
+        'ok', v_j -> 'fotos' = jsonb_build_array(u_susy::text || '/b.jpg'));
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_student_notes(%L)', st1));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'U Hak', 'u', 'Anon tidak bisa membuka catatan siswa', 'ok', v_r = '42501');
+    execute 'reset role';
+    end;
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end

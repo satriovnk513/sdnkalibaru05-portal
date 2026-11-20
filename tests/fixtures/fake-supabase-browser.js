@@ -216,6 +216,7 @@
             if (fn.startsWith('inv_')) return Promise.resolve(invRpc(fn, args, user));
             if (GRADE_RPC.includes(fn)) return Promise.resolve(gradeRpc(fn, args, user));
             if (JADWAL_RPC.includes(fn)) return Promise.resolve(jadwalRpc(fn, args, user));
+            if (fn.includes('note') || fn === 'get_admin_audit') return Promise.resolve(notesRpc(fn, args, user));
             if (fn.includes('journal')) return Promise.resolve(jurnalRpc(fn, args, user));
             if (fn.includes('piket')) return Promise.resolve(piketRpc(fn, args, user));
             return Promise.resolve(ok(null));
@@ -625,6 +626,105 @@
                 catatan: JR.list.filter((n) => n.tanggal.startsWith(pre)).sort((x, y) => x.tanggal.localeCompare(y.tanggal))
                     .map((n) => ({ tanggal: n.tanggal, kelas: n.class_id ? kelasNama(n.class_id) : null, mapel: n.subject_id ? MAPEL.find((x) => x.id === n.subject_id).singkat : null, judul: n.judul, jam: n.jam, status: n.status, materi: n.materi, keterangan: n.keterangan })) });
         }
+        case 'get_journal_admin': {
+            const pre = `${a.p_tahun}-${String(a.p_bulan).padStart(2, '0')}`;
+            const mine = a.p_staff_id === 'st1';
+            const rows = mine ? JR.list.filter((n) => n.tanggal.startsWith(pre)).sort((x, y) => y.tanggal.localeCompare(x.tanggal)) : [];
+            const key = (n) => `${n.tanggal}|${n.class_id}|${n.subject_id}|${n.judul}`;
+            return ok({ guru: [{ id: 'st1', nama: 'Sunarsih, S.Pd.', jumlah: JR.list.length, wali: '1 A' }, { id: 'st2', nama: 'Taripah, S.Pd.', jumlah: 0, wali: '3 A' }],
+                catatan: rows.map((n) => ({ id: n.id, tanggal: n.tanggal, kelas: n.class_id ? kelasNama(n.class_id) : null, mapel: n.subject_id ? MAPEL.find((x) => x.id === n.subject_id).singkat : null,
+                    judul: n.judul, jam: n.jam, status: n.status, materi: n.materi, keterangan: n.keterangan, dobel: rows.filter((x) => key(x) === key(n)).length > 1 })) });
+        }
+        case 'admin_delete_journal': {
+            const before = JR.list.length;
+            JR.list = JR.list.filter((x) => !a.p_ids.includes(x.id));
+            NT.audit.unshift({ id: NT.audit.length + 1, entitas: 'jurnal_mengajar', aksi: 'hapus', ringkasan: `${before - JR.list.length} catatan jurnal`, data_lama: {}, oleh: 'Paroji', waktu: new Date().toISOString() });
+            return ok(before - JR.list.length);
+        }
+        default: return ok(null);
+        }
+    }
+
+    // ------------------------------------------------------------------ catatan siswa tiruan
+    const NT = F.notes = F.notes || { list: [], seq: 1, audit: [] };
+    const smtOf = (t) => (Number(String(t).slice(5, 7)) >= 7 ? 1 : 2);
+    function noteJson(n, user) {
+        const r = Object.values(roster).flat().find((x) => x.student_id === n.student_id);
+        const mine = n.author === user;
+        return { ...n, kelas: kelasNama(n.class_id), siswa: r?.nama || '?', penulis: n.author === 'admin' ? 'Paroji' : 'Sunarsih, S.Pd.',
+            milik_saya: mine, bisa_tindak_lanjut: mine || user === 'admin' || (user === 'wali' && n.class_id === C1A), dibuat: n.tanggal };
+    }
+    function noteVisible(n, user) { return user === 'admin' || n.author === user || (user === 'wali' && n.class_id === C1A); }
+    function notesRpc(fn, a, user) {
+        switch (fn) {
+        case 'get_note_classes':
+            return ok([{ id: C1A, nama: '1 A', tingkat: 1, wali: user === 'wali', ajar: false }, { id: C3A, nama: '3 A', tingkat: 3, wali: false, ajar: user === 'wali' }]);
+        case 'get_class_notes': {
+            const c = a.p_class_id;
+            return ok({ kelas: { id: c, nama: kelasNama(c), tingkat: c === C1A ? 1 : 3, rombel: 'A', tahun_ajaran: '2026/2027' }, semester: a.p_semester,
+                lihat_semua: user === 'admin' || (user === 'wali' && c === C1A),
+                wali: [{ nama: c === C1A ? 'Sunarsih, S.Pd.' : 'Taripah, S.Pd.', nip: '990000000000000001', posisi: 1 }],
+                kepala_sekolah: { nama: 'Kepala Fiktif, S.Pd.SD', nip: '990000000000000009' },
+                siswa: (roster[c] || []).map((r) => ({ id: r.student_id, no: r.no_urut, nama: r.nama, jk: r.jenis_kelamin, nis: r.nis })),
+                catatan: NT.list.filter((n) => n.class_id === c && smtOf(n.tanggal) === a.p_semester && noteVisible(n, user)).map((n) => noteJson(n, user)) });
+        }
+        case 'get_student_notes': {
+            const c = Object.keys(roster).find((k) => roster[k].some((r) => r.student_id === a.p_student_id));
+            const r = roster[c].find((x) => x.student_id === a.p_student_id);
+            return ok({ siswa: { id: r.student_id, nama: r.nama, nis: r.nis, jk: r.jenis_kelamin, class_id: c, kelas: kelasNama(c) },
+                catatan: NT.list.filter((n) => n.student_id === a.p_student_id && noteVisible(n, user)).sort((x, y) => y.tanggal.localeCompare(x.tanggal)).map((n) => noteJson(n, user)) });
+        }
+        case 'save_student_note': {
+            if (!String(a.p_judul || '').trim()) return err('Judul catatan wajib diisi.');
+            if (a.p_tanggal > today) return err('Tanggal catatan tidak boleh di masa depan.');
+            const val = { jenis: a.p_jenis, tingkat: a.p_jenis === 'perilaku' ? (a.p_tingkat || 'ringan') : null, tanggal: a.p_tanggal, judul: a.p_judul.trim(),
+                cerita: a.p_cerita || null, tindak_lanjut: a.p_tindak_lanjut || null, fotos: a.p_fotos || [] };
+            if (a.p_id) {
+                const n = NT.list.find((x) => x.id === a.p_id);
+                if (user === 'admin' && n.author !== 'admin') {
+                    NT.audit.unshift({ id: NT.audit.length + 1, entitas: 'catatan_siswa', aksi: 'ubah', ringkasan: n.judul, data_lama: { judul: n.judul }, oleh: 'Paroji', waktu: new Date().toISOString() });
+                    val.dirapikan_oleh = 'Paroji';
+                }
+                Object.assign(n, val);
+                return ok({ ids: [n.id], group_id: n.group_id });
+            }
+            if (!a.p_student_ids?.length) return err('Pilih minimal satu siswa.');
+            const g = `g${NT.seq}`;
+            const ids = a.p_student_ids.map((sid) => {
+                const c = Object.keys(roster).find((k) => roster[k].some((r) => r.student_id === sid));
+                const n = { id: `n${NT.seq++}`, group_id: g, student_id: sid, class_id: c, author: user, ...val };
+                NT.list.push(n);
+                return n.id;
+            });
+            return ok({ ids, group_id: g });
+        }
+        case 'set_note_followup': {
+            const n = NT.list.find((x) => x.id === a.p_id);
+            n.tindak_lanjut = (a.p_text || '').trim() || null;
+            return ok(noteJson(n, user));
+        }
+        case 'delete_student_note': {
+            const n = NT.list.find((x) => x.id === a.p_id);
+            NT.list = NT.list.filter((x) => x !== n);
+            if (user === 'admin' && n.author !== 'admin') NT.audit.unshift({ id: NT.audit.length + 1, entitas: 'catatan_siswa', aksi: 'hapus', ringkasan: n.judul, data_lama: { judul: n.judul }, oleh: 'Paroji', waktu: new Date().toISOString() });
+            return ok({ fotos: n.fotos || [] });
+        }
+        case 'get_notes_admin': {
+            if (user !== 'admin') return err('Hanya admin.');
+            const q = (a.p_q || '').toLowerCase();
+            const all = NT.list.filter((n) => smtOf(n.tanggal) === a.p_semester);
+            const list = all.filter((n) => (!a.p_class_id || n.class_id === a.p_class_id)
+                && (!a.p_jenis || (a.p_jenis === 'serius' ? n.tingkat === 'serius' : n.jenis === a.p_jenis))
+                && (!a.p_author || (a.p_author === 'st1' ? n.author === 'wali' : n.author === 'admin'))
+                && (!q || `${noteJson(n, user).siswa} ${n.judul} ${n.cerita || ''}`.toLowerCase().includes(q)))
+                .sort((x, y) => y.tanggal.localeCompare(x.tanggal)).map((n) => noteJson(n, user));
+            const cnt = (f) => all.filter(f).length;
+            return ok({ ringkas: { apresiasi: cnt((n) => n.jenis === 'apresiasi'), perilaku: cnt((n) => n.jenis === 'perilaku'), serius: cnt((n) => n.tingkat === 'serius'),
+                catatan: cnt((n) => n.jenis === 'catatan'), serius_terbuka: cnt((n) => n.tingkat === 'serius' && !n.tindak_lanjut) },
+            kelas: [{ id: C1A, nama: '1 A' }, { id: C3A, nama: '3 A' }], penulis: [{ id: 'st1', nama: 'Sunarsih, S.Pd.' }], catatan: list });
+        }
+        case 'get_admin_audit':
+            return ok(NT.audit.filter((x) => !a.p_entitas || x.entitas === a.p_entitas));
         default: return ok(null);
         }
     }
@@ -811,7 +911,15 @@
         onAuthStateChange(cb) { listeners.push(cb); return { data: { subscription: { unsubscribe() {} } } }; },
     };
 
-    const storage = { from() { return { upload: async () => ({ error: null }), getPublicUrl: () => ({ data: { publicUrl: '' } }), remove: async () => ({ error: null }) }; } };
+    const PX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGP4Oo8bK2IYWhIAq6BngRWQ6cAAAAAASUVORK5CYII=';
+    F.uploads = F.uploads || [];
+    F.removed = F.removed || [];
+    const storage = { from(bucket) { return {
+        upload: async (path) => { F.uploads.push(`${bucket}/${path}`); return { data: { path }, error: null }; },
+        getPublicUrl: () => ({ data: { publicUrl: '' } }),
+        createSignedUrl: async () => ({ data: { signedUrl: PX }, error: null }),
+        remove: async (paths) => { F.removed.push(...paths); return { error: null }; },
+    }; } };
 
     window.supabase = { createClient: () => ({ auth, rpc, from, storage }) };
 })();

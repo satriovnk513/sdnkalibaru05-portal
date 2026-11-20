@@ -113,7 +113,7 @@
                         <button type="button" class="att-btn att-btn-ghost att-btn-sm" id="jrXls">${ICON.down} Excel</button>
                         <button type="button" class="att-btn att-btn-ghost att-btn-sm" id="jrPdf">${ICON.print} PDF</button></div>
                 </div>
-                <p class="att-muted jr-priv">Jurnal ini catatan pribadi Anda — tidak dilihat kepala sekolah atau admin.</p>`;
+                <p class="att-muted jr-priv">Jurnal ini catatan pribadi Anda — tidak dilihat kepala sekolah. Operator sekolah bisa membantu merapikan (menghapus catatan dobel).</p>`;
 
             el.querySelector('#jrPrev').addEventListener('click', () => ctx.nav(addDay(tgl, -1)));
             el.querySelector('#jrNext').addEventListener('click', () => ctx.nav(addDay(tgl, 1)));
