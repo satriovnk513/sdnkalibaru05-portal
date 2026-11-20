@@ -210,6 +210,8 @@
             return Promise.resolve(ok(F.pin ? { ada: true, dibuat: '13/11/2026 15.30', terkunci: false } : { ada: false, dibuat: null, terkunci: false }));
         case 'student_summary':
             return Promise.resolve(ok([{ total_siswa: 4, tercantum: 4, perlu_verifikasi: 0, jumlah_rombel: 2, daftar_kelas: ['1 A', '3 A'], diarsipkan: 0 }]));
+        case 'get_admin_name':
+            return Promise.resolve(user === 'admin' ? ok('Paroji') : err('Hanya admin/operator.'));
         case 'archive_attendance_session':
             return Promise.resolve(args.p_reason ? ok(null) : err('Alasan wajib diisi.'));
         default:

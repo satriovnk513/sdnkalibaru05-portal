@@ -93,6 +93,10 @@
         .brand-icon { font-size: 1.75rem; }
         .brand-name { display: block; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 1rem; color: white; }
         .brand-sub { display: block; font-size: 0.72rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 1px; }
+        .brand-hi { display: block; margin-top: 8px; font-size: 0.82rem; line-height: 1.35; color: rgba(255,255,255,0.7); }
+        .brand-hi span, .brand-hi b { display: block; }
+        .brand-hi b { color: #fff; font-weight: 700; font-size: 0.9rem; }
+        .brand-hi[hidden] { display: none; }
 
         .sidebar-nav { flex: 1 0 auto; padding: 1rem 0.75rem; }
         .nav-section-label {
@@ -666,6 +670,7 @@
                 <div>
                     <span class="brand-name">SDN Kalibaru 05</span>
                     <span class="brand-sub">Panel Admin</span>
+                    <span class="brand-hi" id="adminGreet" role="status" hidden></span>
                 </div>
             </div>
 
@@ -1491,7 +1496,7 @@
     <script src="ai-service.js?v=3"></script>
     <script src="student-fields.js?v=1"></script>
     <script src="admin-students.js?v=2"></script>
-    <script src="admin.js?v=5"></script>
+    <script src="admin.js?v=6"></script>
     <script src="attendance-sheet.js?v=8"></script>
     <script src="admin-attendance.js?v=6"></script>
     <script src="admin-akademik.js?v=2"></script>

@@ -1368,6 +1368,18 @@ begin
     execute 'reset role';
     end;
 
+    -- ======================================================== V. Sapaan panel admin
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'V Sapaan', 'u', 'Admin yang tertaut ke data staf disapa dengan nama stafnya', 'ok', public.get_admin_name() = 'Paroji');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1; v_r := public.t_try('select public.get_admin_name()');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'V Sapaan', 'u', 'Guru biasa tidak bisa memanggil sapaan admin', 'ok', v_r = '42501');
+    execute 'reset role';
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end

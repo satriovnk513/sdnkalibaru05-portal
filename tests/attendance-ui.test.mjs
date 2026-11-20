@@ -1773,6 +1773,14 @@ async function runUi() {
                 { id: 'jx2', tanggal: today, class_id: C1A, subject_id: null, judul: 'Rapat', jam: null, status: 'terlaksana', materi: 'Rapat orang tua', keterangan: null },
                 { id: 'jx3', tanggal: today, class_id: C1A, subject_id: null, judul: 'Upacara', jam: null, status: 'tidak', materi: null, keterangan: 'Hujan' });
         });
+        await page.waitForSelector('#adminGreet:not([hidden])');
+        const greet = (await page.textContent('#adminGreet')).replace(/\s+/g, ' ');
+        const jam = await page.evaluate(() => ['2026-11-19T21:00:00Z', '2026-11-20T03:59:00Z', '2026-11-20T04:00:00Z', '2026-11-20T07:59:00Z', '2026-11-20T08:00:00Z', '2026-11-20T10:59:00Z', '2026-11-20T11:00:00Z', '2026-11-19T20:59:00Z']
+            .map((t) => sapaanWaktu(new Date(t))).join(','));
+        check(/^Selamat (Pagi|Siang|Sore|Malam), ?Paroji\.$/.test(greet.trim()) && jam === 'Pagi,Pagi,Siang,Siang,Sore,Sore,Malam,Malam',
+            `${T} sapaan admin sesuai jam WIB (${greet.trim()} · ${jam})`);
+        check(await page.evaluate(() => [namaPanggilan('Satrio Vianka Manaman, S.Kom.'), namaPanggilan('Hj. Siti Aminah, S.Pd.'), namaPanggilan('arif')].join('|')) === 'Satrio|Siti|Arif', `${T} nama panggilan`);
+        if (vp.tag === '1366') await shot(page, 'catatan-00-sapaan-admin.png');
         await page.evaluate(() => showTab('tabCatatan', document.querySelector('[data-tab="tabCatatan"]')));
         await page.waitForSelector('#csAdmHost .ad-table');
         check((await page.$$('#csAdmHost tbody tr')).length === 2 && /Serius, belum ditindaklanjuti/.test(await page.textContent('#csAdmHost .inv-stats'))
