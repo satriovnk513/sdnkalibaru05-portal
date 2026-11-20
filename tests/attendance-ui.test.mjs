@@ -1779,7 +1779,7 @@ async function runUi() {
             .map((t) => sapaanWaktu(new Date(t))).join(','));
         check(/^Selamat (Pagi|Siang|Sore|Malam), ?Paroji\.$/.test(greet.trim()) && jam === 'Pagi,Pagi,Siang,Siang,Sore,Sore,Malam,Malam',
             `${T} sapaan admin sesuai jam WIB (${greet.trim()} · ${jam})`);
-        check(await page.evaluate(() => [namaPanggilan('Satrio Vianka Manaman, S.Kom.'), namaPanggilan('Hj. Siti Aminah, S.Pd.'), namaPanggilan('arif')].join('|')) === 'Satrio|Siti|Arif', `${T} nama panggilan`);
+        check(await page.evaluate(() => [namaSapaan('Satrio Vianka Manaman, S.Kom.'), namaSapaan('  Arif  Widiyantoro, S.T. '), namaSapaan('')].join('|')) === 'Satrio Vianka Manaman, S.Kom|Arif Widiyantoro, S.T|Admin', `${T} nama lengkap + gelar`);
         if (vp.tag === '1366') await shot(page, 'catatan-00-sapaan-admin.png');
         await page.evaluate(() => showTab('tabCatatan', document.querySelector('[data-tab="tabCatatan"]')));
         await page.waitForSelector('#csAdmHost .ad-table');
