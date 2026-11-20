@@ -57,7 +57,7 @@
             document.body.appendChild(host);
         }
         const el = document.createElement('div');
-        el.className = `att-alert ${type}`;
+        el.className = `att-alert att-toast ${type}`;
         el.style.cssText = 'max-width:520px;width:100%;box-shadow:0 10px 30px rgba(15,23,42,.18);pointer-events:auto;';
         el.textContent = message;
         host.appendChild(el);

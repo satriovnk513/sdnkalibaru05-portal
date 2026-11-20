@@ -453,6 +453,8 @@
         if (!home.is_school_day) {
             parts.push(`<div class="att-alert warn" style="margin-bottom:12px">Hari ini libur${home.holiday_name ? ` (${esc(home.holiday_name)})` : ''}. Absensi tidak perlu diisi.</div>`);
         }
+        // Jadwal kelas wali hari ini: tepat di bawah pengingat PIN.
+        if (home.wali_kelas.length) parts.push(jadwalBox(today));
         // Kelas wali tambahan (wali kelas pertama sudah ada di kartu utama).
         for (const w of home.wali_kelas.slice(1)) {
             const t = w.hari_ini;
@@ -520,7 +522,6 @@
             </section>`);
         }
 
-        if (home.wali_kelas.length) parts.push(jadwalBox(today));
 
         if (home.is_pimpinan && home.semua_kelas.length) {
             parts.push(`<section class="g-box"><header class="g-box-head"><span class="g-tag soon">${ICON.board}PANTAU SEKOLAH</span><b>Rekap semua kelas</b></header>
