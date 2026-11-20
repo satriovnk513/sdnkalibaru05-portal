@@ -467,8 +467,13 @@
                     <div class="inv-stat warn"><b>${total - lengkap - kosong}</b><span>sebagian terisi</span></div>
                     <div class="inv-stat"><b>${kosong}</b><span>belum mulai</span></div></div>
                 <p class="att-muted">Angka = siswa yang nilainya lengkap (UH 1–3, STS, SAS) / jumlah siswa. Titik kuning = KKTP belum diisi. Klik sel untuk melihat atau mengisi; klik nama kelas untuk semua mapel, riwayat, dan unduhan.</p>
-                <div class="nl-mx-wrap"><table class="nl-mx"><thead><tr><th>Kelas</th>${mx.mapel.map((m) => `<th title="${esc(m.nama)}">${esc(m.kode)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>
+                <details class="nl-kode" open><summary><span class="nl-i" aria-hidden="true">i</span>Keterangan kode mapel</summary>
+                    <dl>${mx.mapel.map((m) => `<div><dt>${esc(m.kode)}</dt><dd>${esc(m.nama)}</dd></div>`).join('')}</dl></details>
+                <div class="nl-mx-wrap"><table class="nl-mx"><thead><tr><th>Kelas</th>${mx.mapel.map((m) => `<th><abbr title="${esc(m.nama)}">${esc(m.kode)}</abbr></th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>
                 <div class="nl-legend"><span class="full"></span>Lengkap <span class="part"></span>Sebagian <span class="none"></span>Belum <span class="hid"></span>Tidak diajarkan</div>`;
+            const kode = el.querySelector('.nl-kode');
+            try { if (localStorage.getItem('nilaiKodeTutup') === '1') kode.open = false; } catch { /* abaikan */ }
+            kode.addEventListener('toggle', () => { try { localStorage.setItem('nilaiKodeTutup', kode.open ? '0' : '1'); } catch { /* abaikan */ } });
             el.querySelectorAll('[data-smt]').forEach((b) => b.addEventListener('click', () => ctx.nav('matriks', { smt: Number(b.dataset.smt) })));
             el.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => ctx.nav('isi', { kelas: b.dataset.k, smt, mapel: b.dataset.m })));
             el.querySelectorAll('[data-kls]').forEach((b) => b.addEventListener('click', () => ctx.nav('kelas', { kelas: b.dataset.kls, smt })));

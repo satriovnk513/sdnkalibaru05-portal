@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#ffffff">
     <script src="theme.js?v=1"></script>
     <link rel="stylesheet" href="theme.css?v=1">
-    <link rel="stylesheet" href="attendance.css?v=14">
+    <link rel="stylesheet" href="attendance.css?v=15">
     <style>
         /* ── Reset & Base ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -958,11 +958,12 @@
 
                 <!-- ═══ TAB JADWAL ═══ -->
                 <div id="tabJadwal" class="tab-content">
-                    <div class="section-header ak-head"><div><h2>Jadwal Pelajaran</h2>
+                    <div class="section-header ak-head"><div><h2>Jadwal Pelajaran &amp; Piket</h2>
                         <p class="att-muted" style="margin:4px 0 0">Jadwal tiap kelas diisi wali kelas di Portal Guru; admin bisa ikut mengatur. Mapel yang punya guru mapel (PAI, PJOK) otomatis masuk jadwal mengajar gurunya — jadwal yang bentrok ditolak. Mapel lain, termasuk PLBJ, diajar wali kelas.</p></div></div>
                     <div class="inv-seg" id="jdSeg" role="tablist" aria-label="Tampilan jadwal">
                         <button type="button" role="tab" data-v="kelas" aria-selected="true">Per kelas</button>
                         <button type="button" role="tab" data-v="saya" aria-selected="false">Per guru mapel</button>
+                        <button type="button" role="tab" data-v="piket" aria-selected="false">Piket kelas</button>
                     </div>
                     <div class="admin-card" id="jdHost"><div class="att-muted">Memuat…</div></div>
                 </div>
@@ -1481,11 +1482,13 @@
     <script src="xlsx-read.js?v=2"></script>
     <script src="xlsx-book.js?v=1"></script>
     <script src="nilai.js?v=1"></script>
-    <script src="nilai-ui.js?v=1"></script>
+    <script src="nilai-ui.js?v=2"></script>
     <script src="admin-nilai.js?v=1"></script>
     <script src="jadwal.js?v=1"></script>
     <script src="jadwal-ui.js?v=1"></script>
-    <script src="admin-jadwal.js?v=1"></script>
+    <script src="piket.js?v=1"></script>
+    <script src="piket-ui.js?v=1"></script>
+    <script src="admin-jadwal.js?v=2"></script>
     <script src="inventaris.js?v=2"></script>
     <script src="admin-inventaris.js?v=2"></script>
     <script>

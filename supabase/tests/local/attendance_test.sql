@@ -1141,6 +1141,102 @@ begin
     execute 'reset role';
     end;
 
+    -- ======================================================== T. Piket
+    declare
+        c6a uuid := (select id from public.classes where name = '6 A');
+        v_cnt int[];
+        v_l int[];
+        v_p int[];
+        v_s1 uuid;
+        v_h0 int;
+    begin
+    -- 12 siswa fiktif kelas 6 A: 7 laki-laki, 5 perempuan
+    insert into public.student_records (nik, nama_siswa, nipd, nisn, kelas, status_daftar, payload)
+    select '99000000000006' || lpad(g::text, 2, '0'), 'Piket ' || g, '96' || lpad(g::text, 2, '0'), '00960000' || lpad(g::text, 2, '0'), '6 A', 'Tercantum di daftar kelas',
+           jsonb_build_object('nama_siswa', 'Piket ' || g, 'kelas', '6 A', 'siswa_jenis_kelamin_nama', case when g <= 7 then 'Laki-laki' else 'Perempuan' end)
+    from generate_series(1, 12) g;
+    insert into public.student_enrollments (student_id, class_id, start_date)
+    select r.id, c6a, (select y.start_date from public.academic_years y where y.is_active) from public.student_records r where r.nama_siswa like 'Piket %';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_class_piket(c6a);
+    select array_agg(n order by h) into v_cnt from (select h, (select count(*) from jsonb_array_elements(v_j -> 'siswa') x where (x ->> 'hari')::int = h) n from generate_series(1, 5) h) t;
+    select array_agg(n order by h) into v_l from (select h, (select count(*) from jsonb_array_elements(v_j -> 'siswa') x where (x ->> 'hari')::int = h and x ->> 'jk' = 'L') n from generate_series(1, 5) h) t;
+    select array_agg(n order by h) into v_p from (select h, (select count(*) from jsonb_array_elements(v_j -> 'siswa') x where (x ->> 'hari')::int = h and x ->> 'jk' = 'P') n from generate_series(1, 5) h) t;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'T Piket', 'u', format('12 siswa dibagi rata Sen–Jum %s, L %s, P %s; mode bawaan bulanan', v_cnt, v_l, v_p),
+        'ok', jsonb_array_length(v_j -> 'siswa') = 12 and v_j ->> 'mode' = 'bulanan' and v_j ->> 'periode' = 'B' || to_char(public.jakarta_today(), 'YYYY-MM')
+          and (select max(x) - min(x) from unnest(v_cnt) x) <= 1 and (select max(x) - min(x) from unnest(v_l) x) <= 1 and (select max(x) - min(x) from unnest(v_p) x) <= 1);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'T Piket', 'u', 'Pembagian tetap saat dibuka lagi (tidak berubah sendiri)',
+        'ok', public.get_class_piket(c6a) -> 'siswa' = v_j -> 'siswa');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'T Piket', 'u', 'Mode bulanan: bulan berikutnya punya pembagian sendiri',
+        'ok', public.get_class_piket(c6a, (date_trunc('month', public.jakarta_today()) + interval '1 month')::date) ->> 'periode'
+              = 'B' || to_char(date_trunc('month', public.jakarta_today()) + interval '1 month', 'YYYY-MM')
+          and public.get_class_piket(c6a) -> 'siswa' = v_j -> 'siswa');
+    v_j := public.set_piket_mode(c6a, 'semester');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'T Piket', 'u', 'Mode satu semester → periode S1/S2, tetap sepanjang semester',
+        'ok', v_j ->> 'mode' = 'semester' and v_j ->> 'periode' = (case when extract(month from public.jakarta_today()) >= 7 then 'S1' else 'S2' end)
+          and jsonb_array_length(v_j -> 'siswa') = 12);
+    v_s1 := (v_j -> 'siswa' -> 0 ->> 'id')::uuid;
+    v_h0 := (v_j -> 'siswa' -> 0 ->> 'hari')::int;
+    v_j := public.set_piket_day(c6a, v_s1, (v_h0 % 5 + 1)::smallint);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'T Piket', 'u', 'Pindahkan satu siswa ke hari lain',
+        'ok', (v_j -> 'siswa' -> 0 ->> 'hari')::int = v_h0 % 5 + 1);
+    v_j := public.shuffle_piket(c6a);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'T Piket', 'u', 'Acak ulang tetap 12 siswa & rata',
+        'ok', jsonb_array_length(v_j -> 'siswa') = 12
+          and (select max(n) - min(n) from (select h, (select count(*) from jsonb_array_elements(v_j -> 'siswa') x where (x ->> 'hari')::int = h) n from generate_series(1, 5) h) t) <= 1);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'T Piket', 'u', 'Mode / hari tidak valid ditolak',
+        'ok', public.t_try(format($q$select public.set_piket_mode(%L, 'mingguan')$q$, c6a)) = '22023'
+          and public.t_try(format($q$select public.set_piket_day(%L, %L, 6::smallint)$q$, c6a, v_s1)) = '22023');
+    execute 'reset role';
+
+    -- siswa baru masuk ke hari paling sedikit
+    insert into public.student_records (nik, nama_siswa, nipd, nisn, kelas, status_daftar, payload)
+    values ('9900000000000699', 'Piket Baru', '9699', '0096000099', '6 A', 'Tercantum di daftar kelas', jsonb_build_object('nama_siswa', 'Piket Baru', 'siswa_jenis_kelamin_nama', 'Perempuan'));
+    insert into public.student_enrollments (student_id, class_id, start_date)
+    select id, c6a, public.jakarta_today() from public.student_records where nama_siswa = 'Piket Baru';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_class_piket(c6a);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'T Piket', 'u', 'Siswa baru otomatis masuk ke hari yang paling sedikit',
+        'ok', jsonb_array_length(v_j -> 'siswa') = 13
+          and (select max(n) - min(n) from (select h, (select count(*) from jsonb_array_elements(v_j -> 'siswa') x where (x ->> 'hari')::int = h) n from generate_series(1, 5) h) t) <= 1);
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_j := public.get_class_piket(c1a);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'T Piket', 'u', 'Wali kelas 1 A: 3 siswa di 3 hari berbeda, bisa mengubah',
+        'ok', jsonb_array_length(v_j -> 'siswa') = 3 and (v_j ->> 'can_edit')::boolean
+          and (select count(distinct x ->> 'hari') from jsonb_array_elements(v_j -> 'siswa') x) = 3);
+    v_no := v_no + 1; v_r := public.t_try(format('select public.shuffle_piket(%L)', c6a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'T Hak', 'u', 'Wali kelas lain tidak bisa mengacak / membuka piket kelas lain', 'ok', v_r = '42501');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'T Hak', 'u', 'Guru mapel bisa melihat piket kelas yang diajar, tidak bisa mengubah',
+        'ok', not (public.get_class_piket(c1a) ->> 'can_edit')::boolean
+          and public.t_try(format('select public.shuffle_piket(%L)', c1a)) = '42501'
+          and public.t_try('select count(*) from public.class_piket') = '42501');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    v_no := v_no + 1; v_r := public.t_try(format('select public.get_class_piket(%L)', c1a));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'T Hak', 'u', 'Anon tidak bisa membuka piket', 'ok', v_r = '42501');
+    execute 'reset role';
+    end;
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end

@@ -1337,6 +1337,11 @@ async function runUi() {
         check(await page.evaluate(() => document.querySelector('[data-tab="tabNilai"]').classList.contains('active') && document.getElementById('topbarTitle').textContent === 'Nilai Siswa'), `${T} menu Nilai Siswa aktif`);
         const cells = await page.$$eval('.nl-mx tbody tr:first-child td', (t) => t.map((x) => `${x.className.replace('nl-x ', '')}:${x.textContent}`));
         check(cells.join(',') === 'none:0/3,part:1/3,part:1/3,none:0/3', `${T} matriks kelas × mapel (${cells})`);
+        const kode = (await page.textContent('.nl-kode dl')).replace(/\s+/g, ' ');
+        check(await page.isVisible('.nl-kode dl') && /BIN ?Bahasa Indonesia/.test(kode) && /MTK ?Matematika/.test(kode), `${T} keterangan kode mapel (ikon i) tampil (${kode.slice(0, 80)})`);
+        await page.click('.nl-kode summary');
+        check(!(await page.isVisible('.nl-kode dl')), `${T} keterangan kode bisa disembunyikan`);
+        await page.click('.nl-kode summary');
         await shot(page, `nilai-07-admin-matriks-${vp.tag}.png`);
         check(await overflow(page) <= 0, `${T} matriks tidak bergeser ke samping`);
         await page.click('.nl-mx tbody tr:first-child td:nth-child(3) button');
@@ -1572,6 +1577,77 @@ async function runUi() {
         await page.evaluate((t) => { location.hash = `#/jurnal?tanggal=${t}`; }, sabtu);
         await page.waitForFunction(() => /tidak ada jadwal pelajaran/.test(document.getElementById('gMain').textContent));
         check(true, `${T} Sabtu: keterangan tidak ada jadwal, catatan lain tetap bisa`);
+        check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
+
+    // ============================================================ PIKET — guru (HP) + admin
+    {
+        const T = '[Piket 360]';
+        const require = (await import('node:module')).createRequire(import.meta.url);
+        const XR = require('../xlsx-read.js');
+        const { ctx, page, errors } = await newPage('/guru#/', { width: 360, height: 780 });
+        await page.waitForSelector('#gLogin:not(.g-hidden)');
+        await page.fill('#gId', '990000000000000001');
+        await page.fill('#gPw', 'benar123');
+        await page.click('#gLoginBtn');
+        await page.waitForSelector('#gJadwal .g-piket-link');
+        await page.click('#gJadwal .g-piket-link');
+        await page.waitForSelector('.pk-day');
+        const days = await page.$$eval('.pk-day header', (h) => h.map((x) => x.textContent.replace(/\s+/g, ' ').trim()));
+        check(days.length === 5 && /^Senin.*1 siswa · 0 L 1 P/.test(days[0]) && /Kamis.*0 siswa/.test(days[3]), `${T} piket per hari + jumlah L/P (${days.join(' | ')})`);
+        check(/diacak ulang tiap bulan/.test(await page.textContent('.pk-periode')) && await page.isVisible('#pkPrev'), `${T} mode bawaan: ganti tiap bulan, bisa pindah bulan`);
+        await shot(page, 'piket-01-360.png');
+        check(await overflow(page) <= 0, `${T} tidak bergeser ke samping`);
+        // Pindahkan siswa
+        await page.click('.pk-day:nth-child(1) [data-s]');
+        await page.waitForSelector('.pk-sheet');
+        check(await page.isDisabled('.pk-sheet [data-h="1"]'), `${T} hari sekarang tidak bisa dipilih lagi`);
+        await page.click('.pk-sheet [data-h="4"]');
+        await page.waitForSelector('.pk-sheet', { state: 'detached' });
+        check(/1 siswa/.test(await page.textContent('.pk-day:nth-child(4) header')), `${T} siswa dipindah ke Kamis`);
+        // Mode semester
+        await page.click('.pk-mode [data-mode="semester"]');
+        await page.waitForFunction(() => /tetap satu semester/.test(document.querySelector('.pk-periode').textContent));
+        check(/Semester (Ganjil|Genap) 2026\/2027/.test(await page.textContent('.pk-periode')) && !(await page.$('#pkPrev')), `${T} mode tetap satu semester`);
+        // Acak ulang
+        await page.click('#pkAcak');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => window.__fake.calls.some((c) => c.fn === 'shuffle_piket'));
+        check(true, `${T} acak ulang (dengan konfirmasi)`);
+        // Unduh
+        const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#pkXls')]);
+        const xp = join(dlDir, 'piket.xlsx');
+        await dl.saveAs(xp);
+        const [sh] = await XR.readBook(readFileSync(xp));
+        check(sh.rows[0][0] === 'JADWAL PIKET KELAS 1.A' && sh.rows[3][0] === 'SENIN' && sh.rows[4][1] === 'Nama', `${T} Excel piket (${sh.rows[0][0]})`);
+        const [pop] = await Promise.all([page.waitForEvent('popup'), page.click('#pkPdf')]);
+        await pop.waitForLoadState();
+        check(/JADWAL PIKET KELAS/.test(await pop.textContent('body')) && /Periode:/.test(await pop.textContent('body')), `${T} cetak / PDF piket`);
+        await shot(pop, 'piket-02-pdf.png');
+        await pop.close();
+        // Beranda: piket hari ini di kartu jadwal kelas (hari sekolah)
+        await page.evaluate(() => { location.hash = '#/'; });
+        await page.waitForSelector('#gJadwal .g-piket-link');
+        check(true, `${T} Beranda: tombol Jadwal piket di kartu jadwal kelas`);
+        check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
+    for (const vp of [{ width: 1366, height: 900, tag: '1366' }, { width: 390, height: 844, tag: '390' }]) {
+        const T = `[Piket admin ${vp.tag}]`;
+        const { ctx, page, errors } = await newPage('/admin', { width: vp.width, height: vp.height });
+        await page.fill('#adminEmail', 'admin@fiktif.test');
+        await page.fill('#adminPassword', 'x');
+        await page.click('.btn-login');
+        await page.waitForSelector('#mainContent', { state: 'visible' });
+        await page.evaluate(() => showTab('tabJadwal', document.querySelector('[data-tab="tabJadwal"]')));
+        await page.waitForSelector('.jd-t');
+        await page.click('#jdSeg [data-v="piket"]');
+        await page.waitForSelector('.pk-day');
+        await page.waitForTimeout(300);
+        check((await page.$$('#pkKelas option')).length === 2 && await page.isVisible('#pkAcak'), `${T} admin: piket per kelas, bisa diatur`);
+        await shot(page, `piket-03-admin-${vp.tag}.png`);
+        check(await overflow(page) <= 0, `${T} tidak bergeser ke samping`);
         check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
         await ctx.close();
     }

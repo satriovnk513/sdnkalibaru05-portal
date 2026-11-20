@@ -643,3 +643,55 @@ button.jd-slot:hover { background: var(--t-surface-2); }
 .jr-dl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .jr-dl > span { flex: 1 1 100%; }
 .jr-priv { text-align: center; margin-top: 14px; }
+/* keterangan kode mapel (matriks nilai admin) */
+.nl-kode { border: 1px solid var(--att-line); border-radius: 12px; background: var(--t-surface); margin: 0 0 10px; padding: 0 12px; }
+.nl-kode summary { cursor: pointer; display: flex; align-items: center; gap: 8px; min-height: 40px; font-weight: 600; font-size: .86rem; color: var(--t-text); list-style: none; }
+.nl-kode summary::-webkit-details-marker { display: none; }
+.nl-kode summary::after { content: "▾"; margin-left: auto; color: var(--att-muted); }
+.nl-kode:not([open]) summary::after { content: "▸"; }
+.nl-i { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--t-blue-bg); color: var(--t-blue-ink); border: 1px solid var(--t-blue-line); font: italic 700 .78rem Georgia, serif; display: inline-flex; align-items: center; justify-content: center; }
+.nl-kode dl { margin: 0 0 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px 14px; }
+.nl-kode dl div { display: flex; gap: 8px; font-size: .84rem; align-items: baseline; }
+.nl-kode dt { flex: none; min-width: 42px; font-weight: 800; color: var(--att-ink); }
+.nl-kode dd { margin: 0; color: var(--t-text); }
+.nl-mx abbr { text-decoration: none; cursor: help; }
+
+/* =============================================================================
+   Jadwal piket (piket-ui.js)
+   ========================================================================== */
+.pk-periode { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.pk-periode > div { flex: 1; text-align: center; display: flex; flex-direction: column; background: var(--t-surface); border: 1px solid var(--att-line); border-radius: 12px; padding: 6px 8px; }
+.pk-periode b { color: var(--att-ink); font-size: 1rem; }
+.pk-periode small { color: var(--att-muted); font-size: .78rem; }
+.pk-periode > .att-btn { width: 48px; height: 48px; padding: 0; flex: none; }
+.pk-periode svg, .pk-act svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.pk-mode { margin-bottom: 6px; }
+.pk-help { margin: 0 0 12px; font-size: .84rem; }
+.pk-days { display: grid; gap: 10px; }
+.jd-wide .pk-days { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.pk-day { background: var(--t-surface); border: 1px solid var(--att-line); border-radius: 14px; overflow: hidden; }
+.pk-day.now { border-color: var(--att-brand); box-shadow: 0 0 0 1px var(--att-brand) inset; }
+.pk-day header { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 8px 12px; background: var(--t-surface-2); border-bottom: 1px solid var(--att-line); }
+.pk-day header b { color: var(--att-ink); }
+.pk-day header i { font-style: normal; font-size: .7rem; font-weight: 700; color: var(--att-brand); }
+.pk-day header span { margin-left: auto; font-size: .76rem; color: var(--att-muted); }
+.pk-day ol { margin: 0; padding: 4px 0; list-style: none; counter-reset: pk; }
+.pk-day li { counter-increment: pk; }
+.pk-day li > button, .pk-day li > span { width: 100%; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 12px; border: none; background: transparent; font: inherit; color: var(--att-ink); text-align: left; }
+.pk-day li > button { cursor: pointer; }
+.pk-day li > button:hover { background: var(--t-surface-2); }
+.pk-day li > *::before { content: counter(pk) "."; min-width: 22px; color: var(--att-muted); font-size: .8rem; }
+.pk-nm { flex: 1; min-width: 0; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pk-jk { flex: none; font-size: .7rem; font-weight: 800; border-radius: 6px; padding: 1px 6px; }
+.pk-jk.l { background: var(--t-blue-bg); color: var(--t-blue-ink); }
+.pk-jk.p { background: var(--t-red-bg); color: var(--t-red-ink); }
+.pk-act { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.pk-act .att-btn { flex: 1 1 120px; }
+.pk-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }
+.pk-pick button { min-height: 56px; border-radius: 12px; border: 1px solid var(--t-line-2); background: var(--t-surface); color: var(--att-ink); font: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; }
+.pk-pick button:hover:not(:disabled) { border-color: var(--att-brand); }
+.pk-pick button:disabled { opacity: .45; cursor: default; }
+.pk-pick small { color: var(--att-muted); font-size: .74rem; }
+.g-jd-piket { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--att-line); font-size: .88rem; color: var(--att-ink); }
+.g-jd-piket b { margin-right: 4px; }
+.jd-wide .pk-nm { white-space: normal; overflow: visible; font-size: .84rem; line-height: 1.25; }
