@@ -6,7 +6,8 @@
  *   create          { staff_ids?: uuid[] }   buat akun untuk daftar yang belum punya akun (default: semua)
  *   reset_password  { staff_id }             buat password baru
  *   set_active      { staff_id, active }     aktifkan / nonaktifkan
- *   save_request    { staff_id, email, login_id, make_admin }  tambah/ubah data akun
+ *   save_request    { staff_id, email, login_id, make_admin }  tambah/ubah data akun; untuk akun yang
+ *                   sudah dibuat, make_admin langsung memberi/mencabut akses Panel Admin
  *   delete_request  { staff_id }             hapus dari daftar (hanya jika akun belum dibuat)
  *   clear_pin       { staff_id }             hapus PIN pemulihan (guru lupa PIN)
  *
@@ -189,6 +190,9 @@ export default async function handler(req, res) {
             if (!staffBy.has(n.staff_id)) return sendError(res, 404, 'not_found', 'Guru tidak ditemukan.');
             const acc = accBy.get(n.staff_id);
             if (acc) {
+                if (acc.user_id === caller.id && !n.make_admin) {
+                    return sendError(res, 400, 'invalid_request', 'Tidak bisa mencabut akses admin akun sendiri.');
+                }
                 if (acc.email !== n.email) {
                     const u = await sb('PUT', `/auth/v1/admin/users/${acc.user_id}`, { key, body: { email: n.email, email_confirm: true } });
                     if (!u.ok) return sendError(res, 409, 'conflict', 'Email sudah dipakai akun lain.');
@@ -198,6 +202,11 @@ export default async function handler(req, res) {
                     headers: { Prefer: 'return=minimal' },
                 });
                 if (!p.ok) return sendError(res, 409, 'conflict', 'Email atau NIP/NUPTK sudah dipakai.');
+                const role = n.make_admin
+                    ? await sb('POST', '/rest/v1/user_roles?on_conflict=user_id,role', {
+                        key, body: { user_id: acc.user_id, role: 'admin' }, headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' } })
+                    : await sb('DELETE', `/rest/v1/user_roles?user_id=eq.${acc.user_id}&role=eq.admin`, { key, headers: { Prefer: 'return=minimal' } });
+                if (!role.ok) return sendError(res, 502, 'upstream_error', 'Data tersimpan, tapi akses admin gagal diubah. Coba lagi.');
             }
             const up = await sb('POST', '/rest/v1/teacher_account_requests?on_conflict=staff_id', {
                 key, body: { ...n, updated_at: new Date().toISOString() },
