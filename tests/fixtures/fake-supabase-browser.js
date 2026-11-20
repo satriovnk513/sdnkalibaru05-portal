@@ -217,6 +217,7 @@
             if (GRADE_RPC.includes(fn)) return Promise.resolve(gradeRpc(fn, args, user));
             if (JADWAL_RPC.includes(fn)) return Promise.resolve(jadwalRpc(fn, args, user));
             if (fn.includes('journal')) return Promise.resolve(jurnalRpc(fn, args, user));
+            if (fn.includes('piket')) return Promise.resolve(piketRpc(fn, args, user));
             return Promise.resolve(ok(null));
         }
     }
@@ -623,6 +624,47 @@
             return ok({ tahun: a.p_tahun, bulan: a.p_bulan, guru: { nama: 'Sunarsih, S.Pd.', nip: '990000000000000001' },
                 catatan: JR.list.filter((n) => n.tanggal.startsWith(pre)).sort((x, y) => x.tanggal.localeCompare(y.tanggal))
                     .map((n) => ({ tanggal: n.tanggal, kelas: n.class_id ? kelasNama(n.class_id) : null, mapel: n.subject_id ? MAPEL.find((x) => x.id === n.subject_id).singkat : null, judul: n.judul, jam: n.jam, status: n.status, materi: n.materi, keterangan: n.keterangan })) });
+        }
+        default: return ok(null);
+        }
+    }
+
+    // ------------------------------------------------------------------ piket tiruan
+    const PK = F.piket = F.piket || { mode: {}, bagi: {} };
+    function pkPeriode(c, tgl) {
+        return (PK.mode[c] || 'bulanan') === 'semester' ? (Number(tgl.slice(5, 7)) >= 7 ? 'S1' : 'S2') : `B${tgl.slice(0, 7)}`;
+    }
+    function pkData(c, tgl, user) {
+        const per = pkPeriode(c, tgl);
+        const key = `${c}|${per}`;
+        if (!PK.bagi[key]) PK.bagi[key] = Object.fromEntries((roster[c] || []).map((r, i) => [r.student_id, (i % 5) + 1]));
+        return {
+            kelas: { id: c, nama: kelasNama(c), tingkat: c === C1A ? 1 : 3, rombel: 'A', tahun_ajaran: '2026/2027' },
+            can_edit: user === 'admin' || c === C1A, mode: PK.mode[c] || 'bulanan', periode: per, tanggal: tgl,
+            semester: Number(tgl.slice(5, 7)) >= 7 ? 1 : 2,
+            wali: [{ nama: c === C1A ? 'Sunarsih, S.Pd.' : 'Taripah, S.Pd.', nip: '990000000000000001', posisi: 1 }],
+            kepala_sekolah: { nama: 'Kepala Fiktif, S.Pd.SD', nip: '990000000000000009' },
+            siswa: (roster[c] || []).map((r) => ({ id: r.student_id, no: r.no_urut, nama: r.nama, jk: r.jenis_kelamin, hari: PK.bagi[key][r.student_id] })),
+        };
+    }
+    function piketRpc(fn, a, user) {
+        const c = a.p_class_id; const tgl = a.p_tanggal || today;
+        const edit = user === 'admin' || c === C1A;
+        switch (fn) {
+        case 'get_class_piket': return ok(pkData(c, tgl, user));
+        case 'set_piket_mode': if (!edit) return err('Hanya wali kelas atau admin.'); PK.mode[c] = a.p_mode; return ok(pkData(c, tgl, user));
+        case 'shuffle_piket': {
+            if (!edit) return err('Hanya wali kelas atau admin.');
+            const key = `${c}|${pkPeriode(c, tgl)}`;
+            pkData(c, tgl, user);
+            for (const k of Object.keys(PK.bagi[key])) PK.bagi[key][k] = (PK.bagi[key][k] % 5) + 1;
+            return ok(pkData(c, tgl, user));
+        }
+        case 'set_piket_day': {
+            if (!edit) return err('Hanya wali kelas atau admin.');
+            pkData(c, tgl, user);
+            PK.bagi[`${c}|${pkPeriode(c, tgl)}`][a.p_student_id] = a.p_hari;
+            return ok(pkData(c, tgl, user));
         }
         default: return ok(null);
         }

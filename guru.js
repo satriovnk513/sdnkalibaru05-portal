@@ -11,6 +11,7 @@
 //   #/pinjam/<token|kode>      halaman barang hasil scan stiker QR (pinjam / kembalikan)
 //   #/jadwal?kelas=            jadwal pelajaran kelas (jadwal-ui.js); #/jadwal/saya = jadwal mengajar
 //   #/jurnal?tanggal=          jurnal mengajar pribadi (jurnal-ui.js)
+//   #/piket?kelas=&bulan=      jadwal piket siswa (piket-ui.js)
 //   #/nilai?kelas=&smt=        nilai siswa: daftar mapel (nilai-ui.js)
 //   #/nilai/isi|riwayat|excel?kelas=&smt=&mapel=   isi nilai, riwayat perubahan, Excel & PDF
 // Semua data lewat RPC yang memeriksa hak akses di database.
@@ -300,11 +301,12 @@
         let next = null;
         try {
             const w = home.wali_kelas[0];
-            const [wali, ajar] = await Promise.all([
+            const [wali, ajar, piket] = await Promise.all([
                 w ? rpc('get_class_schedule', { p_class_id: w.class_id }) : null,
                 home.mapel.length ? rpc('get_teaching_schedule') : null,
+                w ? rpc('get_class_piket', { p_class_id: w.class_id }).catch(() => null) : null,
             ]);
-            next = { wali, mengajar: ajar?.isi || [] };
+            next = { wali, mengajar: ajar?.isi || [], piket };
         } catch { return; }
         const changed = JSON.stringify(next) !== JSON.stringify(jadwalHome);
         jadwalHome = next;
@@ -387,6 +389,7 @@
         if (home.wali_kelas.length || home.mapel.length || home.is_pimpinan) {
             parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/nilai" style="margin-bottom:10px">Nilai siswa (UH, STS, SAS · Excel)</a>`);
             parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/jadwal${home.wali_kelas.length ? '' : '/saya'}" style="margin-bottom:10px">Jadwal pelajaran</a>`);
+            if (home.wali_kelas.length) parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/piket" style="margin-bottom:10px">Jadwal piket kelas</a>`);
             if (home.wali_kelas.length || home.mapel.length) parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/jurnal" style="margin-bottom:10px">Jurnal mengajar hari ini</a>`);
         }
         parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/dokumen" style="margin-bottom:10px">Cetak &amp; Dokumen (daftar siswa, surat, biodata)</a>`);
@@ -558,6 +561,38 @@
         return ajar[0].mulai ? J.titik(ajar[0].mulai) : `jam ke-${ajar[0].jamAwal}`;
     }
 
+    /** "Piket hari ini: A, B, C" untuk kartu jadwal kelas. */
+    function piketHariIni(h) {
+        const p = jadwalHome?.piket;
+        if (!p || !h) return '';
+        const list = window.Piket.perHari(p)[h - 1] || [];
+        if (!list.length) return '';
+        const nama = list.map((s) => esc(String(s.nama).split(' ').slice(0, 2).join(' ')));
+        return `<div class="g-jd-piket"><b>Piket hari ini:</b>${nama.join(', ')}</div>`;
+    }
+
+    // ------------------------------------------------------------------ piket (piket-ui.js)
+    let piketUI = null;
+    async function renderPiket(params) {
+        if (!piketUI) {
+            piketUI = window.PiketUI.create({
+                rpc,
+                classes: async () => (gradeClasses ||= await rpc('get_my_grade_classes')),
+                nav: (p = {}) => {
+                    const q = new URLSearchParams();
+                    for (const k of ['kelas', 'bulan']) if (p[k]) q.set(k, p[k]);
+                    go(`/piket${q.toString() ? `?${q}` : ''}`);
+                },
+                setTop: (t, sub) => setTop(t, sub, true),
+            });
+        }
+        jadwalStale = true;
+        setNav('');
+        setTop('Jadwal Piket', '', true);
+        main('<div id="gPiketHost"></div>');
+        await piketUI.render($('gPiketHost'), Object.fromEntries(params));
+    }
+
     /** Kartu jadwal kelas wali hari ini. */
     function jadwalBox(today) {
         const J = window.Jadwal;
@@ -585,7 +620,11 @@
         return `<section class="g-box" id="gJadwal">
             <header class="g-box-head"><span class="g-tag soon">${ICON.cal}JADWAL KELAS</span><b>${h ? `${J.HARI[h - 1]} · ` : ''}Kelas ${esc(kelasTitik(w.kelas))}</b></header>
             <div class="g-box-body">${body}
-                <a class="att-btn att-btn-ghost att-btn-block" href="#/jadwal?kelas=${esc(w.class_id)}" style="margin-top:10px">${ICON.cal} Lihat / ubah jadwal pelajaran</a></div>
+                ${piketHariIni(h)}
+                <div class="att-row" style="margin-top:10px;gap:8px">
+                    <a class="att-btn att-btn-ghost" style="flex:1 1 150px" href="#/jadwal?kelas=${esc(w.class_id)}">${ICON.cal} Jadwal pelajaran</a>
+                    <a class="att-btn att-btn-ghost g-piket-link" style="flex:1 1 150px" href="#/piket?kelas=${esc(w.class_id)}">${ICON.user} Jadwal piket</a>
+                </div></div>
         </section>`;
     }
 
@@ -1477,6 +1516,7 @@
         if (path === '/pinjam') return renderPinjamList();
         if (path.startsWith('/pinjam/')) return renderPinjamItem(decodeURIComponent(path.slice(8)));
         if (path === '/jurnal') return renderJurnal(params);
+        if (path === '/piket') return renderPiket(params);
         if (path === '/jadwal') return renderJadwal('kelas', params);
         if (path === '/jadwal/saya') return renderJadwal('saya', params);
         if (path === '/nilai') return renderNilai('kelas', params);
@@ -1493,7 +1533,7 @@
         if (parseHash().path.startsWith('/pinjam/')) return go('/pinjam');
         if (parseHash().path === '/pinjam') return go('/');
         if (parseHash().path === '/nilai') return go('/');
-        if (parseHash().path.startsWith('/jadwal') || parseHash().path === '/jurnal') return go('/');
+        if (parseHash().path.startsWith('/jadwal') || ['/jurnal', '/piket'].includes(parseHash().path)) return go('/');
         if (parseHash().path.startsWith('/nilai/')) {
             const p = parseHash().params;
             return go(nilaiPath('kelas', { kelas: p.get('kelas'), smt: p.get('smt') }));
