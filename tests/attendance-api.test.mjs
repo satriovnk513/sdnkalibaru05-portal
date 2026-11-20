@@ -99,11 +99,26 @@ globalThis.fetch = async (url, opts = {}) => {
     }
     if (p === '/rest/v1/teacher_recovery_pins') return json(200, Object.keys(db.pins).map((user_id) => ({ user_id })));
     if (p === '/rest/v1/user_roles' && method === 'GET') {
-        const uid = (q.get('user_id') || '').replace('eq.', '');
+        const raw = q.get('user_id') || '';
+        if (raw.startsWith('in.(')) { const ids = raw.slice(4, -1).split(','); return json(200, db.roles.filter((r) => r.role === 'admin' && ids.includes(r.user_id)).map((r) => ({ user_id: r.user_id }))); }
+        const uid = raw.replace('eq.', '');
         if (uid) return json(200, db.roles.filter((r) => r.user_id === uid && r.role === 'admin'));
         return json(200, db.roles.filter((r) => r.role === 'admin').map((r) => ({ user_id: r.user_id })));
     }
-    if (p === '/rest/v1/user_roles' && method === 'POST') { db.roles.push(body); return json(201); }
+    if (p === '/rest/v1/user_roles' && method === 'POST') {
+        if (!db.roles.some((r) => r.user_id === body.user_id && r.role === body.role)) db.roles.push(body);
+        return json(201);
+    }
+    if (p === '/rest/v1/user_roles' && method === 'DELETE') {
+        const uid = q.get('user_id').replace('eq.', '');
+        db.roles = db.roles.filter((r) => !(r.user_id === uid && r.role === 'admin'));
+        return json(204);
+    }
+    if (p === '/rest/v1/teacher_account_requests' && method === 'POST') {
+        const i = db.reqs.findIndex((r) => r.staff_id === body.staff_id);
+        if (i >= 0) db.reqs[i] = { ...db.reqs[i], ...body }; else db.reqs.push(body);
+        return json(201);
+    }
     if (p === '/rest/v1/staff') return json(200, db.staff);
     if (p === '/rest/v1/teacher_account_requests' && method === 'GET') return json(200, db.reqs);
     if (p === '/rest/v1/teacher_accounts' && method === 'GET') {
@@ -245,6 +260,22 @@ test('akun guru: nonaktifkan memblokir user di Auth; tidak bisa nonaktifkan diri
     db.accs.push({ user_id: ADMIN, staff_id: ST(3), email: 'op@fiktif.test', login_id: null, is_active: true });
     const self = await call(accounts, { token: 'jwt-admin', body: { action: 'set_active', staff_id: ST(3), active: false } });
     assert.equal(self.status, 400);
+});
+
+test('akun guru: centang/lepas admin pada akun yang sudah ada langsung berlaku; admin sendiri tidak bisa dicabut', async () => {
+    const save = (staff_id, email, make_admin, token = 'jwt-admin') => call(accounts, { token, body: { action: 'save_request', staff_id, email, login_id: '990000000000000001', make_admin } });
+    let r = await save(ST(1), 'guru@fiktif.test', true);
+    assert.equal(r.status, 200);
+    assert.ok(db.roles.some((x) => x.user_id === GURU && x.role === 'admin'), 'jadi admin');
+    r = await call(accounts, { method: 'GET', token: 'jwt-admin' });
+    assert.equal(r.body.rows.find((x) => x.staff_id === ST(1)).admin, true);
+    r = await save(ST(1), 'guru@fiktif.test', false);
+    assert.equal(r.status, 200);
+    assert.ok(!db.roles.some((x) => x.user_id === GURU), 'admin dicabut');
+    db.accs.push({ user_id: ADMIN, staff_id: ST(4), email: 'admin@fiktif.test', login_id: null, is_active: true });
+    r = await call(accounts, { token: 'jwt-admin', body: { action: 'save_request', staff_id: ST(4), email: 'admin@fiktif.test', make_admin: false } });
+    assert.equal(r.status, 400);
+    assert.ok(db.roles.some((x) => x.user_id === ADMIN), 'admin sendiri tetap');
 });
 
 test('akun guru: validasi data', () => {

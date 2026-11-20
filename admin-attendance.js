@@ -92,7 +92,7 @@
                 <div class="att-stack" style="margin-top:12px">
                     <div class="att-field"><label for="accEmail">Email login</label><input class="att-input" id="accEmail" type="email" value="${esc(row.email || '')}" required autocapitalize="none"></div>
                     <div class="att-field"><label for="accNip">NIP / NUPTK (boleh kosong)</label><input class="att-input" id="accNip" inputmode="numeric" value="${esc(row.login_id || '')}"></div>
-                    <label class="att-row" style="font-size:.9rem"><input type="checkbox" id="accAdmin" ${row.admin ? 'checked' : ''} ${row.status === 'aktif' || row.status === 'nonaktif' ? 'disabled' : ''}> Jadikan admin absensi</label>
+                    <label class="att-row" style="font-size:.9rem"><input type="checkbox" id="accAdmin" ${row.admin ? 'checked' : ''}> Jadikan admin/operator (bisa masuk Panel Admin)</label>
                     ${row.status === 'aktif' || row.status === 'nonaktif' ? '<p class="att-muted" style="margin:0">Peran admin untuk akun yang sudah dibuat diatur di Supabase.</p>' : ''}
                 </div>
                 <div class="att-row" style="margin-top:16px">
