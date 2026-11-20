@@ -97,7 +97,13 @@
 .att-alert.info { background: var(--t-blue-bg); color: var(--t-blue-ink); border: 1px solid var(--t-blue-line); }
 .att-alert.warn { background: var(--t-amber-bg); color: var(--t-amber-ink); border: 1px solid var(--t-amber-line); }
 .att-alert.err { background: var(--t-red-bg); color: var(--t-red-ink); border: 1px solid var(--t-red-line); }
-.att-alert.ok { background: var(--t-green-bg); color: #14532d; border: 1px solid var(--t-green-line); }
+.att-alert.ok { background: var(--t-green-bg); color: var(--t-green-ink); border: 1px solid var(--t-green-line); }
+/* Notifikasi melayang: latar dibuat pekat supaya tulisan tetap terbaca di atas konten (terutama mode gelap). */
+.att-toast.att-alert { font-weight: 600; }
+.att-toast.att-alert.ok { background: linear-gradient(var(--t-green-bg), var(--t-green-bg)), var(--t-surface); }
+.att-toast.att-alert.err { background: linear-gradient(var(--t-red-bg), var(--t-red-bg)), var(--t-surface); }
+.att-toast.att-alert.info { background: linear-gradient(var(--t-blue-bg), var(--t-blue-bg)), var(--t-surface); }
+.att-toast.att-alert.warn { background: linear-gradient(var(--t-amber-bg), var(--t-amber-bg)), var(--t-surface); }
 
 /* Panel dari bawah (konfirmasi) */
 .att-sheet-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 1000; display: flex; align-items: flex-end; justify-content: center; }

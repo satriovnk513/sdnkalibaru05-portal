@@ -241,6 +241,8 @@ async function runUi() {
         check(/JADWAL KELAS/.test(await page.textContent('#gJadwal')) && await page.$('#gJadwal a[href^="#/jadwal?kelas="]') !== null, 'kartu Jadwal Kelas wali: jadwal hari ini + tautan ubah jadwal');
         await page.waitForSelector('.g-pin-nudge');
         check(/PIN pemulihan/.test(await page.textContent('.g-pin-nudge')), 'dashboard mengingatkan guru yang belum punya PIN');
+        check(await page.evaluate(() => Boolean(document.querySelector('.g-pin-nudge').compareDocumentPosition(document.getElementById('gJadwal')) & Node.DOCUMENT_POSITION_FOLLOWING)
+            && Boolean(document.getElementById('gJadwal').compareDocumentPosition(document.querySelector('.g-nilai-link')) & Node.DOCUMENT_POSITION_FOLLOWING)), 'kartu Jadwal Kelas tepat di bawah pengingat PIN');
         check(await page.isVisible('#gTopOut'), 'tombol keluar ada di pojok kanan atas');
         check(await overflow(page) <= 0, 'dashboard tidak bergeser ke samping');
         check(/Absensi hari ini belum diisi/.test(await page.textContent('.g-hero')), 'kartu utama menandai absensi belum diisi');
@@ -1597,6 +1599,22 @@ async function runUi() {
         const days = await page.$$eval('.pk-day header', (h) => h.map((x) => x.textContent.replace(/\s+/g, ' ').trim()));
         check(days.length === 5 && /^Senin.*1 siswa · 0 L 1 P/.test(days[0]) && /Kamis.*0 siswa/.test(days[3]), `${T} piket per hari + jumlah L/P (${days.join(' | ')})`);
         check(/diacak ulang tiap bulan/.test(await page.textContent('.pk-periode')) && await page.isVisible('#pkPrev'), `${T} mode bawaan: ganti tiap bulan, bisa pindah bulan`);
+        // notifikasi terbaca (warna teks kontras dengan latar, termasuk mode gelap)
+        await page.click('.pk-mode [data-mode="semester"]');
+        await page.waitForSelector('#attToastHost .att-toast');
+        const kontras = await page.$eval('#attToastHost .att-toast', (t) => {
+            const cs = getComputedStyle(t);
+            const rgb = (v) => v.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+            const lum = ([r, g, b]) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+            const host = getComputedStyle(document.body).backgroundColor;
+            const bgImg = cs.backgroundImage;   // gradien + warna permukaan
+            const fg = lum(rgb(cs.color));
+            const base = lum(rgb(cs.backgroundColor !== 'rgba(0, 0, 0, 0)' ? cs.backgroundColor : host));
+            return { ratio: (Math.max(fg, base) + 0.05) / (Math.min(fg, base) + 0.05), bgImg: bgImg !== 'none' };
+        });
+        check(kontras.ratio >= 4.5 && kontras.bgImg, `${T} notifikasi hijau terbaca (kontras ${kontras.ratio.toFixed(1)}:1, latar pekat)`);
+        await page.click('.pk-mode [data-mode="bulanan"]');
+        await page.waitForFunction(() => /diacak ulang tiap bulan/.test(document.querySelector('.pk-periode').textContent));
         await shot(page, 'piket-01-360.png');
         check(await overflow(page) <= 0, `${T} tidak bergeser ke samping`);
         // Pindahkan siswa
