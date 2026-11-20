@@ -1669,4 +1669,163 @@ async function runUi() {
         check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
         await ctx.close();
     }
+
+    // ============================================================ CATATAN SISWA — guru (HP)
+    {
+        const T = '[Catatan 360]';
+        const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGP4Oo8bK2IYWhIAq6BngRWQ6cAAAAAASUVORK5CYII=', 'base64');
+        const { ctx, page, errors } = await newPage('/guru#/', { width: 360, height: 780 });
+        await page.waitForSelector('#gLogin:not(.g-hidden)');
+        await page.fill('#gId', '990000000000000001');
+        await page.fill('#gPw', 'benar123');
+        await page.click('#gLoginBtn');
+        await page.waitForSelector('.g-catatan-link');
+        await page.click('.g-catatan-link');
+        await page.waitForSelector('#csList .cs-row');
+        check((await page.$$('#csList .cs-row')).length === 3 && /Wali kelas/.test(await page.textContent('#csKelas')), `${T} daftar siswa kelas wali`);
+        // Tulis apresiasi untuk 2 siswa + foto
+        await page.click('#csTulis');
+        await page.waitForSelector('.cs-sheet #csOpts [data-add]');
+        await page.fill('#csCariS', 'Dua');
+        await page.click('#csOpts [data-add]');
+        await page.fill('#csCariS', 'Tiga');
+        await page.click('#csOpts [data-add]');
+        check(/Simpan untuk 2 siswa/.test(await page.textContent('#csSave')), `${T} pilih lebih dari 1 siswa`);
+        check(!(await page.isVisible('#csTingkat')), `${T} tingkat hanya untuk perilaku`);
+        await page.click('#csSaran [data-s]');
+        check(await page.inputValue('#csJudul') === 'Juara lomba', `${T} saran judul mengisi judul`);
+        await page.setInputFiles('#csFile', { name: 'piala.png', mimeType: 'image/png', buffer: PNG });
+        await page.waitForSelector('#csFotos .cs-thumb, #csErr:not([hidden])');
+        check(await page.$('#csFotos .cs-thumb'), `${T} foto ditambahkan (${await page.textContent('#csErr')})`);
+        await shot(page, 'catatan-01-tulis-360.png');
+        await page.click('#csSave');
+        await page.waitForSelector('.cs-sheet', { state: 'detached' });
+        const call = await page.evaluate(() => window.__fake.calls.filter((c) => c.fn === 'save_student_note').pop()?.args);
+        const up = await page.evaluate(() => window.__fake.uploads);
+        check(call.p_student_ids.length === 2 && call.p_jenis === 'apresiasi' && call.p_fotos.length === 1 && up.length === 1
+            && up[0] === `catatan-siswa/${call.p_fotos[0]}` && /^u-wali\/[0-9a-f-]+\.jpg$/.test(call.p_fotos[0]), `${T} simpan 2 siswa + foto di folder sendiri (${call.p_fotos[0]})`);
+        await page.waitForFunction(() => document.querySelectorAll('#csList .cs-chip.a').length === 2);
+        // Perilaku serius tanpa tindak lanjut
+        await page.click('#csTulis');
+        await page.waitForSelector('.cs-sheet #csOpts [data-add]');
+        await page.click('.cs-sheet [data-j="perilaku"]');
+        check(await page.isVisible('#csTingkat'), `${T} tingkat muncul untuk perilaku`);
+        await page.click('.cs-sheet [data-t="serius"]');
+        await page.click('#csSave');
+        check(/Pilih minimal satu siswa/.test(await page.textContent('#csErr')), `${T} validasi siswa`);
+        await page.click('#csOpts [data-add]');
+        await page.fill('#csJudul', 'Bertengkar dengan teman');
+        await page.click('#csSave');
+        await page.waitForSelector('.cs-alert.err');
+        check(/1 catatan serius belum ada tindak lanjut/.test(await page.textContent('.cs-alert.err')), `${T} peringatan serius belum ditindaklanjuti`);
+        await page.click('[data-f="perhatian"]');
+        check((await page.$$('#csList .cs-row')).length === 1, `${T} saring: ada catatan perilaku`);
+        await shot(page, 'catatan-02-kelas-360.png');
+        check(await overflow(page) <= 0, `${T} tidak bergeser ke samping`);
+        // Halaman siswa: linimasa, tindak lanjut
+        await page.click('#csList .cs-row');
+        await page.waitForSelector('.cs-tlist');
+        check(/Perilaku · Serius/i.test(await page.textContent('.cs-tlist')) && await page.isVisible('[data-tl]'), `${T} linimasa siswa + tombol tindak lanjut`);
+        await page.click('[data-tl]');
+        await page.fill('#csTlIn', 'Orang tua dipanggil');
+        await page.click('#csTlSave');
+        await page.waitForFunction(() => /Tindak lanjut: Orang tua dipanggil/.test(document.querySelector('.cs-tlist').textContent));
+        check(true, `${T} tindak lanjut tersimpan`);
+        await shot(page, 'catatan-03-siswa-360.png');
+        const [pop] = await Promise.all([page.waitForEvent('popup'), page.click('#csPdf')]);
+        await pop.waitForLoadState();
+        check(/CATATAN SISWA/.test(await pop.textContent('body')) && /Orang tua dipanggil/.test(await pop.textContent('body')), `${T} PDF catatan satu siswa`);
+        await pop.close();
+        // Hapus milik sendiri
+        check((await page.$$('.cs-tl')).length === 2, `${T} linimasa berisi 2 catatan anak ini`);
+        await page.click('[data-hapus]');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => document.querySelectorAll('.cs-tl').length === 1);
+        check(true, `${T} hapus catatan sendiri (dengan konfirmasi)`);
+        // Kembali ke kelas → PDF rangkuman semester
+        await page.goBack();
+        await page.waitForSelector('#csPdf');
+        const [pop2] = await Promise.all([page.waitForEvent('popup'), page.click('#csPdf')]);
+        await pop2.waitForLoadState();
+        const t2 = (await pop2.textContent('body')).replace(/\s+/g, ' ');
+        check(/RANGKUMAN CATATAN SISWA/.test(t2) && /Juara lomba/.test(t2), `${T} PDF rangkuman semester kelas`);
+        await shot(pop2, 'catatan-04-pdf.png');
+        await pop2.close();
+        check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
+    for (const vp of [{ width: 1366, height: 900, tag: '1366' }, { width: 390, height: 844, tag: '390' }]) {
+        const T = `[Catatan admin ${vp.tag}]`;
+        const { ctx, page, errors } = await newPage('/admin', { width: vp.width, height: vp.height });
+        await page.fill('#adminEmail', 'admin@fiktif.test');
+        await page.fill('#adminPassword', 'x');
+        await page.click('.btn-login');
+        await page.waitForSelector('#mainContent', { state: 'visible' });
+        await page.evaluate(() => {
+            const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+            const S = (n) => `00000000-0000-4000-8000-00000000005${n}`;
+            const C1A = '00000000-0000-4000-8000-0000000000c1';
+            window.__fake.notes.list.push(
+                { id: 'nx1', group_id: 'g', student_id: S(1), class_id: C1A, author: 'wali', jenis: 'apresiasi', tingkat: null, tanggal: today, judul: 'Juara lomba mewarnai', cerita: null, tindak_lanjut: null, fotos: ['u-wali/a.jpg'] },
+                { id: 'nx2', group_id: 'h', student_id: S(2), class_id: C1A, author: 'wali', jenis: 'perilaku', tingkat: 'serius', tanggal: today, judul: 'Bertengkar', cerita: 'Di kantin', tindak_lanjut: null, fotos: [] });
+            window.__fake.jurnal.list.push(
+                { id: 'jx1', tanggal: today, class_id: C1A, subject_id: null, judul: 'Rapat', jam: null, status: 'terlaksana', materi: 'Rapat orang tua', keterangan: null },
+                { id: 'jx2', tanggal: today, class_id: C1A, subject_id: null, judul: 'Rapat', jam: null, status: 'terlaksana', materi: 'Rapat orang tua', keterangan: null },
+                { id: 'jx3', tanggal: today, class_id: C1A, subject_id: null, judul: 'Upacara', jam: null, status: 'tidak', materi: null, keterangan: 'Hujan' });
+        });
+        await page.evaluate(() => showTab('tabCatatan', document.querySelector('[data-tab="tabCatatan"]')));
+        await page.waitForSelector('#csAdmHost .ad-table');
+        check((await page.$$('#csAdmHost tbody tr')).length === 2 && /Serius, belum ditindaklanjuti/.test(await page.textContent('#csAdmHost .inv-stats'))
+            && await page.isVisible('#csAdmHost tr.srs'), `${T} semua catatan + ringkasan + baris serius disorot`);
+        check(await page.isDisabled('#csAPdf'), `${T} PDF rangkuman perlu pilih kelas dulu`);
+        await page.selectOption('#csAJ', 'serius');
+        await page.waitForFunction(() => document.querySelectorAll('#csAdmHost tbody tr').length === 1);
+        check(true, `${T} saring jenis serius`);
+        await page.selectOption('#csAJ', '');
+        await page.waitForFunction(() => document.querySelectorAll('#csAdmHost tbody tr').length === 2);
+        await page.waitForTimeout(400);
+        await shot(page, `catatan-05-admin-${vp.tag}.png`);
+        check(await overflow(page) <= 0, `${T} tidak bergeser ke samping`);
+        // Rapikan
+        await page.click('#csAdmHost [data-ubah="nx2"]');
+        await page.fill('#adJ', 'Bertengkar dengan teman');
+        await page.click('#adSave');
+        await page.waitForFunction(() => /dirapikan Paroji/.test(document.getElementById('csAdmHost').textContent));
+        check(true, `${T} admin merapikan catatan → tanda dirapikan`);
+        // Hapus (foto ikut dihapus)
+        await page.click('#csAdmHost [data-hapus="nx1"]');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => document.querySelectorAll('#csAdmHost tbody tr').length === 1);
+        check((await page.evaluate(() => window.__fake.removed)).includes('u-wali/a.jpg'), `${T} hapus catatan + fotonya`);
+        await page.click('#csALog');
+        await page.waitForSelector('.ad-log li');
+        check((await page.$$('.ad-log li')).length === 2, `${T} riwayat perubahan admin`);
+        await page.click('.cs-sheet [data-close]');
+        await page.selectOption('#csAK', '00000000-0000-4000-8000-0000000000c1');
+        await page.waitForFunction(() => !document.getElementById('csAPdf').disabled);
+        const [pop] = await Promise.all([page.waitForEvent('popup'), page.click('#csAPdf')]);
+        await pop.waitForLoadState();
+        check(/RANGKUMAN CATATAN SISWA/.test(await pop.textContent('body')), `${T} PDF rangkuman kelas dari admin`);
+        await pop.close();
+        // Jurnal mengajar guru
+        await page.evaluate(() => showTab('tabJurnalAdmin', document.querySelector('[data-tab="tabJurnalAdmin"]')));
+        await page.waitForSelector('#jrAdmHost .ad-table');
+        check((await page.$$('#jrAdmHost tbody tr')).length === 3 && (await page.$$('#jrAdmHost .ad-dobel')).length === 2, `${T} jurnal guru + tanda dobel`);
+        check(!(await page.$('#jrAdmHost [data-ubah], #jrAdmHost #jrAdd')), `${T} tidak ada tombol tambah/ubah`);
+        await page.check('#jrAdmHost [data-cek="jx2"]');
+        check(await page.isVisible('#jrBulk') && /1 dipilih/.test(await page.textContent('#jrBulk')), `${T} pilih → hapus terpilih muncul`);
+        await page.waitForTimeout(400);
+        await shot(page, `catatan-06-admin-jurnal-${vp.tag}.png`);
+        check(await overflow(page) <= 0, `${T} jurnal: tidak bergeser ke samping`);
+        await page.click('#jrBulkDel');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => document.querySelectorAll('#jrAdmHost tbody tr').length === 2);
+        check((await page.$$('#jrAdmHost .ad-dobel')).length === 0, `${T} hapus terpilih → dobel hilang`);
+        await page.click('#jrAdmHost [data-del="jx3"]');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => document.querySelectorAll('#jrAdmHost tbody tr').length === 1);
+        check(true, `${T} hapus satu baris jurnal`);
+        check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
 }

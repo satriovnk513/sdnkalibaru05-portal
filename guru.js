@@ -12,6 +12,7 @@
 //   #/jadwal?kelas=            jadwal pelajaran kelas (jadwal-ui.js); #/jadwal/saya = jadwal mengajar
 //   #/jurnal?tanggal=          jurnal mengajar pribadi (jurnal-ui.js)
 //   #/piket?kelas=&bulan=      jadwal piket siswa (piket-ui.js)
+//   #/catatan?kelas=&smt=      catatan siswa (catatan-ui.js); #/catatan/siswa?id= riwayat satu anak
 //   #/nilai?kelas=&smt=        nilai siswa: daftar mapel (nilai-ui.js)
 //   #/nilai/isi|riwayat|excel?kelas=&smt=&mapel=   isi nilai, riwayat perubahan, Excel & PDF
 // Semua data lewat RPC yang memeriksa hak akses di database.
@@ -281,6 +282,7 @@
     let alphaStale = true;      // dimuat ulang setiap kali dashboard dibuka
     let myLoans = null;         // hasil inv_my_loans (barang yang sedang saya pinjam)
     let loansStale = true;
+    let userId = '';
     let jadwalHome = null;      // { wali: get_class_schedule kelas wali pertama, mengajar: get_teaching_schedule.isi }
     let jadwalStale = true;
 
@@ -390,6 +392,7 @@
             parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/nilai" style="margin-bottom:10px">Nilai siswa (UH, STS, SAS · Excel)</a>`);
             parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/jadwal${home.wali_kelas.length ? '' : '/saya'}" style="margin-bottom:10px">Jadwal pelajaran</a>`);
             if (home.wali_kelas.length) parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/piket" style="margin-bottom:10px">Jadwal piket kelas</a>`);
+            parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/catatan" style="margin-bottom:10px">Catatan siswa</a>`);
             if (home.wali_kelas.length || home.mapel.length) parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/jurnal" style="margin-bottom:10px">Jurnal mengajar hari ini</a>`);
         }
         parts.push(`<a class="att-btn att-btn-ghost att-btn-block" href="#/dokumen" style="margin-bottom:10px">Cetak &amp; Dokumen (daftar siswa, surat, biodata)</a>`);
@@ -464,6 +467,7 @@
 
         if (home.wali_kelas.length || home.mapel.length || home.is_pimpinan) parts.push(nilaiCard());
         if (home.wali_kelas.length || home.mapel.length) parts.push(jurnalCard());
+        parts.push(catatanCard());
         // Pinjam barang: di bawah Jurnal mengajar.
         if (myLoans?.aktif?.length) parts.push(loansBox(myLoans.aktif));
         else {
@@ -650,6 +654,31 @@
         setTop(view === 'saya' ? 'Jadwal Mengajar Saya' : 'Jadwal Pelajaran', '', true);
         main('<div id="gJadwalHost"></div>');
         await jadwalUI.render($('gJadwalHost'), view, Object.fromEntries(params));
+    }
+
+    function catatanCard() {
+        return `<a class="g-sched g-chip g-pinjam-link g-catatan-link" href="#/catatan"><span class="g-sched-ico">${ICON.user}</span>
+            <span class="g-sched-txt"><b>Catatan siswa</b><span>Apresiasi, perilaku &amp; catatan tiap anak · rangkuman PDF</span></span>${ICON.chev}</a>`;
+    }
+
+    let catatanUI = null;
+    function catatanPath(view, p = {}) {
+        const q = new URLSearchParams();
+        for (const k of ['kelas', 'smt', 'id', 'semua']) if (p[k] !== undefined && p[k] !== null && p[k] !== '') q.set(k, p[k]);
+        return `/catatan${view === 'siswa' ? '/siswa' : ''}${q.toString() ? `?${q}` : ''}`;
+    }
+    async function renderCatatan(view, params) {
+        if (!catatanUI) {
+            catatanUI = window.CatatanUI.create({
+                rpc, storage: sb.storage, uid: () => userId,
+                nav: (v, p) => go(catatanPath(v, p)),
+                setTop: (t, sub) => setTop(t, sub, true),
+            });
+        }
+        setNav('');
+        setTop('Catatan Siswa', '', true);
+        main('<div id="gCatatanHost"></div>');
+        await catatanUI.render($('gCatatanHost'), view, Object.fromEntries(params));
     }
 
     function jurnalCard() {
@@ -1517,6 +1546,8 @@
         if (path === '/pinjam') return renderPinjamList();
         if (path.startsWith('/pinjam/')) return renderPinjamItem(decodeURIComponent(path.slice(8)));
         if (path === '/jurnal') return renderJurnal(params);
+        if (path === '/catatan') return renderCatatan('kelas', params);
+        if (path === '/catatan/siswa') return renderCatatan('siswa', params);
         if (path === '/piket') return renderPiket(params);
         if (path === '/jadwal') return renderJadwal('kelas', params);
         if (path === '/jadwal/saya') return renderJadwal('saya', params);
@@ -1534,7 +1565,11 @@
         if (parseHash().path.startsWith('/pinjam/')) return go('/pinjam');
         if (parseHash().path === '/pinjam') return go('/');
         if (parseHash().path === '/nilai') return go('/');
-        if (parseHash().path.startsWith('/jadwal') || ['/jurnal', '/piket'].includes(parseHash().path)) return go('/');
+        if (parseHash().path === '/catatan/siswa') {
+            const p = parseHash().params;
+            return go(catatanPath('kelas', { kelas: p.get('kelas'), smt: p.get('smt') }));
+        }
+        if (parseHash().path.startsWith('/jadwal') || ['/jurnal', '/piket', '/catatan'].includes(parseHash().path)) return go('/');
         if (parseHash().path.startsWith('/nilai/')) {
             const p = parseHash().params;
             return go(nilaiPath('kelas', { kelas: p.get('kelas'), smt: p.get('smt') }));
@@ -1559,6 +1594,7 @@
         const { data: { session } } = await sb.auth.getSession();
         if (!session) return showLogin('');
         userEmail = session.user?.email || '';
+        userId = session.user?.id || '';
         try {
             home = await rpc('get_guru_home');
         } catch (err) {
