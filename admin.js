@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('mainContent').style.display = 'flex';
             updateSubRoles();
+            loadAdminGreeting();
             loadStaff();
             loadNews();
             loadGallery();
@@ -79,6 +80,7 @@ async function checkLogin() {
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('mainContent').style.display = 'flex';
             updateSubRoles();
+            loadAdminGreeting();
             loadStaff();
             loadNews();
             loadGallery();
@@ -92,6 +94,60 @@ async function checkLogin() {
             errorMsg.style.display = 'block';
         }
     }
+}
+
+// ---------------------------------------------------------------- sapaan di sidebar
+// "Selamat Pagi, Paroji." — waktu WIB (GMT+7) dari jam server (header Date),
+// jatuh ke jam perangkat bila tidak ada.
+let greetName = '';
+let clockOffset = 0;
+let greetTimer = null;
+
+function sapaanWaktu(date) {
+    const h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', hourCycle: 'h23' }).format(date));
+    if (h >= 4 && h < 11) return 'Pagi';
+    if (h >= 11 && h < 15) return 'Siang';
+    if (h >= 15 && h < 18) return 'Sore';
+    return 'Malam';
+}
+
+/** "Satrio Vianka Manaman, S.Kom." → "Satrio"; gelar depan (H., Hj., Drs., …) dilewati. */
+function namaPanggilan(nama) {
+    const kata = String(nama || '').split(',')[0].trim().split(/\s+/).filter(Boolean);
+    while (kata.length > 1 && /^(h|hj|drs|dra|dr|ir|prof)\.?$/i.test(kata[0])) kata.shift();
+    const k = kata[0] || 'Admin';
+    return k.charAt(0).toUpperCase() + k.slice(1);
+}
+
+function drawGreeting() {
+    const el = document.getElementById('adminGreet');
+    if (!el || !greetName) return;
+    el.innerHTML = '';
+    const a = document.createElement('span');
+    a.textContent = `Selamat ${sapaanWaktu(new Date(Date.now() + clockOffset))},`;
+    const b = document.createElement('b');
+    b.textContent = `${greetName}.`;
+    el.append(a, b);
+    el.hidden = false;
+}
+
+async function loadAdminGreeting() {
+    try {
+        const r = await fetch('/favicon.ico', { method: 'HEAD', cache: 'no-store' });
+        const d = Date.parse(r.headers.get('date') || '');
+        if (!Number.isNaN(d)) clockOffset = d - Date.now();
+    } catch { /* pakai jam perangkat */ }
+    try {
+        const { data, error } = await supabaseClient.rpc('get_admin_name');
+        if (error) throw error;
+        greetName = namaPanggilan(data);
+    } catch {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        greetName = namaPanggilan(String(user?.email || '').split('@')[0]);
+    }
+    drawGreeting();
+    clearInterval(greetTimer);
+    greetTimer = setInterval(drawGreeting, 60000);
 }
 
 async function logout() {
