@@ -27,20 +27,27 @@
         }
         .login-decor {
             flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: linear-gradient(135deg, #1a1a2e 0%, #2d1f3d 50%, #c0392b 100%);
+            background: linear-gradient(135deg, #15152b 0%, #2d1f3d 44%, #7b2d26 78%, #c0392b 100%);
             color: white; padding: 3rem; position: relative; overflow: hidden;
         }
         .login-decor::before {
             content: ''; position: absolute; inset: 0;
             background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
         }
-        .login-decor-content { position: relative; z-index: 1; text-align: center; max-width: 400px; }
+        .login-decor-content { position: relative; z-index: 1; text-align: left; max-width: 430px; }
         .login-decor-emoji { font-size: 4rem; margin-bottom: 1.5rem; display: block; }
-        .login-decor h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
-        .login-decor p { opacity: 0.8; font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }
-        .login-features { display: flex; flex-direction: column; gap: 0.75rem; text-align: left; }
-        .login-features span { display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem; opacity: 0.85; }
-        .login-features span::before { content: '✓'; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: rgba(255,255,255,0.15); border-radius: 50%; font-size: 0.7rem; flex-shrink: 0; }
+        .login-eyebrow { display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.6; margin-bottom: 0.45rem; }
+        .login-decor h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.95rem; font-weight: 800; margin-bottom: 0.6rem; line-height: 1.2; }
+        .login-decor p { opacity: 0.78; font-size: 0.98rem; line-height: 1.6; margin-bottom: 1.75rem; }
+        .login-areas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
+        .login-areas span {
+            display: flex; align-items: center; gap: 0.55rem; font-size: 0.84rem; font-weight: 600; line-height: 1.3;
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 10px; padding: 0.6rem 0.7rem;
+        }
+        .login-areas span::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.8); flex-shrink: 0; }
+        .login-decor-note { margin: 1.6rem 0 0; font-size: 0.82rem; line-height: 1.55; opacity: 0.68; }
+        .login-decor-note a { color: #fff; font-weight: 600; }
 
         .login-form-side {
             flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem;
@@ -452,7 +459,7 @@
 
         /* ── Logo ── */
         .brand-logo { width: 40px; height: 40px; object-fit: contain; border-radius: 10px; background: var(--t-surface); padding: 3px; flex-shrink: 0; }
-        .login-decor-logo { width: 96px; height: 96px; object-fit: contain; border-radius: 20px; background: var(--t-surface); padding: 8px; margin-bottom: 1.5rem; }
+        .login-decor-logo { width: 84px; height: 84px; object-fit: contain; border-radius: 18px; background: var(--t-surface); padding: 8px; margin-bottom: 1.6rem; }
 
         /* ── Data Siswa ── */
         .main-area { min-width: 0; } /* tabel lebar tidak boleh melebarkan halaman */
@@ -629,15 +636,20 @@
         <div class="login-decor">
             <div class="login-decor-content">
                 <img class="login-decor-logo" src="https://wwpbghdepykfqgzhyvmh.supabase.co/storage/v1/object/public/photos/logo-baru.png" alt="Logo SDN Kalibaru 05 Pagi" width="96" height="96">
+                <span class="login-eyebrow">Panel Admin</span>
                 <h1>SDN Kalibaru 05 Pagi</h1>
-                <p>Sistem Manajemen Konten Sekolah — kelola informasi, berita, dan galeri sekolah dalam satu dashboard.</p>
-                <div class="login-features">
-                    <span>Kelola data guru dan staf</span>
-                    <span>Publikasi berita dengan AI writer</span>
-                    <span>Upload galeri foto &amp; video</span>
-                    <span>Manajemen ekstrakurikuler</span>
-                    <span>KaliBot AI knowledge base</span>
+                <p>Satu tempat untuk mengurus administrasi harian sekolah — dari absensi siswa sampai isi website.</p>
+                <div class="login-areas">
+                    <span>Absensi &amp; rekap</span>
+                    <span>Data siswa &amp; kelas</span>
+                    <span>Nilai &amp; jadwal pelajaran</span>
+                    <span>Jurnal &amp; catatan siswa</span>
+                    <span>Inventaris &amp; peminjaman</span>
+                    <span>Surat &amp; dokumen</span>
+                    <span>Berita, galeri &amp; ekskul</span>
+                    <span>Akun guru &amp; KaliBot</span>
                 </div>
+                <p class="login-decor-note">Khusus admin dan operator sekolah. Guru mengajar lewat <a href="/guru">Portal Guru</a>.</p>
             </div>
         </div>
         <div class="login-form-side">
