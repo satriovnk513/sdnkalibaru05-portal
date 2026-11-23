@@ -1380,6 +1380,66 @@ begin
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'V Sapaan', 'u', 'Guru biasa tidak bisa memanggil sapaan admin', 'ok', v_r = '42501');
     execute 'reset role';
 
+    -- ======================================================== W. Pindah kelas siswa
+    declare
+        v_enr public.student_enrollments;
+        v_lama uuid;
+    begin
+    select class_id into v_lama from public.student_enrollments where student_id = st1 and end_date is null;
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1; v_r := public.t_try(format('select public.set_student_class(%L, %L)', st1, '3 A'));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'W Pindah', 'u', 'Guru biasa tidak bisa memindahkan kelas siswa', 'ok', v_r = '42501');
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1; v_r := public.t_try(format('select public.set_student_class(%L, %L)', st1, '9 Z'));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'W Pindah', 'u', 'Kelas yang tidak ada di tahun ajaran aktif ditolak', 'ok', v_r = '22023');
+
+    v_j := public.set_student_class(st1, '3 A');
+    select * into v_enr from public.student_enrollments where student_id = st1 and end_date is null;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'W Pindah', 'u', 'Keanggotaan rombel pindah ke kelas baru mulai hari ini',
+        'ok', (v_j ->> 'pindah')::boolean and v_enr.class_id = c3a and v_enr.start_date = public.jakarta_today());
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'W Pindah', 'u', 'Keanggotaan lama ditutup kemarin, riwayat absensi tetap di kelas lama',
+        'ok', exists (select 1 from public.student_enrollments where student_id = st1 and class_id = v_lama and end_date = public.jakarta_today() - 1));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'W Pindah', 'u', 'Label kelas dan kelas sebelumnya di data siswa ikut diperbarui',
+        'ok', (select payload ->> 'kelas' from public.student_records where id = st1) = '3 A'
+          and (select payload ->> 'kelas_lama' from public.student_records where id = st1) = '1 A');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'W Pindah', 'u', 'Hanya satu keanggotaan terbuka per siswa',
+        'ok', (select count(*) from public.student_enrollments where student_id = st1 and end_date is null) = 1);
+
+    v_j := public.set_student_class(st1, '3 A');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'W Pindah', 'u', 'Memilih kelas yang sama tidak membuat keanggotaan ganda',
+        'ok', not (v_j ->> 'pindah')::boolean and (select count(*) from public.student_enrollments where student_id = st1) = 2);
+
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'W Pindah', 'u', 'Pindah pada hari yang sama tidak melanggar aturan tanggal',
+        'ok', (public.set_student_class(st1, '4 A') ->> 'pindah')::boolean
+          and (select count(*) from public.student_enrollments where student_id = st1 and end_date is null) = 1);
+
+    v_j := public.set_student_class(st1, null);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'W Pindah', 'u', 'Kelas dikosongkan: siswa keluar dari rombel, label kelas dihapus',
+        'ok', (select count(*) from public.student_enrollments where student_id = st1 and end_date is null) = 0
+          and not ((select payload from public.student_records where id = st1) ? 'kelas'));
+
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'W Pindah', 'u', 'Setiap pemindahan tercatat di log admin',
+        'ok', jsonb_array_length(public.get_admin_audit('siswa_kelas')) = 3);
+
+    perform public.set_student_class(st1, '1 A');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'W Pindah', 'u', 'Daftar selisih label kelas vs rombel kosong setelah dirapikan',
+        'ok', public.get_class_mismatch() = '[]'::jsonb);
+    execute 'reset role';
+    end;
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end
