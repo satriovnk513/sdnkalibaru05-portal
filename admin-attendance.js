@@ -13,9 +13,15 @@
     const $ = (id) => document.getElementById(id);
     const loaded = { accounts: false, attendance: false };
 
+    // getSession() bisa kosong saat penyegaran token berebut dengan tab lain;
+    // sesinya masih hidup, jadi dicoba sekali lagi sebelum dianggap habis.
     async function token() {
         const { data: { session } } = await sb.auth.getSession();
-        return session?.access_token || '';
+        if (session?.access_token) return session.access_token;
+        try {
+            const { data } = await sb.auth.refreshSession();
+            return data?.session?.access_token || '';
+        } catch { return ''; }
     }
 
     async function api(method, body) {

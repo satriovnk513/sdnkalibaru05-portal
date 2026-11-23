@@ -895,6 +895,9 @@
 
     const auth = {
         async getSession() { return { data: { session: store.session }, error: null }; },
+        // Tiruan rebutan penyegaran token antar tab: getSession sekali mengembalikan
+        // kosong, refreshSession memulihkannya (lihat authToken di guru.js).
+        async refreshSession() { F.refreshed = (F.refreshed || 0) + 1; return { data: { session: store.session }, error: null }; },
         async getUser() { return { data: { user: store.session?.user || null }, error: null }; },
         async setSession({ access_token }) {
             const peran = access_token === 'at-admin' ? 'admin' : access_token === 'at-orphan' ? 'orphan' : 'wali';

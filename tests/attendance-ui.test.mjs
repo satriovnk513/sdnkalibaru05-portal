@@ -569,9 +569,22 @@ async function runUi() {
         await page.click('#gPinBtn');
         await page.waitForFunction(() => /Password saat ini salah/.test(document.getElementById('attToastHost')?.textContent || ''));
         check(true, 'buat PIN dengan password salah ditolak');
+        // Tab lain menyegarkan token lebih dulu: getSession sekali kosong, tapi sesinya
+        // masih hidup. Dulu ini memunculkan "Sesi habis" padahal PIN masih bisa dibuat.
+        await page.evaluate(() => {
+            const a = window.supabaseClient.auth;
+            const asli = a.getSession.bind(a);
+            let sekali = true;
+            a.getSession = async () => (sekali ? ((sekali = false), { data: { session: null }, error: null }) : asli());
+        });
         await page.fill('#gPinPw', 'benar123');
         await page.click('#gPinBtn');
         await page.waitForFunction(() => /Sudah dibuat/.test(document.getElementById('gPinCard')?.textContent || ''));
+        check(await page.evaluate(() => window.__fake.refreshed > 0)
+            && !/Sesi habis/.test(await page.textContent('#attToastHost')),
+            'PIN tetap tersimpan saat token sedang disegarkan tab lain, tidak bilang "Sesi habis"');
+        check(apiCalls.filter((c) => c.api === 'pin').every((c) => /^Bearer .+/.test(c.auth || '')),
+            'setiap panggilan PIN membawa token, tidak pernah Bearer kosong');
         check(apiCalls.some((c) => c.api === 'pin' && c.pin === '483920' && /^Bearer /.test(c.auth || '')), 'PIN disimpan lewat API dengan token guru');
         check(/Ganti PIN/.test(await page.textContent('#gPinBtn')), 'setelah tersimpan tombol berubah jadi Ganti PIN');
         await shot(page, 'guru-08-akun-360.png');
