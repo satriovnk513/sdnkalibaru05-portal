@@ -70,6 +70,69 @@
         { id: 'lain', title: 'Keterangan Lain', prefixes: ['lain_'], extra: ['keterangan', 'status_daftar'] },
     ];
 
+
+    // ------------------------------------------------------------------ pilihan tetap
+    // Isian yang nilainya itu-itu saja dibuat dropdown supaya seragam dan tidak salah ketik.
+    // Nilai lama yang tidak ada di daftar tetap dipertahankan (lihat admin-students.js).
+    const JK = ['Laki-laki', 'Perempuan'];
+    const AGAMA = ['Islam', 'Kristen', 'Katholik', 'Hindu', 'Budha', 'Konghucu', 'Kepercayaan Kpd Tuhan YME', 'Lainnya'];
+    const PENDIDIKAN = ['Tidak sekolah', 'PAUD', 'SD / sederajat', 'SMP / sederajat', 'SMA / sederajat',
+        'D1', 'D2', 'D3', 'D4', 'S1', 'S2', 'S3', 'Sp-1', 'Sp-2', 'Lainnya'];
+    const PEKERJAAN = ['Tidak bekerja', 'Nelayan', 'Petani', 'Peternak', 'PNS/TNI/Polri', 'Karyawan Swasta',
+        'Pegawai Swasta', 'Pedagang Kecil', 'Pedagang Besar', 'Wiraswasta', 'Wirausaha', 'Buruh', 'Pensiunan',
+        'Ibu Rumah Tangga', 'Pelajar/Mahasiswa', 'Sudah Meninggal', 'Lainnya'];
+    const PENGHASILAN = ['Tidak Berpenghasilan', '< Rp1.000.000', 'Rp1.000.001 - Rp3.000.000',
+        'Rp3.000.001 - Rp5.000.000', 'Rp5.000.001 - Rp20.000.000', '> Rp20.000.000'];
+    const VALIDITAS = ['Valid', 'Tidak Valid', 'Belum diverifikasi'];
+    const YA_TIDAK = ['Ya', 'Tidak'];
+    const PROVINSI = ['ACEH', 'SUMATERA UTARA', 'SUMATERA BARAT', 'RIAU', 'JAMBI', 'SUMATERA SELATAN', 'BENGKULU',
+        'LAMPUNG', 'KEP. BANGKA BELITUNG', 'KEP. RIAU', 'DKI JAKARTA', 'JAWA BARAT', 'JAWA TENGAH', 'DI YOGYAKARTA',
+        'JAWA TIMUR', 'BANTEN', 'BALI', 'NUSA TENGGARA BARAT', 'NUSA TENGGARA TIMUR', 'KALIMANTAN BARAT',
+        'KALIMANTAN TENGAH', 'KALIMANTAN SELATAN', 'KALIMANTAN TIMUR', 'KALIMANTAN UTARA', 'SULAWESI UTARA',
+        'SULAWESI TENGAH', 'SULAWESI SELATAN', 'SULAWESI TENGGARA', 'GORONTALO', 'SULAWESI BARAT', 'MALUKU',
+        'MALUKU UTARA', 'PAPUA', 'PAPUA BARAT', 'PAPUA SELATAN', 'PAPUA TENGAH', 'PAPUA PEGUNUNGAN', 'PAPUA BARAT DAYA'];
+
+    // Berlaku untuk semua grup: ayah_, ibu_, wali_, kontak_, siswa_.
+    const BY_SUFFIX = {
+        jenis_kelamin_nama: JK, agama_nama: AGAMA, pendidikan_nama: PENDIDIKAN, pekerjaan_nama: PEKERJAAN,
+        penghasilan: PENGHASILAN, validitas: VALIDITAS, provinsi_nama: PROVINSI,
+    };
+    const BY_KEY = {
+        status_dukcapil: ['Terverifikasi', 'Belum diverifikasi', 'Tidak Valid'],
+        siswa_agama: AGAMA,
+        siswa_jenis_tinggal: ['Bersama orang tua', 'Wali', 'Kos', 'Asrama', 'Panti asuhan', 'Pesantren', 'Lainnya'],
+        siswa_alat_transportasi: ['Jalan kaki', 'Sepeda', 'Sepeda motor', 'Mobil/bus pribadi',
+            'Angkutan umum/bus/pete-pete', 'Jemputan sekolah', 'Kereta api', 'Ojek',
+            'Andong/bendi/sado/dokar/delman/becak', 'Perahu penyeberangan/rakit/getek', 'Lainnya'],
+        wali_tipe_alamat_nama: ['Alamat Sesuai KK', 'Alamat Rumah', 'Alamat Kantor', 'Alamat Kost', 'Lainnya'],
+        wali_status_tempat_tinggal_nama: ['Milik Pribadi', 'Bukan Milik Pribadi'],
+        wali_status_pernikahan_nama: ['Lajang', 'Menikah', 'Janda/Duda'],
+        wali_jabatan_golongan_nama: ['Tetap', 'Kontrak', 'Honorer', 'Tidak Bekerja', 'Lainnya'],
+        kontak_hubungan_nama: ['Orang Tua Kandung/Tiri/Angkat', 'Anak Kandung/Tiri/Angkat',
+            'Saudara Kandung/Tiri/Angkat', 'Suami/Istri', 'Kakek/Nenek', 'Paman/Bibi', 'Keponakan',
+            'Ipar dari Istri/Suami', 'Lainnya'],
+        kontak_kelengkapan: ['Lengkap', 'Tidak Lengkap', 'Tidak Valid', 'Belum diverifikasi'],
+        anggota_1_hubungan: ['Ayah', 'Ibu', 'Kakak', 'Adik', 'Kakek', 'Nenek', 'Paman', 'Bibi', 'Wali', 'Lainnya'],
+        lain_penerima_kps: YA_TIDAK, lain_penerima_kip: YA_TIDAK, lain_usulan_pip: YA_TIDAK,
+        lain_alasan_pip: ['Pemegang PKH/KPS/KKS', 'Siswa Miskin/Rentan Miskin', 'Yatim Piatu/Panti Asuhan/Panti Sosial',
+            'Korban Musibah/Bencana Alam', 'Kelainan Fisik/Difabel', 'Dampak PHK/Pekerja Migran', 'Menolak', 'Lainnya'],
+        lain_kebutuhan_khusus: ['Tidak ada', 'A - Tuna Netra', 'B - Tuna Rungu', 'C - Tuna Grahita Ringan',
+            'C1 - Tuna Grahita Sedang', 'D - Tuna Daksa Ringan', 'D1 - Tuna Daksa Sedang', 'E - Tuna Laras',
+            'F - Tuna Wicara', 'H - Hiper Aktif', 'I - Cerdas Istimewa', 'J - Bakat Istimewa', 'K - Kesulitan Belajar',
+            'N - Narkoba', 'O - Indigo', 'P - Down Syndrome', 'Q - Autis'],
+        lain_status_lapor_diri: ['Lapor Diri', 'Belum Lapor Diri'],
+        lain_status_pendaftaran: ['Valid', 'Tidak Valid', 'Belum diverifikasi'],
+    };
+
+    /** Daftar pilihan tetap untuk sebuah field, atau null kalau isiannya bebas. */
+    function optionsOf(key) {
+        if (BY_KEY[key]) return BY_KEY[key];
+        for (const suffix of Object.keys(BY_SUFFIX)) {
+            if (key === suffix || key.endsWith(`_${suffix}`)) return BY_SUFFIX[suffix];
+        }
+        return null;
+    }
+
     function groupOf(key) {
         for (const g of GROUPS) if (g.extra && g.extra.includes(key)) return g.id;
         for (const g of GROUPS) if (g.prefixes.some((p) => key.startsWith(p))) return g.id;
@@ -83,5 +146,5 @@
         return rest.split('_').filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
 
-    window.StudentFields = Object.freeze({ FIELD_ORDER, GROUPS, groupOf, labelOf });
+    window.StudentFields = Object.freeze({ FIELD_ORDER, GROUPS, groupOf, labelOf, optionsOf });
 })();

@@ -28,6 +28,7 @@
         total: 0, rows: [], loaded: false, reqId: 0, summary: null,
     };
     let debounceTimer = null;
+    let kelasAktif = [];   // nama rombel tahun ajaran aktif, untuk dropdown Kelas
 
     const $ = (id) => document.getElementById(id);
     const el = (tag, cls, text) => {
@@ -107,6 +108,7 @@
             (s.daftar_kelas || []).forEach((k) => { const o = el('option', null, `Kelas ${k}`); o.value = k; sel.appendChild(o); });
             if (state.kelas) sel.value = state.kelas;
         }
+        kelasAktif = (s.daftar_kelas || []).slice();
         const dl = $('stuKelasList');
         if (dl) {
             dl.replaceChildren();
@@ -526,13 +528,24 @@
         label.htmlFor = id;
         if (REQUIRED.includes(k)) label.appendChild(el('span', 'stu-req', ' *'));
         let input;
-        if (k === 'status_daftar') {
+        const pilihan = k === 'status_daftar' ? [STATUS_LISTED, STATUS_REVIEW]
+            : k === 'kelas' ? kelasAktif
+                : F.optionsOf(k);
+        if (pilihan && pilihan.length) {
             input = el('select', 'stu-input');
-            [STATUS_LISTED, STATUS_REVIEW].forEach((v) => { const o = el('option', null, v); o.value = v; input.appendChild(o); });
-            if (value && ![STATUS_LISTED, STATUS_REVIEW].includes(value)) {
-                const o = el('option', null, value); o.value = value; input.appendChild(o);
+            const kosong = el('option', null, k === 'status_daftar' ? '' : '— kosongkan —');
+            kosong.value = '';
+            input.appendChild(kosong);
+            pilihan.forEach((v) => { const o = el('option', null, k === 'kelas' ? `Kelas ${v}` : v); o.value = v; input.appendChild(o); });
+            const now = rawString(value).trim();
+            if (now && !pilihan.includes(now)) {
+                // nilai lama di luar daftar baku: tetap dipertahankan supaya tidak berubah diam-diam
+                const grp = el('optgroup');
+                grp.label = 'Nilai saat ini (di luar daftar)';
+                const o = el('option', null, now); o.value = now; grp.appendChild(o);
+                input.appendChild(grp);
             }
-            input.value = value || STATUS_LISTED;
+            input.value = now || (k === 'status_daftar' ? STATUS_LISTED : '');
         } else {
             const long = /alamat|catatan|keterangan|alasan/.test(k);
             input = el(long ? 'textarea' : 'input', 'stu-input');
@@ -541,7 +554,6 @@
             input.value = rawString(value);
             input.maxLength = 1000;
             input.autocomplete = 'off';
-            if (k === 'kelas') input.setAttribute('list', 'stuKelasList');
             if (NIK16.test(k) || /nisn|nipd|no_hp|no_telp|no_telepon|kode_pos|(^|_)r[tw]$/.test(k)) input.inputMode = 'numeric';
             if (/tanggal_lahir$/.test(k)) input.placeholder = 'TTTT-BB-HH, mis. 2015-07-21';
         }
@@ -697,8 +709,27 @@
             }
             const savedId = form.id || (res.data && res.data[0] && res.data[0].id);
             const wasNew = !form.id;
+            // Label "Kelas" saja tidak memindahkan keanggotaan rombel: absensi, nilai, jadwal
+            // dan piket ikut keanggotaan. RPC ini menutup rombel lama dan membuka yang baru.
+            let pindah = null;
+            if (savedId && (wasNew || changed.includes('kelas'))) {
+                const { data, error } = await supabaseClient.rpc('set_student_class',
+                    { p_student_id: savedId, p_kelas: rawString(payload.kelas).trim() || null });
+                if (error) {
+                    logError('memindahkan kelas', error);
+                    errBox.textContent = `Data tersimpan, tapi siswa belum dipindahkan ke rombel barunya: ${friendlyError(error)} Absensi masih memakai kelas lama — simpan ulang untuk mencoba lagi.`;
+                    errBox.hidden = false;
+                    showFormTab('siswa');
+                    return;
+                }
+                pindah = data && data.pindah ? data : null;
+            }
             closeForm();
-            if (typeof showToast === 'function') showToast(wasNew ? 'Siswa baru berhasil ditambahkan.' : 'Perubahan data siswa tersimpan.', 'success');
+            if (typeof showToast === 'function') {
+                showToast(wasNew ? 'Siswa baru berhasil ditambahkan.'
+                    : pindah ? `Perubahan tersimpan. Siswa dipindahkan dari ${pindah.dari || 'tanpa kelas'} ke ${pindah.ke || 'tanpa kelas'} mulai hari ini.`
+                        : 'Perubahan data siswa tersimpan.', 'success');
+            }
             await refreshAfterWrite(savedId);
         } finally {
             btn.disabled = false;

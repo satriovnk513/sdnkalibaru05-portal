@@ -53,7 +53,9 @@ const { rows } = validateAndBuild(doc);
 const DB = rows.map((r, i) => ({ id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`, ...r,
     archived_at: null, updated_at: '2026-10-22T03:00:00.000001+00:00' }));
 const CHANGES = [];   // riwayat tiruan (meniru trigger audit)
-const writes = [];    // body PATCH/POST yang dikirim UI
+const writes = [];           // body PATCH/POST yang dikirim UI
+const moves = [];            // pemanggilan RPC set_student_class
+const ENROLL = new Map();    // rombel aktif tiruan (student_enrollments)
 const PII = [...new Set(DB.flatMap((r) => [r.nik, r.nama_siswa, r.nama_ibu_kandung]).filter(Boolean))];
 
 // ---------- static server
@@ -106,7 +108,15 @@ async function supa(route) {
         const user = { id: '11111111-1111-4111-8111-111111111111', aud: 'authenticated', role: 'authenticated', email: 'admin@fiktif.test' };
         return json({ access_token: `${b64({ alg: 'HS256' })}.${b64({ sub: user.id, role: 'authenticated', exp: now + 3600 })}.x`, token_type: 'bearer', expires_in: 3600, expires_at: now + 3600, refresh_token: 'r', user });
     }
-    if (p.startsWith('/auth/v1/')) return route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*' } });
+    if (p.startsWith('/auth/v1/')) {
+        // supabase-js butuh bentuk jawaban yang benar; 204 kosong membuatnya menganggap login gagal.
+        const user = { id: role === 'admin' ? 'u-admin' : 'u-guru', aud: 'authenticated', role: 'authenticated',
+            email: `${role}@fiktif.test`, app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
+        if (p.endsWith('/user')) return json(user);
+        if (p.endsWith('/logout')) return route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*' } });
+        return json({ access_token: 'tok-fiktif', token_type: 'bearer', expires_in: 3600,
+            expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'ref-fiktif', user });
+    }
     const accept = req.headers()['accept'] || '';
     const single = accept.includes('vnd.pgrst.object');
     if (p === '/rest/v1/user_roles') return role === 'admin' ? json(single ? { role: 'admin' } : [{ role: 'admin' }]) : (single ? json({ code: 'PGRST116', message: 'no rows' }, 406) : json([]));
@@ -117,6 +127,25 @@ async function supa(route) {
         const kelas = [...new Set(listed.map((r) => r.kelas))].sort();
         return json([{ total_siswa: active.length, tercantum: listed.length, perlu_verifikasi: active.length - listed.length,
             jumlah_rombel: kelas.length, daftar_kelas: kelas, diarsipkan: DB.length - active.length }]);
+    }
+    if (p === '/rest/v1/rpc/set_student_class') {
+        if (role !== 'admin') return json({ code: '42501', message: 'permission denied' }, 403);
+        const b = JSON.parse(req.postData() || '{}');
+        const row = DB.find((r) => r.id === b.p_student_id);
+        const kelas = (b.p_kelas || '').trim() || null;
+        const daftar = [...new Set(DB.filter((r) => !r.archived_at && r.kelas).map((r) => r.kelas))];
+        if (kelas && !daftar.includes(kelas)) return json({ code: '22023', message: `Kelas "${kelas}" tidak ada di tahun ajaran aktif.` }, 400);
+        moves.push({ id: b.p_student_id, kelas });
+        const dari = ENROLL.get(b.p_student_id) || null;
+        ENROLL.set(b.p_student_id, kelas);
+        if (row) {
+            const next = { ...row.payload };
+            if (dari) next.kelas_lama = dari;
+            if (kelas) next.kelas = kelas; else delete next.kelas;
+            row.payload = next;
+            row.kelas = kelas;
+        }
+        return json({ pindah: dari !== kelas, dari, ke: kelas, tanggal: '2026-11-23' });
     }
     if (p === '/rest/v1/student_record_changes') {
         if (role !== 'admin') return json([]);
@@ -345,6 +374,24 @@ const formTab = (title) => page.click(`#stuFormTabs .stu-tab:has-text("${title}"
 await page.click('#stuAdd');
 await page.waitForSelector('#stuForm.active');
 check((await page.$$eval('#stuFormTabs .stu-tab', (t) => t.length)) === 7, 'tambah: form punya 7 tab kelompok');
+check((await page.$eval('#stuF_kelas', (e) => e.tagName)) === 'SELECT'
+    && (await page.$$eval('#stuF_kelas option', (o) => o.length)) === 18,
+    'form: Kelas jadi dropdown 17 rombel + kosongkan');
+const dd = await page.$$eval('#stuFormBody select.stu-input', (n) => n.map((x) => x.name));
+check(['kelas', 'status_daftar', 'siswa_agama', 'siswa_jenis_kelamin_nama', 'siswa_jenis_tinggal', 'siswa_alat_transportasi', 'status_dukcapil', 'siswa_provinsi_nama'].every((k) => dd.includes(k))
+    && !dd.includes('nama_siswa') && !dd.includes('siswa_alamat'),
+    `form: isian berpilihan tetap jadi dropdown, isian bebas tetap teks (${dd.length} dropdown)`);
+for (const [tab, keys] of [['Ayah', ['ayah_pendidikan_nama', 'ayah_pekerjaan_nama', 'ayah_penghasilan']],
+    ['Ibu', ['ibu_pendidikan_nama', 'ibu_pekerjaan_nama', 'ibu_penghasilan']],
+    ['Wali', ['wali_agama_nama', 'wali_status_pernikahan_nama', 'wali_validitas']],
+    ['Kontak Darurat', ['kontak_hubungan_nama', 'kontak_kelengkapan']],
+    ['Anggota Keluarga', ['anggota_1_hubungan', 'anggota_keluarga_validitas']],
+    ['Keterangan Lain', ['lain_penerima_kip', 'lain_usulan_pip', 'lain_kebutuhan_khusus', 'lain_alasan_pip']]]) {
+    await formTab(tab);
+    const got = await page.$$eval('.stu-form-group:not([hidden]) select.stu-input', (n) => n.map((x) => x.name));
+    check(keys.every((k) => got.includes(k)), `form ${tab}: dropdown ${keys.filter((k) => !got.includes(k)).join(',') || 'lengkap'}`);
+}
+await formTab('Data Siswa');
 await fill('nik_siswa', '12345');
 await fill('nama_siswa', 'Siswa Fiktif Baru');
 await page.click('#stuFormSave');
@@ -355,7 +402,7 @@ await shot(page, '7-form-tambah-validasi.png');
 
 // Tambah: NIK ganda ditolak server
 await fill('nik_siswa', DB[5].nik);
-await fill('kelas', '1A');
+await page.selectOption('#stuF_kelas', '1A');
 await page.click('#stuFormSave');
 await page.waitForFunction(() => /sudah terdaftar/.test(document.getElementById('stuFormError').textContent));
 check(DB.length === 559, 'tambah: NIK ganda ditolak dengan pesan jelas, data tidak bertambah');
@@ -377,6 +424,8 @@ check(postBody && Object.keys(postBody.body).join() === 'payload' && Object.keys
     && Object.values(postBody.body.payload).every((v) => typeof v === 'string'),
     'tambah: hanya payload terisi yang dikirim (tanpa key kosong, semua teks)');
 check(/berhasil ditambahkan/.test(await toastText()), 'tambah: notifikasi berhasil');
+check(moves.length === 1 && moves[0].id === created.id && moves[0].kelas === '1A',
+    'tambah: siswa baru langsung didaftarkan ke rombel (bukan hanya label kelas)');
 
 // Ubah dari baris tabel
 const target2 = DB.find((r) => r.status_daftar === 'Tercantum di daftar kelas' && r.payload.siswa_nisn && typeof r.payload.lain_berat_badan === 'number');
@@ -386,7 +435,7 @@ await page.click('#stuTableBody tr:first-child .stu-btn-edit');
 await page.waitForSelector('#stuForm.active');
 check((await page.inputValue('#stuF_nik_siswa')) === target2.nik && (await page.inputValue('#stuF_siswa_nisn')) === target2.nisn,
     'ubah: form terisi nilai tersimpan (NIK/NISN utuh)');
-await fill('kelas', '6C');
+await page.selectOption('#stuF_kelas', '6C');
 await formTab('Keterangan Lain');
 await fill('lain_berat_badan', '31');
 await formTab('Data Siswa');
@@ -404,15 +453,19 @@ check(patch.method === 'PATCH' && changedKeys.sort().join() === 'kelas,lain_bera
     && Object.keys(patch.body.payload).length === Object.keys(before).length,
     `ubah: hanya field yang diubah berbeda, key lain dipertahankan (${changedKeys.join(',')})`);
 check(patch.body.payload.lain_berat_badan === 31 && target2.kelas === '6C', 'ubah: tipe angka dipertahankan, kolom kelas ikut berubah');
+check(moves.length === 2 && moves[1].id === target2.id && moves[1].kelas === '6C' && ENROLL.get(target2.id) === '6C',
+    'pindah kelas: keanggotaan rombel ikut dipindahkan, bukan hanya labelnya');
+check(/dipindahkan dari .* ke 6C/.test(await toastText()), 'pindah kelas: notifikasi menyebut kelas asal dan tujuan');
 
 // Ubah: konflik (data diubah admin lain)
 await page.click('#stuTableBody tr:first-child .stu-btn-edit');
 await page.waitForSelector('#stuForm.active');
 target2.updated_at = '2026-10-23T00:00:00.000001+00:00';
-await fill('kelas', '6B');
+await page.selectOption('#stuF_kelas', '6B');
 await page.click('#stuFormSave');
 await page.waitForFunction(() => /baru saja diubah/.test(document.getElementById('stuFormError').textContent));
 check(target2.kelas === '6C', 'ubah: konflik versi terdeteksi, perubahan tidak menimpa');
+check(moves.length === 2, 'ubah: saat konflik versi, rombel tidak ikut dipindahkan');
 await page.click('#stuFormCancel');
 
 // Detail: riwayat, arsip, pulihkan
