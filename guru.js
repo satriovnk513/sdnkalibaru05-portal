@@ -132,12 +132,26 @@
         }
     });
 
+    /**
+     * Token untuk API sendiri (/api/...). getSession() bisa mengembalikan kosong
+     * kalau penyegaran token berebut dengan tab lain yang juga terbuka; di situ
+     * sesinya sebenarnya masih hidup, jadi dicoba sekali lagi lewat refreshSession
+     * sebelum menyerah — tanpa ini guru melihat "Sesi habis" padahal belum habis.
+     */
+    async function authToken() {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session?.access_token) return session.access_token;
+        try {
+            const { data } = await sb.auth.refreshSession();
+            return data?.session?.access_token || '';
+        } catch { return ''; }
+    }
+
     // ------------------------------------------------------------------ ganti password
     async function changePassword(password) {
-        const { data: { session } } = await sb.auth.getSession();
         const res = await fetch('/api/guru-change-password', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await authToken()}` },
             body: JSON.stringify({ password }),
         });
         const body = await res.json().catch(() => ({}));
@@ -1509,10 +1523,9 @@
             btn.disabled = true;
             btn.textContent = 'Menyimpan…';
             try {
-                const { data: { session } } = await sb.auth.getSession();
                 const res = await fetch('/api/guru-pin', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await authToken()}` },
                     body: JSON.stringify({ password, pin }),
                 });
                 const body = await res.json().catch(() => ({}));
