@@ -609,6 +609,17 @@
             section.appendChild(grid);
             body.appendChild(section);
         });
+        // Status Daftar Kelas mengikuti Kelas: punya kelas = tercantum di daftar kelas.
+        // Database juga menjaga ini, tapi di sini admin langsung melihat perubahannya.
+        const fKelas = $('stuF_kelas');
+        const fStatus = $('stuF_status_daftar');
+        if (fKelas && fStatus) {
+            fStatus.disabled = true;
+            fStatus.title = 'Mengikuti pilihan Kelas';
+            const ikutKelas = () => { fStatus.value = fKelas.value ? STATUS_LISTED : STATUS_REVIEW; };
+            fKelas.addEventListener('change', ikutKelas);
+            ikutKelas();
+        }
         const modal = $('stuForm');
         modal.classList.add('active');
         modal.setAttribute('aria-hidden', 'false');

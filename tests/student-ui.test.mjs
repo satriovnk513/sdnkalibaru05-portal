@@ -374,6 +374,9 @@ const formTab = (title) => page.click(`#stuFormTabs .stu-tab:has-text("${title}"
 await page.click('#stuAdd');
 await page.waitForSelector('#stuForm.active');
 check((await page.$$eval('#stuFormTabs .stu-tab', (t) => t.length)) === 7, 'tambah: form punya 7 tab kelompok');
+check(await page.$eval('#stuF_status_daftar', (e) => e.disabled)
+    && await page.$eval('#stuF_status_daftar', (e) => e.value) === 'Perlu verifikasi lebih lanjut',
+    'form: status daftar terkunci dan ikut kelas (belum ada kelas)');
 check((await page.$eval('#stuF_kelas', (e) => e.tagName)) === 'SELECT'
     && (await page.$$eval('#stuF_kelas option', (o) => o.length)) === 18,
     'form: Kelas jadi dropdown 17 rombel + kosongkan');
@@ -403,6 +406,8 @@ await shot(page, '7-form-tambah-validasi.png');
 // Tambah: NIK ganda ditolak server
 await fill('nik_siswa', DB[5].nik);
 await page.selectOption('#stuF_kelas', '1A');
+check(await page.$eval('#stuF_status_daftar', (e) => e.value) === 'Tercantum di daftar kelas',
+    'form: memilih kelas langsung mengubah status jadi tercantum di daftar kelas');
 await page.click('#stuFormSave');
 await page.waitForFunction(() => /sudah terdaftar/.test(document.getElementById('stuFormError').textContent));
 check(DB.length === 559, 'tambah: NIK ganda ditolak dengan pesan jelas, data tidak bertambah');
