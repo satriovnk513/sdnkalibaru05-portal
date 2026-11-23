@@ -1461,6 +1461,18 @@ begin
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'X Sinkron', 'u', 'Selisih label vs rombel terbaca di get_class_mismatch',
         'ok', jsonb_array_length(public.get_class_mismatch()) >= 0);
     update public.student_records set payload = payload || jsonb_build_object('kelas', '1 A') where id = st2;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'X Sinkron', 'u', 'Siswa yang punya kelas otomatis berstatus tercantum di daftar kelas',
+        'ok', (select payload ->> 'status_daftar' from public.student_records where id = st2) = 'Tercantum di daftar kelas');
+    update public.student_records set payload = payload - 'kelas' where id = st2;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'X Sinkron', 'u', 'Kelas dikosongkan: status kembali perlu verifikasi dan rombel dilepas',
+        'ok', (select payload ->> 'status_daftar' from public.student_records where id = st2) = 'Perlu verifikasi lebih lanjut'
+          and not exists (select 1 from public.student_enrollments where student_id = st2 and end_date is null));
+    update public.student_records set payload = payload || jsonb_build_object('kelas', '1 A') where id = st2;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'X Sinkron', 'u', 'Kolom turunan status_daftar ikut diperbarui',
+        'ok', (select status_daftar from public.student_records where id = st2) = 'Tercantum di daftar kelas');
     execute 'reset role';
     end;
 

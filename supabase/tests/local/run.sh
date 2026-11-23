@@ -72,6 +72,8 @@ run "Perapian data siswa"           "$ROOT/supabase/migrations/20261126000001_st
 run "Perapian data siswa (ulang)"   "$ROOT/supabase/migrations/20261126000001_student_data_cleanup.sql"
 run "Sinkron rombel"                "$ROOT/supabase/migrations/20261127000001_enrollment_sync_trigger.sql"
 run "Sinkron rombel (ulang)"        "$ROOT/supabase/migrations/20261127000001_enrollment_sync_trigger.sql"
+run "Status ikut kelas"             "$ROOT/supabase/migrations/20261128000001_status_from_class.sql"
+run "Status ikut kelas (ulang)"     "$ROOT/supabase/migrations/20261128000001_status_from_class.sql"
 
 echo "→ Tes Absensi"
 {
