@@ -1155,8 +1155,8 @@ begin
     select '99000000000006' || lpad(g::text, 2, '0'), 'Piket ' || g, '96' || lpad(g::text, 2, '0'), '00960000' || lpad(g::text, 2, '0'), '6 A', 'Tercantum di daftar kelas',
            jsonb_build_object('nama_siswa', 'Piket ' || g, 'kelas', '6 A', 'siswa_jenis_kelamin_nama', case when g <= 7 then 'Laki-laki' else 'Perempuan' end)
     from generate_series(1, 12) g;
-    insert into public.student_enrollments (student_id, class_id, start_date)
-    select r.id, c6a, (select y.start_date from public.academic_years y where y.is_active) from public.student_records r where r.nama_siswa like 'Piket %';
+    update public.student_enrollments e set start_date = (select y.start_date from public.academic_years y where y.is_active)
+    from public.student_records r where r.id = e.student_id and r.nama_siswa like 'Piket %' and e.end_date is null;
 
     perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
     execute 'set local role authenticated';
@@ -1437,6 +1437,30 @@ begin
     v_no := v_no + 1;
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'W Pindah', 'u', 'Daftar selisih label kelas vs rombel kosong setelah dirapikan',
         'ok', public.get_class_mismatch() = '[]'::jsonb);
+    execute 'reset role';
+    end;
+
+    -- ======================================================== X. Label kelas selalu menarik rombel
+    declare
+        v_kini uuid;
+    begin
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    update public.student_records set payload = payload || jsonb_build_object('kelas', '3 A') where id = st2;
+    select class_id into v_kini from public.student_enrollments where student_id = st2 and end_date is null;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'X Sinkron', 'u', 'Mengubah label kelas saja tetap memindahkan keanggotaan rombel', 'ok', v_kini = c3a);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'X Sinkron', 'u', 'Hanya satu keanggotaan terbuka setelah label diubah',
+        'ok', (select count(*) from public.student_enrollments where student_id = st2 and end_date is null) = 1);
+    update public.student_records set payload = payload || jsonb_build_object('kelas', 'Kelas Khayalan') where id = st2;
+    select class_id into v_kini from public.student_enrollments where student_id = st2 and end_date is null;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'X Sinkron', 'u', 'Nama kelas tak dikenal tidak merusak keanggotaan yang ada', 'ok', v_kini = c3a);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'X Sinkron', 'u', 'Selisih label vs rombel terbaca di get_class_mismatch',
+        'ok', jsonb_array_length(public.get_class_mismatch()) >= 0);
+    update public.student_records set payload = payload || jsonb_build_object('kelas', '1 A') where id = st2;
     execute 'reset role';
     end;
 
