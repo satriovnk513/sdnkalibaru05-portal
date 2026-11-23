@@ -68,6 +68,8 @@ run "Migration sapaan admin"        "$ROOT/supabase/migrations/20261124000001_ad
 run "Migration sapaan (ulang)"       "$ROOT/supabase/migrations/20261124000001_admin_greeting.sql"
 run "Migration pindah kelas"        "$ROOT/supabase/migrations/20261125000001_student_class_move.sql"
 run "Migration pindah kelas (ulang)" "$ROOT/supabase/migrations/20261125000001_student_class_move.sql"
+run "Perapian data siswa"           "$ROOT/supabase/migrations/20261126000001_student_data_cleanup.sql"
+run "Perapian data siswa (ulang)"   "$ROOT/supabase/migrations/20261126000001_student_data_cleanup.sql"
 
 echo "→ Tes Absensi"
 {
