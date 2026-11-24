@@ -10,8 +10,8 @@
     const STATUS_LISTED = 'Tercantum di daftar kelas';
     const STATUS_REVIEW = 'Perlu verifikasi lebih lanjut';
     const SCHOOL_YEAR = '2026/2027';
-    const LIST_COLUMNS = 'id,nik,nama_siswa,nipd,nisn,kelas,nama_ibu_kandung,status_daftar,archived_at';
-    const DETAIL_COLUMNS = 'id,nik,nama_siswa,nipd,nisn,kelas,nama_ibu_kandung,status_daftar,status_dukcapil,payload,field_sources,matching_notes,source_names,archived_at,updated_at';
+    const LIST_COLUMNS = 'id,nik,nama_siswa,nipd,nisn,kelas,nama_ibu_kandung,status_daftar,archived_at,exit_reason,exit_date';
+    const DETAIL_COLUMNS = 'id,nik,nama_siswa,nipd,nisn,kelas,nama_ibu_kandung,status_daftar,status_dukcapil,payload,field_sources,matching_notes,source_names,archived_at,exit_reason,exit_date,updated_at';
     const SEARCH_FIELDS = {
         all: ['nama_siswa', 'nik', 'nisn', 'nipd', 'nama_ibu_kandung'],
         nama_siswa: ['nama_siswa'], nik: ['nik'], nisn: ['nisn'], nipd: ['nipd'], nama_ibu_kandung: ['nama_ibu_kandung'],
@@ -137,8 +137,16 @@
         tbody.appendChild(tr);
     }
 
-    function statusBadge(status, archived) {
-        if (archived) return el('span', 'stu-badge stu-badge-archived', 'Diarsipkan');
+    /** "12 Nov 2026" */
+    function tglPendek(iso) {
+        if (!iso) return '';
+        const B = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        const d = new Date(`${String(iso).slice(0, 10)}T00:00:00`);
+        return Number.isNaN(d.getTime()) ? '' : `${d.getDate()} ${B[d.getMonth()]} ${d.getFullYear()}`;
+    }
+
+    function statusBadge(status, archived, alasan) {
+        if (archived) return el('span', 'stu-badge stu-badge-archived', alasan ? `Keluar · ${alasan}` : 'Diarsipkan');
         const review = status !== STATUS_LISTED;
         return el('span', `stu-badge ${review ? 'stu-badge-review' : 'stu-badge-ok'}`, review ? STATUS_REVIEW : 'Tercantum');
     }
@@ -170,7 +178,7 @@
             tr.appendChild(cell('NIK', display(r.nik), 'stu-mono'));
             tr.appendChild(cell('Kelas', isEmpty(r.kelas) ? '—' : r.kelas));
             tr.appendChild(cell('Nama ibu kandung', display(r.nama_ibu_kandung), 'stu-col-ibu'));
-            tr.appendChild(cell('Status', statusBadge(r.status_daftar, r.archived_at), 'stu-col-status'));
+            tr.appendChild(cell('Status', statusBadge(r.status_daftar, r.archived_at, r.exit_reason), 'stu-col-status'));
             const actions = el('div', 'stu-actions');
             const btn = el('button', 'stu-btn stu-btn-view', 'Lihat Detail');
             btn.type = 'button';
@@ -347,9 +355,14 @@
         meta.appendChild(el('span', 'stu-chip', isEmpty(data.kelas) ? 'Kelas —' : `Kelas ${data.kelas}`));
         meta.appendChild(el('span', 'stu-chip', `NISN ${display(data.nisn)}`));
         meta.appendChild(statusBadge(data.status_daftar));
-        if (data.archived_at) meta.appendChild(statusBadge(null, true));
+        if (data.archived_at) meta.appendChild(statusBadge(null, true, data.exit_reason));
         $('stuDetailBanner').hidden = data.status_daftar === STATUS_LISTED;
         $('stuDetailArchived').hidden = !data.archived_at;
+        if (data.archived_at) {
+            const alasan = data.exit_reason ? `Alasan keluar: ${data.exit_reason}` : 'Alasan keluar belum dicatat';
+            const tgl = tglPendek(data.exit_date);
+            $('stuDetailArchived').textContent = `${alasan}${tgl ? ` (${tgl})` : ''}. Siswa ini tidak tampil di daftar aktif dan ringkasan. Pulihkan untuk mengubah datanya.`;
+        }
         const acts = $('stuDetailActions');
         if (data.archived_at) {
             const rb = el('button', 'stu-btn stu-btn-restore', 'Pulihkan');
@@ -754,6 +767,8 @@
         m.classList.remove('active');
         m.setAttribute('aria-hidden', 'true');
         $('stuConfirmYes').onclick = null;
+        $('stuExitReason').onchange = null;
+        $('stuConfirmExit').hidden = true;
     }
 
     function confirmArchive(student, archive) {
@@ -763,12 +778,24 @@
             ? `${display(student.nama_siswa)} akan dihapus dari daftar siswa aktif dan ringkasan. Data disimpan di Arsip (bukan dihapus permanen) dan bisa dipulihkan dari filter "Arsip".`
             : `${display(student.nama_siswa)} akan kembali tampil di daftar siswa aktif.`;
         const yes = $('stuConfirmYes');
+        const kotakAlasan = $('stuConfirmExit');
+        const pilihAlasan = $('stuExitReason');
+        const isiTanggal = $('stuExitDate');
+        kotakAlasan.hidden = !archive;
+        if (archive) {
+            pilihAlasan.value = student.exit_reason || '';
+            isiTanggal.value = (student.exit_date || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })).slice(0, 10);
+            pilihAlasan.onchange = () => { yes.disabled = !pilihAlasan.value; };
+        }
         yes.textContent = archive ? 'Ya, Hapus' : 'Ya, Pulihkan';
         yes.className = archive ? 'stu-btn stu-btn-danger' : 'stu-btn stu-btn-primary';
-        yes.disabled = false;
+        yes.disabled = archive && !pilihAlasan.value;
         yes.onclick = async () => {
             yes.disabled = true;
-            let q = supabaseClient.from('student_records').update({ archived_at: archive ? new Date().toISOString() : null }).eq('id', student.id);
+            const nilai = archive
+                ? { archived_at: new Date().toISOString(), exit_reason: pilihAlasan.value, exit_date: isiTanggal.value || null }
+                : { archived_at: null, exit_reason: null, exit_date: null };
+            let q = supabaseClient.from('student_records').update(nilai).eq('id', student.id);
             q = archive ? q.is('archived_at', null) : q.not('archived_at', 'is', null);
             const { data, error } = await q.select('id');
             closeConfirm();
@@ -783,7 +810,7 @@
         };
         m.classList.add('active');
         m.setAttribute('aria-hidden', 'false');
-        $('stuConfirmNo').focus();
+        (archive ? pilihAlasan : $('stuConfirmNo')).focus();
     }
 
     async function refreshAfterWrite(id) {
