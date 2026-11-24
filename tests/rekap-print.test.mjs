@@ -123,3 +123,20 @@ for f in sys.argv[1:3]:
 test('CRC32 sesuai nilai standar', () => {
     assert.equal(RP.crc32(new TextEncoder().encode('123456789')), 0xcbf43926);
 });
+
+test('logo Excel: nempel kiri judul kop, di tengah tinggi kop, ukuran ikut kop', () => {
+    const png = new Uint8Array(readFileSync(new URL('../logo-cetak.png', import.meta.url)));
+    const rows = [[null, { v: 'JUDUL' }], [null, { v: 'SEKOLAH' }], [], ['No', 'Nama']];
+    const L = RP.kopLogo({ rows, widths: [4, 30], heights: { 1: 18, 2: 18, 3: 6 }, png });
+    const { left, top, width: w, height: h } = L.box;
+    const xText = RP.colPx(L.widths[0]);
+    assert.ok(left + w <= xText - 6 && left + w >= xText - 10, 'jarak ±8px ke judul');
+    const kopH = L.box.kopHeight; assert.equal(L.box.kopRows, 2); assert.equal(kopH, 48);
+    assert.ok(Math.abs(top - (kopH - h) / 2) <= 1, 'tengah vertikal');
+    assert.ok(Math.max(w, h) >= 36 && Math.max(w, h) <= 56, 'ukuran 36–56px');
+    assert.ok(L.widths[0] > 4, 'kolom A dilebarkan supaya logo muat');
+    assert.match(L.drawing, /<xdr:oneCellAnchor><xdr:from><xdr:col>0<\/xdr:col>/);
+    // judul di kolom A → logo tidak boleh menimpa (tetap di margin, teks digeser tidak dipaksa)
+    const L2 = RP.kopLogo({ rows: [[{ v: 'X' }]], widths: [], heights: {}, png });
+    assert.ok(L2.box.left >= 0);
+});

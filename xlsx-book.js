@@ -9,7 +9,7 @@
 //     landscape: true, fitHeight: 0, active: true,
 //     validations: [{ sqref: 'E7:I40', min: 0, max: 100, title, error }],
 //     conditional: [{ sqref: 'E7:I40', formula: 'ISBLANK(E7)', style: { fill: 'FEF3C7' } }],
-//     logo: { png: Uint8Array, px: 44 },
+//     logo: { png: Uint8Array },   // posisi & ukuran dihitung dari kop (RekapPrint.kopLogo)
 //   }] }) → Uint8Array
 //
 // Sel: nilai (string/angka/null) atau { v, f, s }. f = rumus tanpa "=".
@@ -19,7 +19,7 @@
     'use strict';
 
     const RP = typeof module !== 'undefined' && module.exports ? require('./rekap-print.js') : root.RekapPrint;
-    const { zipStore, colName, xmlEsc } = RP;
+    const { zipStore, colName, xmlEsc, kopLogo } = RP;
     const enc = new TextEncoder();
     const utf8 = (s) => enc.encode(s);
 
@@ -112,16 +112,20 @@
         const activeIdx = Math.max(0, sheets.findIndex((s) => s.active));
         const files = [];
         let hasPng = false;
-        sheets.forEach((sh, i) => {
+        sheets.forEach((sh0, i) => {
+            // Logo kop diposisikan sama dengan versi PDF (lihat RekapPrint.kopLogo);
+            // kolom sebelum judul bisa dilebarkan, jadi tata letaknya dihitung dulu.
+            const logo = sh0.logo && sh0.logo.png
+                ? kopLogo({ rows: sh0.rows || [], widths: sh0.widths || [], heights: sh0.heights || {}, png: sh0.logo.png, defaultRowPt: 15 })
+                : null;
+            const sh = logo ? { ...sh0, widths: logo.widths, heights: logo.heights } : sh0;
             files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: utf8(sheetXml(sh, st, i)) });
-            if (sh.logo && sh.logo.png) {
+            if (logo) {
                 hasPng = true;
-                const emu = Math.round((sh.logo.px || 44) * 9525);
                 files.push(
                     { name: `xl/worksheets/_rels/sheet${i + 1}.xml.rels`, data: utf8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${i + 1}.xml"/></Relationships>`) },
-                    { name: `xl/drawings/drawing${i + 1}.xml`, data: utf8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>38100</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>28575</xdr:rowOff></xdr:from><xdr:ext cx="${emu}" cy="${emu}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="2" name="Logo"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu}" cy="${emu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>`) },
+                    { name: `xl/drawings/drawing${i + 1}.xml`, data: utf8(logo.drawing) },
                     { name: `xl/drawings/_rels/drawing${i + 1}.xml.rels`, data: utf8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/logo${i + 1}.png"/></Relationships>`) },
                     { name: `xl/media/logo${i + 1}.png`, data: sh.logo.png },

@@ -394,11 +394,13 @@
     function xlsx(id, d0, o = {}) {
         const d = pilihSebagian(d0, o);
         const siswa = d.siswa || [];
+        // Kop seperti versi cetak: logo di kolom A (dilebarkan otomatis bila perlu),
+        // teks kop mulai kolom B tepat di kanan logo.
         const kop = (judul, lebar) => [
-            [null, null, null, { v: judul, s: 1 }],
-            [null, null, null, { v: `${KOP.namaDaftar} · TAHUN PELAJARAN ${String(d.tahun_ajaran || '').replace('/', ' / ')}`, s: 1 }],
-            [null, null, null, { v: `KELAS : ${romawi(d.kelas)}`, s: 1 }],
-            [null, null, null, { v: `Wali Kelas : ${(d.wali || [])[0]?.nama || ''}` }],
+            [null, { v: judul, s: 1 }],
+            [null, { v: `${KOP.namaDaftar} · TAHUN PELAJARAN ${String(d.tahun_ajaran || '').replace('/', ' / ')}`, s: 1 }],
+            [null, { v: `KELAS : ${romawi(d.kelas)}`, s: 1 }],
+            [null, { v: `Wali Kelas : ${(d.wali || [])[0]?.nama || ''}` }],
             Array(lebar).fill(null),
         ];
         const L = (n) => { let s = ''; let x = n; while (x > 0) { s = String.fromCharCode(65 + ((x - 1) % 26)) + s; x = Math.floor((x - 1) / 26); } return s; };
@@ -408,7 +410,7 @@
             const rows = kop(o.judul || 'DAFTAR NAMA SISWA', lebar);
             rows.push([{ v: 'No', s: 2 }, { v: 'Nama Siswa', s: 2 }, ...cols.map((k) => ({ v: k.label, s: 2 }))]);
             for (const s of siswa) rows.push([{ v: s.no, s: 4 }, { v: s.nama, s: 3 }, ...cols.map((k) => ({ v: String(k.get(s) || ''), s: k.key === 'jk' ? 4 : 3 }))]);
-            return { sheet: 'Daftar Siswa', rows, merges: [1, 2, 3, 4].map((r) => `D${r}:${L(lebar)}${r}`), widths: [5, 34, ...cols.map((k) => k.w)], landscape: lebar > 6 };
+            return { sheet: 'Daftar Siswa', rows, merges: [1, 2, 3, 4].map((r) => `B${r}:${L(lebar)}${r}`), widths: [5, 34, ...cols.map((k) => k.w)], landscape: lebar > 6 };
         }
         if (id === 'blanko') {
             const n = Math.max(1, Math.min(20, Number(o.jumlah) || 10));
@@ -417,7 +419,7 @@
             const rows = kop(o.sub ? `${o.judul || 'DAFTAR NILAI'} — ${o.sub}` : (o.judul || 'DAFTAR NILAI'), lebar);
             rows.push([{ v: 'No', s: 2 }, { v: 'NIS', s: 2 }, { v: 'Nama Siswa', s: 2 }, { v: 'L/P', s: 2 }, ...Array.from({ length: n }, (_, i) => ({ v: labels[i] || '', s: 2 }))]);
             for (const s of siswa) rows.push([{ v: s.no, s: 4 }, { v: String(s.nis || ''), s: 4 }, { v: s.nama, s: 3 }, { v: s.jk || '', s: 4 }, ...Array(n).fill({ v: '', s: 4 })]);
-            return { sheet: 'Blanko', rows, merges: [1, 2, 3, 4].map((r) => `D${r}:${L(lebar)}${r}`), widths: [5, 9, 34, 5, ...Array(n).fill(8)], landscape: n > 10 };
+            return { sheet: 'Blanko', rows, merges: [1, 2, 3, 4].map((r) => `B${r}:${L(lebar)}${r}`), widths: [5, 9, 34, 5, ...Array(n).fill(8)], landscape: n > 10 };
         }
         return null;
     }

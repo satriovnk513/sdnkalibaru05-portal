@@ -503,7 +503,7 @@ async function runUi() {
             check((await pop.$$('img')).length === 1 && await pop.$eval('img', (i) => i.src.startsWith('data:image/png;base64,') && i.alt === 'Logo sekolah'), 'dokumen daftar: logo sekolah di kiri atas (tertanam), tanpa kop surat');
             await pop.close();
             const [dlx] = await Promise.all([page.waitForEvent('download'), page.click('[data-out="xlsx"]')]);
-            const vx = await xlsxCells(dlx, ['D1', 'B7']);
+            const vx = await xlsxCells(dlx, ['B1', 'B7']);
             check(/\.xlsx$/.test(dlx.suggestedFilename()) && (!vx || (vx[0] === 'DAFTAR NAMA SISWA' && /SISWA FIKTIF/i.test(vx[1]) && vx[2] === 'logo')), `daftar siswa: Excel valid + logo (${vx})`);
             const [dlw] = await Promise.all([page.waitForEvent('download'), page.click('[data-out="word"]')]);
             const wp = join(dlDir, 'tes-word.doc');
@@ -1209,7 +1209,7 @@ async function runUi() {
         check(/Susy Nurhayati/.test(await page.textContent('#invBody')), `${T} riwayat pinjam tampil`);
         if (vp.tag === '1366') {
             const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#invHistXlsx')]);
-            const v = await xlsxCells(dl, ['A1', 'C3']);
+            const v = await xlsxCells(dl, ['B1', 'C4']);
             check(!v || (/RIWAYAT PEMINJAMAN/.test(v[0]) && v[1] === 'Barang' && v[2] === 'logo'), `${T} Excel riwayat pinjam valid + logo (${v})`);
         }
         check(await overflow(page) <= 0, `${T} tidak bergeser ke samping`);
@@ -1457,7 +1457,7 @@ async function runUi() {
         const xp = join(dlDir, 'jadwal.xlsx');
         await dl.saveAs(xp);
         const [sh] = await XR.readBook(readFileSync(xp));
-        check(sh.rows[0][0] === 'JADWAL PELAJARAN KELAS 1.A' && sh.rows[10][2] === 'PAI\nSusy Nurhayati' && sh.rows[9][2] === 'ISTIRAHAT', `${T} Excel jadwal (${sh.rows[0][0]} / ${JSON.stringify(sh.rows[10][2])})`);
+        check(sh.rows[0][1] === 'JADWAL PELAJARAN' && sh.rows[2][6] === 'KELAS : I.A' && sh.rows[10][2] === 'PAI\nSusy Nurhayati' && sh.rows[9][2] === 'ISTIRAHAT', `${T} Excel jadwal (${sh.rows[0][1]} ${sh.rows[2][6]} / ${JSON.stringify(sh.rows[10][2])})`);
         const [pop] = await Promise.all([page.waitForEvent('popup'), page.click('#jdPdf')]);
         await pop.waitForLoadState();
         check(/JADWAL PELAJARAN/.test(await pop.textContent('body')) && /KELAS : I\.A/.test(await pop.textContent('body')), `${T} cetak / PDF jadwal`);
