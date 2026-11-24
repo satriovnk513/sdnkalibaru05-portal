@@ -32,6 +32,8 @@
         return m >= 7 ? 1 : 2;
     }
 
+    // Perubahan yang berlaku untuk satu mapel di satu kelas, bukan untuk satu siswa.
+    const KELAS_LEVEL = new Set(['kktp', 'jumlah_uh']);
     let dirty = false;
     window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
@@ -93,9 +95,9 @@
             const ids = new Set((d.siswa || []).map((s) => s.id));
             for (const v of d.nilai || []) {
                 if (v.m !== m.id || !ids.has(v.s)) continue;
-                const h = N.hitung(v);
+                const h = N.hitung(v, m);
                 if (h.lengkap) lengkap += 1;
-                if (N.FIELDS.some((f) => v[f] !== null && v[f] !== undefined)) terisi += 1;
+                if (N.fieldsOf(m).some((f) => v[f] !== null && v[f] !== undefined)) terisi += 1;
             }
             return { n, lengkap, terisi };
         }
@@ -127,7 +129,8 @@
                 else badge = `<span class="att-badge warn">${pr.n - pr.lengkap} belum lengkap</span>`;
                 const ket = m.guru_mapel?.length && !m.can_edit
                     ? `Diisi guru mapel: ${m.guru_mapel.join(', ')}`
-                    : `${m.kktp !== null && m.kktp !== undefined ? `KKTP ${m.kktp}` : 'KKTP belum diisi'} · ${pr.lengkap}/${pr.n} lengkap${m.guru_mapel?.length ? ` · ${m.guru_mapel.join(', ')}` : ''}`;
+                    : `${m.kktp !== null && m.kktp !== undefined ? `KKTP ${m.kktp}` : 'KKTP belum diisi'} · ${pr.lengkap}/${pr.n} lengkap${
+    N.uhCount(m) === N.UH_BAWAAN ? '' : ` · ${N.uhCount(m)} UH`}${m.guru_mapel?.length ? ` · ${m.guru_mapel.join(', ')}` : ''}`;
                 return `<a href="#" class="nl-mp ${m.can_edit ? '' : 'ro'}" data-nv="isi" data-p="${P({ mapel: m.id })}">
                     <div class="nl-mp-txt"><b>${esc(m.nama)}</b><small>${esc(ket)}</small>
                         <span class="nl-bar"><i style="width:${pct}%" class="${m.can_edit ? '' : 'ro'}"></i></span></div>
@@ -141,7 +144,7 @@
                     <button type="button" role="tab" data-smt="1" aria-selected="${smt === 1}">Semester Ganjil</button>
                     <button type="button" role="tab" data-smt="2" aria-selected="${smt === 2}">Semester Genap</button>
                 </div>
-                <div class="att-alert info nl-rumus"><b>Nilai Akhir</b> = 50% rata-rata UH + 25% STS + 25% SAS, dibulatkan. UH yang masih kosong tidak ikut dihitung, tapi diberi peringatan.</div>
+                <div class="att-alert info nl-rumus"><b>Nilai Akhir</b> = 50% rata-rata UH + 25% STS + 25% SAS, dibulatkan. UH yang masih kosong tidak ikut dihitung, tapi diberi peringatan. Jumlah kolom UH bawaannya 3 dan bisa diubah 1–10 dari dalam mapelnya.</div>
                 <div class="nl-sec"><b>Mata pelajaran</b><span class="att-muted">${d.siswa.length} siswa · ${d.kelas.tahun_ajaran || ''}</span></div>
                 ${tampil.length ? `<section class="nl-list">${tampil.map(row).join('')}</section>` : '<div class="att-alert info">Belum ada mapel yang bisa Anda lihat di kelas ini.</div>'}
                 <div class="nl-actions">
@@ -175,12 +178,14 @@
             const m = d.mapel.find((x) => x.id === p.mapel);
             if (!m) { el.innerHTML = `${head(el, 'Nilai', '', ['kelas', { kelas, smt }])}<div class="att-alert err">Mapel tidak ditemukan atau Anda tidak punya akses.</div>`; return; }
             const edit = Boolean(m.can_edit);
+            const keys = N.fieldsOf(m);
+            const uhKeys = N.uhKeys(m);
             const peta = N.peta(d);
             // nilai di layar: student_id → {uh1..sas}, plus salinan asli untuk mencari yang berubah
             const asli = new Map(); const kini = new Map();
             for (const s of d.siswa) {
                 const n = peta.get(`${s.id}|${m.id}`) || {};
-                const o = {}; for (const f of N.FIELDS) o[f] = n[f] ?? null;
+                const o = {}; for (const f of keys) o[f] = n[f] ?? null;
                 asli.set(s.id, o); kini.set(s.id, { ...o });
             }
             const kktpAsli = m.kktp ?? null;
@@ -196,12 +201,17 @@
                 ${!edit ? `<div class="att-alert info" style="margin-bottom:12px">${m.guru_mapel?.length ? `Mapel ini diisi guru mapel (${esc(m.guru_mapel.join(', '))}).` : 'Anda hanya bisa melihat nilai mapel ini.'}</div>` : ''}
                 <section class="nl-kktp"><div><label for="nlKktp">KKTP ${esc(m.nama)} kelas ini</label><span class="att-muted">Batas tuntas, diisi guru per mapel</span></div>
                     <input id="nlKktp" class="nl-in nl-kktp-in" inputmode="numeric" maxlength="3" value="${kktp ?? ''}" ${edit ? '' : 'readonly'} aria-label="KKTP"></section>
+                <section class="nl-kktp nl-uhset"><div><label for="nlUh">Jumlah ulangan harian</label>
+                    <span class="att-muted">${edit ? `Kolom UH untuk mapel ini di semester ${N.SEM(smt).toLowerCase()}. Semester lain punya pengaturan sendiri.` : 'Diatur guru pengisi mapel ini.'}</span></div>
+                    <select id="nlUh" class="att-select nl-uh-sel" ${edit ? '' : 'disabled'} aria-label="Jumlah kolom UH">${
+    Array.from({ length: N.UH_MAX - N.UH_MIN + 1 }, (_, i) => i + N.UH_MIN)
+        .map((v) => `<option value="${v}" ${v === uhKeys.length ? 'selected' : ''}>${v} kolom UH</option>`).join('')}</select></section>
                 <div class="nl-stats" id="nlStats"></div>
                 <div class="att-muted nl-hint">Isi angka bulat 0–100. <b>NA</b> = 50% rata-rata UH + 25% STS + 25% SAS (otomatis, dibulatkan).${edit ? ' Tekan Enter untuk pindah ke kotak berikutnya.' : ''}</div>
-                <div class="nl-grid-head" aria-hidden="true"><span>No</span><span>Nama siswa</span>${N.FIELDS.map((f) => `<span>${N.LABEL[f]}</span>`).join('')}<span>NA</span></div>
-                <div class="nl-rows">${d.siswa.map((s, i) => `<article class="nl-row" data-row="${esc(s.id)}">
+                <div class="nl-grid-head" aria-hidden="true" style="--nl-kol:${keys.length}"><span>No</span><span>Nama siswa</span>${keys.map((f) => `<span>${N.LABEL[f]}</span>`).join('')}<span>NA</span></div>
+                <div class="nl-rows" style="--nl-kol:${keys.length}">${d.siswa.map((s, i) => `<article class="nl-row" data-row="${esc(s.id)}">
                     <div class="nl-who"><span class="nl-no">${esc(s.no ?? i + 1)}</span><b>${esc(s.nama)}</b></div>
-                    <div class="nl-cells">${N.FIELDS.map((f) => cell(s, f)).join('')}</div>
+                    <div class="nl-cells">${keys.map((f) => cell(s, f)).join('')}</div>
                     <div class="nl-na"><span>NA</span><b data-na></b></div>
                     <div class="nl-warn" data-warn hidden></div>
                 </article>`).join('')}</div>
@@ -212,30 +222,30 @@
 
             const changes = () => {
                 let c = 0;
-                for (const s of d.siswa) for (const f of N.FIELDS) if (asli.get(s.id)[f] !== kini.get(s.id)[f]) c += 1;
+                for (const s of d.siswa) for (const f of keys) if (asli.get(s.id)[f] !== kini.get(s.id)[f]) c += 1;
                 return c + (kktp !== kktpAsli ? 1 : 0);
             };
             const paint = () => {
                 let t = 0; let b = 0; let k = 0;
                 for (const s of d.siswa) {
                     const n = kini.get(s.id);
-                    const h = N.hitung(n);
-                    const st = N.status(n, kktp);
+                    const h = N.hitung(n, m);
+                    const st = N.status(n, kktp, m);
                     const r = el.querySelector(`[data-row="${CSS.escape(s.id)}"]`);
                     const na = r.querySelector('[data-na]');
                     na.textContent = h.akhir ?? '–';
                     na.className = st === 'belum' ? 'bad' : (st === 'tuntas' ? 'ok' : '');
                     if (st === 'tuntas') t += 1; else if (st === 'belum') b += 1; else k += 1;
-                    const kosongUh = ['uh1', 'uh2', 'uh3'].filter((f) => n[f] === null).map((f) => N.LABEL[f]);
+                    const kosongUh = uhKeys.filter((f) => n[f] === null).map((f) => N.LABEL[f]);
                     const kosongAkhir = ['sts', 'sas'].filter((f) => n[f] === null).map((f) => N.LABEL[f]);
                     let warn = '';
-                    const ada = N.FIELDS.some((f) => n[f] !== null);
+                    const ada = keys.some((f) => n[f] !== null);
                     if (ada && kosongAkhir.length) warn = `${kosongAkhir.join(' & ')} belum diisi — NA belum bisa dihitung`;
-                    else if (ada && kosongUh.length === 3) warn = 'UH belum diisi — NA belum bisa dihitung';
+                    else if (ada && kosongUh.length === uhKeys.length) warn = 'UH belum diisi — NA belum bisa dihitung';
                     else if (ada && kosongUh.length) warn = `${kosongUh.join(', ')} belum diisi — NA dihitung dari UH yang ada`;
                     const w = r.querySelector('[data-warn]');
                     w.textContent = warn; w.hidden = !warn;
-                    r.classList.toggle('changed', N.FIELDS.some((f) => asli.get(s.id)[f] !== n[f]));
+                    r.classList.toggle('changed', keys.some((f) => asli.get(s.id)[f] !== n[f]));
                 }
                 el.querySelector('#nlStats').innerHTML = `<div class="nl-stat ok"><b>${t}</b><span>Tuntas</span></div>
                     <div class="nl-stat bad"><b>${b}</b><span>Belum tuntas</span></div>
@@ -249,6 +259,52 @@
                 el.querySelector('#nlDirty').classList.toggle('nl-err', bad.size > 0);
                 save.textContent = c ? `Simpan ${c} perubahan` : 'Simpan';
             };
+            const selUh = el.querySelector('#nlUh');
+            if (edit && selUh) {
+                selUh.addEventListener('change', async () => {
+                    const baru = Number(selUh.value);
+                    const lama = uhKeys.length;
+                    if (baru === lama) return;
+                    if (dirty) {
+                        selUh.value = String(lama);
+                        toast('Simpan dulu perubahan nilainya sebelum mengubah jumlah UH.', 'err');
+                        return;
+                    }
+                    const kirim = async (paksa) => rpc('set_subject_uh_count', {
+                        p_class_id: kelas, p_subject_id: m.id, p_count: baru, p_semester: smt, p_force: paksa });
+                    selUh.disabled = true;
+                    try {
+                        let hasil;
+                        try {
+                            hasil = await kirim(false);
+                        } catch (err) {
+                            // Mengurangi kolom yang masih terisi: server menolak dulu, tanya guru sekali.
+                            const jml = Number(/\((\d+) siswa\)/.exec(errMessage(err))?.[1]);
+                            if (!Number.isFinite(jml)) throw err;
+                            const buang = Array.from({ length: lama - baru }, (_, i) => `UH ${baru + i + 1}`).join(', ');
+                            const ya = await window.Att.confirm({
+                                title: `Kurangi jadi ${baru} kolom UH?`,
+                                html: `<p>Kolom <b>${esc(buang)}</b> akan dihapus dari ${esc(m.nama)}.</p>
+                                    <p class="att-muted">Nilai ${jml} siswa di kolom itu ikut terhapus dan tidak bisa dikembalikan dari sini, tapi penghapusannya tercatat di Riwayat perubahan.</p>`,
+                                confirmText: `Hapus & jadikan ${baru} kolom`, cancelText: 'Batal', danger: true,
+                            });
+                            if (!ya) { selUh.value = String(lama); selUh.disabled = false; return; }
+                            hasil = await kirim(true);
+                        }
+                        invalidate(kelas, smt);
+                        const n_hapus = Number(hasil?.terhapus) || 0;
+                        toast(baru > lama
+                            ? `Sekarang ${baru} kolom UH`
+                            : `Sekarang ${baru} kolom UH${n_hapus ? ` · ${n_hapus} nilai dihapus` : ''}`, 'ok');
+                        await viewIsi(el, p);
+                    } catch (err) {
+                        selUh.value = String(lama);
+                        selUh.disabled = false;
+                        toast(errMessage(err), 'err');
+                    }
+                });
+            }
+
             const parse = (inp) => {
                 const raw = inp.value.replace(/[^\d]/g, '');
                 if (raw !== inp.value) inp.value = raw;
@@ -281,7 +337,7 @@
                     const entries = [];
                     for (const s of d.siswa) {
                         const e = { student_id: s.id };
-                        for (const f of N.FIELDS) if (asli.get(s.id)[f] !== kini.get(s.id)[f]) e[f] = kini.get(s.id)[f];
+                        for (const f of keys) if (asli.get(s.id)[f] !== kini.get(s.id)[f]) e[f] = kini.get(s.id)[f];
                         if (Object.keys(e).length > 1) entries.push(e);
                     }
                     const item = { subject_id: m.id, entries };
@@ -337,7 +393,7 @@
                 el.querySelector('#nlHist').innerHTML = [...groups].map(([k, xs]) => `<div class="nl-day">${k === today ? 'HARI INI' : esc(tglFmt.format(new Date(xs[0].waktu)).toUpperCase())}</div>
                     <section class="nl-list nl-hist">${xs.map((x) => `<div class="nl-h">
                         <div class="nl-h-jam">${esc(jamFmt.format(new Date(x.waktu)))}</div>
-                        <div class="nl-h-body"><div>${x.kolom === 'kktp' ? '<b>KKTP</b>' : `<b>${esc(x.siswa || '-')}</b>`} · ${esc(x.mapel)}${x.kolom === 'kktp' ? '' : ` <b>${esc(N.LABEL[x.kolom] || x.kolom)}</b>`}</div>
+                        <div class="nl-h-body"><div>${KELAS_LEVEL.has(x.kolom) ? `<b>${esc(N.LABEL[x.kolom] || x.kolom)}</b>` : `<b>${esc(x.siswa || '-')}</b>`} · ${esc(x.mapel)}${KELAS_LEVEL.has(x.kolom) ? '' : ` <b>${esc(N.LABEL[x.kolom] || x.kolom)}</b>`}</div>
                             <div class="nl-h-val"><span class="old">${x.lama ?? '–'}</span>${ICON.arrow}<span class="${x.baru === null ? 'del' : 'new'}">${x.baru ?? 'dihapus'}</span></div>
                             <div class="att-muted">oleh ${esc(x.oleh || '-')}${x.sumber === 'impor' ? ' · lewat impor Excel' : (x.sumber === 'admin' ? ' · admin' : '')}</div></div>
                     </div>`).join('')}</section>`).join('');
@@ -458,7 +514,7 @@
                 total += 1;
                 let cls = 'none';
                 if (n && c.lengkap >= n) { cls = 'full'; lengkap += 1; } else if (c.terisi) cls = 'part'; else kosong += 1;
-                return `<td class="nl-x ${cls}"><button type="button" data-k="${esc(k.id)}" data-m="${esc(m.id)}" title="${esc(`${k.nama} · ${m.nama}: ${c.lengkap || 0}/${n} lengkap${c.kktp != null ? ` · KKTP ${c.kktp}` : ' · KKTP belum diisi'}`)}">${c.lengkap || 0}<small>/${n}</small>${c.kktp == null ? '<i title="KKTP belum diisi"></i>' : ''}</button></td>`;
+                return `<td class="nl-x ${cls}"><button type="button" data-k="${esc(k.id)}" data-m="${esc(m.id)}" title="${esc(`${k.nama} · ${m.nama}: ${c.lengkap || 0}/${n} lengkap${c.kktp != null ? ` · KKTP ${c.kktp}` : ' · KKTP belum diisi'} · ${c.jumlah_uh || N.UH_BAWAAN} kolom UH`)}">${c.lengkap || 0}<small>/${n}</small>${c.kktp == null ? '<i title="KKTP belum diisi"></i>' : ''}</button></td>`;
             };
             const body = (mx.kelas || []).map((k) => `<tr><th scope="row"><button type="button" class="nl-kls" data-kls="${esc(k.id)}">Kelas ${esc(k.nama)}</button><small>${k.siswa} siswa</small></th>${mx.mapel.map((m) => cellHtml(k, m)).join('')}</tr>`).join('');
             el.innerHTML = `<div class="inv-seg nl-seg" role="tablist" aria-label="Semester">

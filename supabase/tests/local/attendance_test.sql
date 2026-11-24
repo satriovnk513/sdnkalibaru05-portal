@@ -1574,6 +1574,78 @@ begin
           and (public.get_public_stats() ->> 'siswa')::int = (v_st ->> 'siswa')::int);
     end;
 
+    -- ======================================================== AA. Jumlah UH bisa diubah
+    declare
+        s_mtk2 uuid := (select id from public.subjects where code = 'MTK');
+        s_bin  uuid := (select id from public.subjects where code = 'BIN');
+        v_u    jsonb;
+    begin
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AA UH', 'u', 'Bawaan 3 kolom UH untuk semua mapel yang belum pernah diatur',
+        'ok', public.grade__uh_count(c1a, s_bin, 1::smallint) = 3
+          and exists (select 1 from jsonb_array_elements(public.get_class_grades(c1a, 1::smallint) -> 'mapel') m
+                      where m ->> 'kode' = 'BIN' and (m ->> 'jumlah_uh')::int = 3));
+
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AA UH', 'u', 'Jumlah UH hanya 1–10',
+        'ok', public.t_try(format('select public.set_subject_uh_count(%L, %L, 0::smallint, 1::smallint)', c1a, s_bin)) = '22023'
+          and public.t_try(format('select public.set_subject_uh_count(%L, %L, 11::smallint, 1::smallint)', c1a, s_bin)) = '22023');
+
+    v_u := public.set_subject_uh_count(c1a, s_bin, 5::smallint, 1::smallint);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AA UH', 'u', 'Ditambah jadi 5 kolom, dan UH5 jadi bisa diisi',
+        'ok', v_u = '{"jumlah":5,"sebelumnya":3,"terhapus":0}'::jsonb
+          and public.grade__uh_count(c1a, s_bin, 1::smallint) = 5
+          and public.save_grades(c1a, 1::smallint, jsonb_build_array(jsonb_build_object('subject_id', s_bin, 'entries',
+                  jsonb_build_array(jsonb_build_object('student_id', st1, 'uh4', 70, 'uh5', 90),
+                                    jsonb_build_object('student_id', st2, 'uh5', 60))))) = '{"baru":3,"berubah":0,"dihapus":0,"kktp":0}'::jsonb);
+
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AA UH', 'u', 'Semester 2 punya jumlah UH sendiri (tetap 3)',
+        'ok', public.grade__uh_count(c1a, s_bin, 2::smallint) = 3
+          and public.t_try(format($q$select public.save_grades(%L, 2::smallint, jsonb_build_array(jsonb_build_object('subject_id', %L, 'entries',
+                  jsonb_build_array(jsonb_build_object('student_id', %L, 'uh5', 80)))))$q$, c1a, s_bin, st1)) = '22023');
+
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AA UH', 'u', 'Dikurangi ke 3 ditolak selama UH4/UH5 masih terisi (2 siswa)',
+        'ok', public.t_try(format('select public.set_subject_uh_count(%L, %L, 3::smallint, 1::smallint)', c1a, s_bin)) = '23514'
+          and public.grade__uh_count(c1a, s_bin, 1::smallint) = 5);
+
+    v_u := public.set_subject_uh_count(c1a, s_bin, 3::smallint, 1::smallint, true);
+    execute 'reset role';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AA UH', 'u', 'Dengan konfirmasi: 3 nilai terhapus, tercatat di riwayat, kolom tinggal 3',
+        'ok', v_u = '{"jumlah":3,"sebelumnya":5,"terhapus":3}'::jsonb
+          and public.grade__uh_count(c1a, s_bin, 1::smallint) = 3
+          and (select count(*) from public.grade_changes where class_id = c1a and subject_id = s_bin
+                 and field in ('uh4', 'uh5') and new_value is null) = 3
+          and (select count(*) from public.grade_changes where class_id = c1a and subject_id = s_bin
+                 and field = 'jumlah_uh' and old_value = 5 and new_value = 3) = 1
+          and (select count(*) from public.student_grades where class_id = c1a and subject_id = s_bin
+                 and semester = 1 and num_nonnulls(uh4, uh5) > 0) = 0);
+
+    execute 'set local role authenticated';
+    v_u := public.set_subject_uh_count(c1a, s_mtk2, 1::smallint, 1::smallint, true);
+    execute 'reset role';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AA UH', 'u', 'Boleh turun sampai 1 kolom; UH2 ke atas dibuang',
+        'ok', (v_u ->> 'jumlah')::int = 1
+          and (select count(*) from public.student_grades where class_id = c1a and subject_id = s_mtk2
+                 and semester = 1 and num_nonnulls(uh2, uh3) > 0) = 0);
+    execute 'set local role authenticated';
+    perform public.set_subject_uh_count(c1a, s_mtk2, 3::smallint, 1::smallint, true);
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AA UH', 'u', 'Guru mapel tidak boleh mengubah jumlah UH mapel yang bukan diampunya',
+        'ok', public.t_try(format('select public.set_subject_uh_count(%L, %L, 4::smallint, 1::smallint)', c1a, s_bin)) = '42501');
+    execute 'reset role';
+    end;
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end
