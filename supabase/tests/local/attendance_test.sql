@@ -1546,7 +1546,10 @@ begin
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Z Keluar', 'u', 'Alasan keluar hanya nilai yang dikenal',
         'ok', public.t_try(format('update public.student_records set archived_at = now(), exit_reason = %L where id = %L', 'Kabur', v_sis)) = '23514');
 
-    update public.student_records set archived_at = now(), exit_reason = 'Mutasi' where id = v_sis;
+    update public.student_records set archived_at = now(), exit_reason = 'Mutasi', exit_note = '  Kata   wali kelas  sudah keluar. ' where id = v_sis;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Z Keluar', 'u', 'Keterangan keluar dirapikan spasinya',
+        'ok', (select exit_note = 'Kata wali kelas sudah keluar.' from public.student_records where id = v_sis));
     v_no := v_no + 1;
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Z Keluar', 'u', 'Diarsipkan: tanggal keluar terisi sendiri, rombel ditutup, lepas dari daftar kelas',
         'ok', (select exit_date is not null and exit_reason = 'Mutasi' from public.student_records where id = v_sis)
@@ -1566,7 +1569,7 @@ begin
     update public.student_records set archived_at = null where id = v_sis;
     v_no := v_no + 1;
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Z Keluar', 'u', 'Dipulihkan: alasan & tanggal keluar dihapus, rombel dibuka lagi',
-        'ok', (select exit_reason is null and exit_date is null from public.student_records where id = v_sis)
+        'ok', (select exit_reason is null and exit_date is null and exit_note is null from public.student_records where id = v_sis)
           and exists (select 1 from public.student_enrollments where student_id = v_sis and end_date is null)
           and (public.get_public_stats() ->> 'siswa')::int = (v_st ->> 'siswa')::int);
     end;

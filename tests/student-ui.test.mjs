@@ -185,6 +185,7 @@ async function supa(route) {
                 r.archived_at = body.archived_at ? new Date().toISOString() : null;
                 r.exit_reason = r.archived_at ? (body.exit_reason || null) : null;
                 r.exit_date = r.archived_at ? (body.exit_date || new Date().toISOString().slice(0, 10)) : null;
+                r.exit_note = r.archived_at ? (body.exit_note || null) : null;
                 r.updated_at = stamp();
                 CHANGES.push({ id: CHANGES.length + 1, student_id: r.id, action, changed_at: new Date().toISOString(), changed_by_email: 'admin@fiktif.test', changes: {} });
             } else if (body.payload) {
@@ -488,12 +489,15 @@ await page.waitForSelector('#stuConfirm.active');
 check(/bisa dipulihkan/.test(await page.textContent('#stuConfirmText')), 'arsip: konfirmasi menjelaskan data tidak dihapus');
 check(await page.isDisabled('#stuConfirmYes'), 'arsip: tombol terkunci sebelum alasan keluar dipilih');
 await page.selectOption('#stuExitReason', 'Mutasi');
+await page.fill('#stuExitNote', 'Pindah ikut orang tua ke Bekasi.');
 await shot(page, '9-konfirmasi-arsip.png');
 await page.click('#stuConfirmYes');
 await waitTotal(559);
 check(target2.archived_at && target2.exit_reason === 'Mutasi' && target2.exit_date
     && (await page.isVisible('#stuDetailArchived')), 'arsip: siswa diarsipkan dengan alasan Mutasi + tanggal, total aktif kembali 559');
-check(/Alasan keluar: Mutasi/.test(await page.textContent('#stuDetailArchived')), 'arsip: banner menyebut alasan keluar');
+check(/Alasan keluar: Mutasi/.test(await page.textContent('#stuDetailArchived'))
+    && /Keterangan: Pindah ikut orang tua ke Bekasi\./.test(await page.textContent('#stuDetailArchived')),
+    'arsip: banner menyebut alasan keluar dan keterangannya');
 check(!(await page.$('#stuDetailActions .stu-btn-primary')), 'arsip: tombol ubah disembunyikan untuk siswa terarsip');
 await page.keyboard.press('Escape');
 await page.click('#stuReset'); await waitInfo(page, /dari 559 siswa/);
