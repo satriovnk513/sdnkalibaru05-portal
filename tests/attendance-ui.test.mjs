@@ -1351,7 +1351,9 @@ async function runUi() {
         await page.waitForTimeout(400);
         check(await page.evaluate(() => document.querySelector('[data-tab="tabNilai"]').classList.contains('active') && document.getElementById('topbarTitle').textContent === 'Nilai Siswa'), `${T} menu Nilai Siswa aktif`);
         const cells = await page.$$eval('.nl-mx tbody tr:first-child td', (t) => t.map((x) => `${x.className.replace('nl-x ', '')}:${x.textContent}`));
-        check(cells.join(',') === 'none:0/3,part:1/3,part:1/3,none:0/3', `${T} matriks kelas × mapel (${cells})`);
+        check(cells.join(',') === 'none:0/3,part:1/3,part:1/3,none:0/3,hid:·', `${T} matriks kelas × mapel + mapel di luar tingkat bertanda · (${cells})`);
+        check(await page.$eval('.nl-mx tbody tr:first-child td:last-child', (td) => td.title) === 'Koding dan Kecerdasan Artifisial hanya untuk kelas 5 & 6', `${T} tanda · menjelaskan mapel itu hanya untuk kelas 5 & 6`);
+        check(/Koding dan Kecerdasan Artifisial.*hanya kelas 5 & 6/.test(await page.textContent('.nl-kode')), `${T} keterangan kode mapel menyebut batas tingkat`);
         const kode = (await page.textContent('.nl-kode dl')).replace(/\s+/g, ' ');
         check(await page.isVisible('.nl-kode dl') && /BIN ?Bahasa Indonesia/.test(kode) && /MTK ?Matematika/.test(kode), `${T} keterangan kode mapel (ikon i) tampil (${kode.slice(0, 80)})`);
         await page.click('.nl-kode summary');

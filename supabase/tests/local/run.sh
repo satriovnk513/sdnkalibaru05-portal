@@ -74,6 +74,8 @@ run "Sinkron rombel"                "$ROOT/supabase/migrations/20261127000001_en
 run "Sinkron rombel (ulang)"        "$ROOT/supabase/migrations/20261127000001_enrollment_sync_trigger.sql"
 run "Status ikut kelas"             "$ROOT/supabase/migrations/20261128000001_status_from_class.sql"
 run "Status ikut kelas (ulang)"     "$ROOT/supabase/migrations/20261128000001_status_from_class.sql"
+run "Mapel per tingkat"             "$ROOT/supabase/migrations/20261129000001_subject_grade_range.sql"
+run "Mapel per tingkat (ulang)"     "$ROOT/supabase/migrations/20261129000001_subject_grade_range.sql"
 
 echo "→ Tes Absensi"
 {

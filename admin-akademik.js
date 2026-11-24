@@ -64,7 +64,7 @@
             q(sb.from('staff').select('id,name,role,nip').order('name')),
             q(sb.from('academic_years').select('id,name,start_date,end_date,is_active').order('start_date', { ascending: false })),
             q(sb.from('classes').select('id,name,grade,section,academic_year_id').order('grade').order('section')),
-            q(sb.from('subjects').select('id,code,name').order('code')),
+            q(sb.from('subjects').select('id,code,name,grade_min,grade_max').order('code')),
             q(sb.from('homeroom_assignments').select('class_id,staff_id,position')),
             q(sb.from('subject_assignments').select('subject_id,class_id,staff_id')),
             q(sb.from('student_enrollments').select('class_id').is('end_date', null)),
@@ -535,7 +535,7 @@
             emptyText: 'Belum ada mata pelajaran.',
             columns: [
                 { key: 'code', label: 'Kode', sort: true, render: (r) => `<span class="att-badge info">${esc(r.code)}</span>` },
-                { key: 'name', label: 'Nama', sort: true, render: (r) => `<b>${esc(r.name)}</b>` },
+                { key: 'name', label: 'Nama', sort: true, render: (r) => `<b>${esc(r.name)}</b>${r.grade_min > 1 || r.grade_max < 6 ? `<div class="att-muted">Hanya ${esc(tingkatTeks(r.grade_min, r.grade_max))}</div>` : ''}` },
                 { key: 'guruText', label: 'Guru pengampu', render: (r) => (r.guru.length ? r.guru.map((g) => `<div>${esc(g.nama)} <span class="att-muted">· ${esc(g.kelas)}</span></div>`).join('') : '<span class="att-badge bad">Belum ada guru</span>') },
                 { key: 'aksi', label: 'Aksi', className: 'att-actions', render: (r) => `<button type="button" class="att-btn att-btn-primary att-btn-sm" data-sub-assign="${esc(r.id)}">Atur guru</button>
                     <button type="button" class="att-btn att-btn-ghost att-btn-sm" data-sub-edit="${esc(r.id)}">Edit</button>
@@ -544,21 +544,39 @@
         });
     }
 
+    const TINGKAT = [1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: `Kelas ${n}` }));
+
+    /** "semua kelas" / "kelas 5 & 6" / "kelas 3–6" */
+    function tingkatTeks(min, max) {
+        const a = Number(min) || 1; const b = Number(max) || 6;
+        if (a <= 1 && b >= 6) return 'semua kelas';
+        if (a === b) return `kelas ${a}`;
+        if (b === a + 1) return `kelas ${a} & ${b}`;
+        return `kelas ${a}–${b}`;
+    }
+
     function subjectFields(s) {
         return [
             { id: 'code', label: 'Kode', value: s?.code || '', required: true, max: 16, placeholder: 'Mis. BING', hint: 'Huruf besar/angka, 2–16 karakter.' },
             { id: 'name', label: 'Nama mata pelajaran', value: s?.name || '', required: true, max: 100, placeholder: 'Mis. Bahasa Inggris' },
+            { id: 'gmin', label: 'Diajarkan dari kelas', type: 'select', value: String(s?.grade_min ?? 1), options: TINGKAT, required: true,
+                hint: 'Mapel hanya muncul di menu Nilai dan pilihan jadwal untuk tingkat ini. Biarkan kelas 1–6 bila diajarkan di semua kelas.' },
+            { id: 'gmax', label: 'Sampai kelas', type: 'select', value: String(s?.grade_max ?? 6), options: TINGKAT, required: true },
         ];
     }
 
-    const subjValidate = (v) => (/^[A-Za-z0-9_]{2,16}$/.test(v.code) ? '' : 'Kode hanya huruf/angka, 2–16 karakter.');
+    const subjValidate = (v) => {
+        if (!/^[A-Za-z0-9_]{2,16}$/.test(v.code)) return 'Kode hanya huruf/angka, 2–16 karakter.';
+        if (Number(v.gmin) > Number(v.gmax)) return 'Kelas awal tidak boleh lebih besar dari kelas akhir.';
+        return '';
+    };
 
     async function onSubjectClick(e) {
         try {
             if (e.target.closest('#akSubAdd')) {
                 const v = await formSheet({ title: 'Tambah mata pelajaran', fields: subjectFields(null), validate: subjValidate });
                 if (!v) return;
-                await q(sb.from('subjects').insert({ code: v.code.toUpperCase(), name: v.name }));
+                await q(sb.from('subjects').insert({ code: v.code.toUpperCase(), name: v.name, grade_min: Number(v.gmin), grade_max: Number(v.gmax) }));
                 toast(`${v.name} ditambahkan. Klik "Atur guru" untuk menugaskan guru.`);
             }
             const ed = e.target.closest('[data-sub-edit]');
@@ -566,7 +584,7 @@
                 const s = state.subjects.find((x) => x.id === ed.dataset.subEdit);
                 const v = await formSheet({ title: `Ubah ${s.code}`, fields: subjectFields(s), validate: subjValidate });
                 if (!v) return;
-                await q(sb.from('subjects').update({ code: v.code.toUpperCase(), name: v.name }).eq('id', s.id));
+                await q(sb.from('subjects').update({ code: v.code.toUpperCase(), name: v.name, grade_min: Number(v.gmin), grade_max: Number(v.gmax) }).eq('id', s.id));
                 toast('Mata pelajaran diperbarui.');
             }
             const as = e.target.closest('[data-sub-assign]');
@@ -574,7 +592,11 @@
                 const s = state.subjects.find((x) => x.id === as.dataset.subAssign);
                 const current = state.assign.filter((x) => x.subject_id === s.id);
                 const firstStaff = current[0]?.staff_id || '';
-                const classOpts = activeClasses().map((c) => ({ value: c.id, label: c.name }));
+                const gmin = Number(s.grade_min) || 1; const gmax = Number(s.grade_max) || 6;
+                const classOpts = activeClasses().filter((c) => {
+                    const t = Number(String(c.name).trim()[0]);
+                    return !Number.isFinite(t) || (t >= gmin && t <= gmax);
+                }).map((c) => ({ value: c.id, label: c.name }));
                 const pick = (sid) => current.filter((x) => x.staff_id === sid).map((x) => x.class_id);
                 const v = await formSheet({
                     title: `Guru ${s.code} · ${s.name}`,

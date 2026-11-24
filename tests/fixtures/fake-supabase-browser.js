@@ -368,7 +368,10 @@
         { id: 'm-mtk', kode: 'MTK', nama: 'Matematika', singkat: 'Matematika' },
         { id: PAI, kode: 'PAI', nama: 'PAI', singkat: 'PAI' },
         { id: 'm-big', kode: 'BIG', nama: 'Bahasa Inggris', singkat: 'B. Inggris' },
+        { id: 'm-kka', kode: 'KKA', nama: 'Koding dan Kecerdasan Artifisial', singkat: 'Koding & KA', kelas_min: 5, kelas_max: 6 },
     ];
+    const tingkatKelas = (c) => (c === C1A ? 1 : 3);
+    const mapelDiKelas = (m, c) => tingkatKelas(c) >= (m.kelas_min || 1) && tingkatKelas(c) <= (m.kelas_max || 6);
     const G = F.grades = F.grades || {
         nilai: [   // class|smt|student|subject → nilai
             { c: C1A, smt: 1, s: S(1), m: 'm-mtk', uh1: 80, uh2: 85, uh3: 90, sts: 78, sas: 82 },
@@ -395,7 +398,7 @@
             return ok([{ id: C1A, nama: '1 A', tingkat: 1, rombel: 'A', wali: true, mapel: null }, { id: C3A, nama: '3 A', tingkat: 3, rombel: 'A', wali: false, mapel: ['PAI'] }]);
         case 'get_class_grades': {
             const c = a.p_class_id;
-            const mapel = MAPEL.filter((m) => gradeCanView(user, c, m.id) && (!a.p_subject_id || a.p_subject_id === m.id)).map((m) => ({
+            const mapel = MAPEL.filter((m) => mapelDiKelas(m, c) && gradeCanView(user, c, m.id) && (!a.p_subject_id || a.p_subject_id === m.id)).map((m) => ({
                 ...m, kktp: G.kktp[`${c}|${m.id}`] ?? null, hidden: Boolean(G.hidden[`${c}|${m.id}`]),
                 guru_mapel: m.id === PAI ? (c === C1A ? ['Susy Nurhayati'] : ['Sunarsih, S.Pd.']) : null, can_edit: gradeCanEdit(user, c, m.id),
             }));
@@ -416,6 +419,8 @@
             const log = (s, m, field, lama, baru) => G.history.unshift({ id: G.seq++, waktu: new Date().toISOString(), siswa: s ? roster[c].find((r) => r.student_id === s).nama : null,
                 mapel: MAPEL.find((x) => x.id === m).singkat, semester: s ? smt : null, kolom: field, lama, baru, oleh: me, sumber: src, c });
             for (const it of a.p_items || []) {
+                const sub = MAPEL.find((x) => x.id === it.subject_id);
+                if (sub && !mapelDiKelas(sub, c)) return err(`Mapel ${sub.singkat} tidak diajarkan di kelas ini.`);
                 if (!gradeCanEdit(user, c, it.subject_id)) return err('Anda tidak berhak mengubah nilai mapel ini.');
                 if ('kktp' in it) {
                     const k = `${c}|${it.subject_id}`;
@@ -445,11 +450,13 @@
             return ok(null);
         case 'get_grades_admin_matrix':
             return ok({
-                mapel: MAPEL.map(({ id, kode, singkat, nama }) => ({ id, kode, singkat, nama })),
+                mapel: MAPEL.map(({ id, kode, singkat, nama, kelas_min: kmin = 1, kelas_max: kmax = 6 }) => ({ id, kode, singkat, nama,
+                    kelas_min: kmin, kelas_max: kmax,
+                    kelas_teks: kmin <= 1 && kmax >= 6 ? 'semua kelas' : (kmin === kmax ? `kelas ${kmin}` : (kmax === kmin + 1 ? `kelas ${kmin} & ${kmax}` : `kelas ${kmin}–${kmax}`)) })),
                 kelas: [C1A, C3A].map((c) => ({ id: c, nama: kelasNama(c), siswa: roster[c].length,
                     sel: Object.fromEntries(MAPEL.map((m) => {
                         const rows = G.nilai.filter((n) => n.c === c && n.m === m.id && n.smt === a.p_semester);
-                        return [m.id, { hidden: Boolean(G.hidden[`${c}|${m.id}`]), kktp: G.kktp[`${c}|${m.id}`] ?? null,
+                        return [m.id, { hidden: Boolean(G.hidden[`${c}|${m.id}`]), luar: !mapelDiKelas(m, c), kktp: G.kktp[`${c}|${m.id}`] ?? null,
                             lengkap: rows.filter((n) => FIELDS.every((f) => n[f] !== null)).length, terisi: rows.filter((n) => FIELDS.some((f) => n[f] !== null)).length }];
                     })) })),
             });
@@ -497,7 +504,7 @@
                 return { hari: e.hari, jam: e.jam, jenis: e.jenis, subject_id: e.subject_id || null, kode: m?.kode || null, mapel: m?.nama || null, singkat: m?.singkat || null,
                     kegiatan: e.kegiatan || null, staff_id: e.staff_id || null, guru: e.staff_id ? jdStaff[e.staff_id] : null };
             }).sort((a, b) => a.hari - b.hari || a.jam - b.jam),
-            mapel: MAPEL.map((m) => ({ ...m, hidden: Boolean(G.hidden[`${c}|${m.id}`]), guru: jdGuruMapel(c, m.id) })),
+            mapel: MAPEL.filter((m) => mapelDiKelas(m, c)).map((m) => ({ ...m, hidden: Boolean(G.hidden[`${c}|${m.id}`]), guru: jdGuruMapel(c, m.id) })),
         };
     }
     function jdBentrok(c, hari, jam, staff) {
@@ -781,7 +788,8 @@
             { id: C1A, name: '1 A', grade: 1, section: 'A', academic_year_id: AY1 },
             { id: C3A, name: '3 A', grade: 3, section: 'A', academic_year_id: AY1 },
         ],
-        subjects: [{ id: PAI, code: 'PAI', name: 'Pendidikan Agama Islam' }],
+        subjects: [{ id: PAI, code: 'PAI', name: 'Pendidikan Agama Islam', grade_min: 1, grade_max: 6 },
+            { id: 'm-kka', code: 'KKA', name: 'Koding dan Kecerdasan Artifisial', grade_min: 5, grade_max: 6 }],
         staff: [
             { id: ST(1), name: 'Sunarsih, S.Pd.', role: 'Guru Kelas|Guru Kelas', nip: 'NIP. 990000000000000001', order_index: 1 },
             { id: ST(2), name: 'Taripah, S.Pd.', role: 'Wakil Kepala Sekolah|Wakil Kepala Sekolah', nip: 'NIP. 990000000000000002', order_index: 2 },
