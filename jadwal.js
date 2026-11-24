@@ -152,15 +152,18 @@
         const rows = susun(data);
         const B = { border: true, align: 'center', valign: 'center', wrap: true };
         const H = { ...B, bold: true, fill: 'E5E7EB' };
+        // Kop sama dengan versi PDF (RekapPrint.kopHtml): logo, lalu judul / tahun
+        // pelajaran / sekolah rata kiri mulai kolom B, KELAS di kanan.
+        const kelas = `KELAS : ${RP.romawi(`${data.kelas.tingkat}${data.kelas.rombel}`) || data.kelas.nama}`;
         const out = [
-            [{ v: `JADWAL PELAJARAN KELAS ${kelasTitik(data.kelas)}`, s: { bold: true, size: 13, align: 'center' } }],
-            [{ v: RP.SCHOOL, s: { bold: true, align: 'center' } }],
-            [{ v: `TAHUN PELAJARAN ${RP.tpLabel(data.kelas.tahun_ajaran)}`, s: { align: 'center' } }],
+            [null, { v: 'JADWAL PELAJARAN', s: { size: 12 } }],
+            [null, { v: `TAHUN PELAJARAN ${RP.tpLabel(data.kelas.tahun_ajaran)}`, s: { size: 12 } }],
+            [null, { v: RP.SCHOOL, s: { bold: true, size: 9, valign: 'bottom' } }, null, null, null, null, { v: kelas, s: { bold: true, size: 12, align: 'right', valign: 'bottom' } }],
             [],
             ['NO.', 'WAKTU', ...HARI_TABEL].map((v) => ({ v, s: H })),
         ];
-        const merges = ['A1:G1', 'A2:G2', 'A3:G3'];
-        const heights = { 1: 22, 5: 22 };
+        const merges = ['B1:G1', 'B2:G2', 'B3:F3'];
+        const heights = { 1: 15, 2: 15, 3: 15, 4: 6, 5: 22 };
         rows.forEach((r, i) => {
             const rn = 6 + i;
             heights[rn] = 30;
@@ -181,7 +184,7 @@
         });
         return XB.build({ sheets: [{
             name: `Jadwal ${data.kelas.nama}`, rows: out, merges, heights, widths: [6, 13, 22, 22, 22, 22, 22],
-            showGrid: false, landscape: true, fitHeight: 1, active: true, logo: opts.logo ? { png: opts.logo, px: 44 } : null,
+            showGrid: false, landscape: true, fitHeight: 1, active: true, logo: opts.logo ? { png: opts.logo } : null,
         }] });
     }
 

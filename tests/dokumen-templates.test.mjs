@@ -114,7 +114,7 @@ test('Excel daftar & blanko valid dibuka openpyxl; surat tidak punya Excel', (t)
 import openpyxl, sys
 a = openpyxl.load_workbook(sys.argv[1]).active
 b = openpyxl.load_workbook(sys.argv[2]).active
-print(a['D1'].value, '|', a['A6'].value, '|', a['C6'].value, '|', a['D6'].value, '|', a['B7'].value, '|', a['D7'].value)
+print(a['B1'].value, '|', a['A6'].value, '|', a['C6'].value, '|', a['D6'].value, '|', a['B7'].value, '|', a['D7'].value)
 print(b['E6'].value, '|', b['C8'].value, '|', b.max_column)
 `, f1, f2], { encoding: 'utf8' });
         assert.equal(r.status, 0, r.stderr);

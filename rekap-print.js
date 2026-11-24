@@ -302,13 +302,95 @@
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
 
+    // ------------------------------------------------------------------ logo kop Excel
+    // Excel menaruh gambar relatif ke sel, bukan ke halaman. Supaya kop Excel sama
+    // dengan versi PDF (logo tepat di kiri judul, tegak di tengah blok kop, setinggi
+    // blok itu), posisinya dihitung dari lebar kolom & tinggi baris lembar itu sendiri.
+    const PX_PER_PT = 96 / 72;
+    const LOGO_KOP = { margin: 4, gap: 8, min: 36, max: 56, ratio: 0.9 };
+
+    /** Lebar kolom Excel (satuan karakter, font bawaan Arial 10 → 7 px per digit) → piksel. */
+    function colPx(w) { return Math.trunc(((256 * w + Math.trunc(128 / 7)) / 256) * 7); }
+    /** Kebalikan colPx: lebar terkecil (2 desimal) yang paling sedikit `px` piksel. */
+    function colWidthFor(px) {
+        let w = Math.max(0, Math.floor((px / 7) * 100) / 100);
+        while (colPx(w) < px) w = Math.round((w + 0.01) * 100) / 100;
+        return w;
+    }
+    /** Ukuran asli PNG (dari header IHDR), untuk menjaga perbandingan logo. */
+    function pngSize(png) {
+        if (!png || png.length < 24) return null;
+        const u = (i) => ((png[i] << 24) | (png[i + 1] << 16) | (png[i + 2] << 8) | png[i + 3]) >>> 0;
+        const w = u(16); const h = u(20);
+        return w && h ? { w, h } : null;
+    }
+    const filled = (c) => c !== null && c !== undefined && c !== ''
+        && !(typeof c === 'object' && (c.v === null || c.v === undefined || c.v === '') && !c.f);
+
+    /**
+     * Tata letak logo kop untuk satu lembar. Teks kop dimulai di kolom terkiri yang
+     * berisi di baris 1; blok kop = baris-baris yang mulai di kolom itu. Logo ditaruh
+     * tepat di kiri teks itu (jarak 8 px), tegak di tengah blok, tingginya ±90% blok.
+     * Kalau ruang di kiri teks kurang, kolom tepat sebelum teks dilebarkan.
+     * Tinggi baris kop yang belum ditentukan diisi nilai bawaan lembar, supaya
+     * perhitungan ini sama persis dengan yang digambar Excel/LibreOffice.
+     * → { widths, heights, drawing } (drawing = isi xl/drawings/drawingN.xml)
+     */
+    function kopLogo({ rows, widths = [], heights = {}, png, defaultRowPt = 12.75, defaultColWidth = 8.43 }) {
+        const W = widths.slice();
+        const H = { ...heights };
+        // Teks kop = kolom terkiri yang berisi di baris 1. Blok kop = baris berturut-turut
+        // yang teksnya mulai di kolom yang sama (berhenti di baris kosong atau baris yang
+        // mulai di kolom lain, mis. keterangan periode atau kepala tabel).
+        const first = (r) => (rows[r] || []).findIndex(filled);
+        const textCol = Math.max(0, first(0));
+        let k = 1;
+        while (k < Math.min(rows.length, 8) && first(k) === textCol) k++;
+        for (let r = 1; r <= k; r++) if (!H[r]) H[r] = defaultRowPt;
+        const rowPx = (r) => (H[r] || defaultRowPt) * PX_PER_PT;
+        const cw = (i) => colPx(W[i] ?? defaultColWidth);
+
+        let kopH = 0;
+        for (let r = 1; r <= k; r++) kopH += rowPx(r);
+        const side = Math.max(LOGO_KOP.min, Math.min(LOGO_KOP.max, Math.round(kopH * LOGO_KOP.ratio)));
+        const dim = pngSize(png) || { w: 1, h: 1 };
+        const sc = side / Math.max(dim.w, dim.h);
+        const lw = Math.round(dim.w * sc);
+        const lh = Math.round(dim.h * sc);
+
+        let xText = 0;
+        for (let i = 0; i < textCol; i++) xText += cw(i);
+        const need = LOGO_KOP.margin + lw + LOGO_KOP.gap;
+        if (textCol >= 1 && xText < need) {
+            for (let i = 0; i < textCol - 1; i++) if (W[i] === undefined) W[i] = defaultColWidth;
+            W[textCol - 1] = colWidthFor(cw(textCol - 1) + (need - xText));
+            xText = 0;
+            for (let i = 0; i < textCol; i++) xText += cw(i);
+        }
+        const left = textCol >= 1 ? Math.max(LOGO_KOP.margin, xText - LOGO_KOP.gap - lw) : LOGO_KOP.margin;
+        const top = Math.max(0, Math.round((kopH - lh) / 2));
+
+        let col = 0; let acc = 0;
+        while (acc + cw(col) <= left && col < 200) { acc += cw(col); col++; }
+        const colOff = left - acc;
+        let row = 0; let racc = 0;
+        while (row < k - 1 && racc + rowPx(row + 1) <= top) { racc += rowPx(row + 1); row++; }
+        const rowOff = Math.round(top - racc);
+
+        const E = (px) => Math.round(px * 9525);
+        const drawing = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><xdr:oneCellAnchor><xdr:from><xdr:col>${col}</xdr:col><xdr:colOff>${E(colOff)}</xdr:colOff><xdr:row>${row}</xdr:row><xdr:rowOff>${E(rowOff)}</xdr:rowOff></xdr:from><xdr:ext cx="${E(lw)}" cy="${E(lh)}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="2" name="Logo"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${E(lw)}" cy="${E(lh)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>`;
+        return { widths: W, heights: H, drawing, box: { left, top, width: lw, height: lh, textCol, kopRows: k, kopHeight: kopH } };
+    }
+
     /**
      * rows: array baris; tiap sel = nilai (string/number/null) atau { v, s } (s = indeks gaya).
      * merges: ['A1:F1', ...]; widths: [lebar kolom ...]; landscape: true
      */
-    function buildXlsx({ sheet = 'Rekap', rows, merges = [], widths = [], landscape = true, logoPng = null, logoPx = 64, heights = {}, showGrid = true, fitHeight = 0 }) {
+    function buildXlsx({ sheet = 'Rekap', rows, merges = [], widths = [], landscape = true, logoPng = null, heights = {}, showGrid = true, fitHeight = 0 }) {
         const hasLogo = logoPng && logoPng.length > 8 && logoPng[0] === 0x89 && logoPng[1] === 0x50;
-        const emu = Math.round(logoPx * 9525);
+        const logo = hasLogo ? kopLogo({ rows, widths, heights, png: logoPng }) : null;
+        if (logo) { widths = logo.widths; heights = logo.heights; }
         const sheetRows = rows.map((r, ri) => {
             const cells = r.map((cell, ci) => {
                 if (cell === null || cell === undefined || cell === '') return '';
@@ -346,8 +428,7 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
             files.push(
                 { name: 'xl/worksheets/_rels/sheet1.xml.rels', data: utf8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>`) },
-                { name: 'xl/drawings/drawing1.xml', data: utf8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>57150</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>28575</xdr:rowOff></xdr:from><xdr:ext cx="${emu}" cy="${emu}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="2" name="Logo"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu}" cy="${emu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>`) },
+                { name: 'xl/drawings/drawing1.xml', data: utf8(logo.drawing) },
                 { name: 'xl/drawings/_rels/drawing1.xml.rels', data: utf8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.png"/></Relationships>`) },
                 { name: 'xl/media/image1.png', data: logoPng },
@@ -422,7 +503,6 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
             sheet: `${romawi(header.kelas || recap.kelas)} ${BULAN[recap.bulan - 1]} ${recap.tahun}`,
             rows,
             logoPng: opts.logoPng,
-            logoPx: 46,
             heights,
             showGrid: false,
             fitHeight: 1,
@@ -462,7 +542,6 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
             sheet: `Semester ${nama} ${romawi(header.kelas)}`,
             rows,
             logoPng: opts.logoPng,
-            logoPx: 46,
             heights,
             showGrid: false,
             fitHeight: 1,
@@ -524,7 +603,7 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
     }
 
     const api = { monthlyHtml, semesterHtml, monthlyXlsx, semesterXlsx, buildXlsx, crc32, print: printDoc, download, loadLogo, fileName, akhirBulan, ttdSemester, HADIR, romawi, namaTtd, pct, BULAN,
-        zipStore, colName, xmlEsc, kopHtml, wrapDoc, fit, tglPanjang, tpLabel, SCHOOL, CITY };
+        zipStore, colName, xmlEsc, kopHtml, wrapDoc, fit, tglPanjang, tpLabel, SCHOOL, CITY, kopLogo, colPx };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.RekapPrint = Object.freeze(api);
 })(typeof window !== 'undefined' ? window : globalThis);

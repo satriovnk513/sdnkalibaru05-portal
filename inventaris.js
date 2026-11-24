@@ -108,24 +108,25 @@
     function itemsXlsx(buildXlsx, items, logoPng) {
         const head = ['No', 'Kode', 'Nama barang', 'Kategori', 'Merk / Tipe', 'No. Seri', 'Lokasi', 'Tahun', 'Status barang', 'Keterangan rusak', 'Jenis pinjam', 'Ketersediaan', 'Peminjam', 'Sejak', 'Catatan'];
         const rows = [
-            [{ v: 'DAFTAR INVENTARIS BARANG — SDN KALIBARU 05 PAGI', s: 6 }], [], head.map((v) => ({ v, s: 2 })),
+            // Kop seperti versi cetak: logo di kolom A, judul & sekolah mulai kolom B.
+            [null, { v: 'DAFTAR INVENTARIS BARANG', s: 7 }], [null, { v: 'SDN KALIBARU 05 PAGI', s: 15 }], [], head.map((v) => ({ v, s: 2 })),
             ...items.map((it, i) => [i + 1, it.kode, it.nama, it.kategori || '', it.merk || '', it.nomor_seri || '', it.lokasi || '',
                 it.tahun_perolehan || '', KONDISI[it.kondisi] || it.kondisi, it.keterangan_rusak || '', JENIS_PENDEK[it.jenis_pinjam] || it.jenis_pinjam,
                 !it.aktif ? 'Diarsipkan' : it.pinjaman ? (it.pinjaman.terlambat ? 'Dipinjam (terlambat)' : 'Dipinjam') : 'Tersedia',
                 it.pinjaman?.peminjam || '', it.pinjaman ? tgl(it.pinjaman.sejak) : '', it.catatan || ''].map((v, ci) => ({ v, s: ci === 0 ? 4 : 3 }))),
         ];
-        return buildXlsx({ sheet: 'Inventaris', rows, merges: ['A1:O1'], widths: [5, 11, 30, 14, 16, 16, 14, 7, 12, 22, 14, 18, 24, 13, 24], landscape: true, logoPng, logoPx: 40 });
+        return buildXlsx({ sheet: 'Inventaris', rows, merges: ['B1:O1', 'B2:O2'], heights: { 1: 15, 2: 15, 3: 6 }, widths: [5, 11, 30, 14, 16, 16, 14, 7, 12, 22, 14, 18, 24, 13, 24], landscape: true, logoPng });
     }
 
     function historyXlsx(buildXlsx, loans, logoPng) {
         const head = ['No', 'Kode', 'Barang', 'Peminjam', 'Keperluan', 'Dipinjam', 'Rencana kembali', 'Dikembalikan', 'Status saat kembali', 'Catatan pengembalian'];
         const rows = [
-            [{ v: 'RIWAYAT PEMINJAMAN BARANG — SDN KALIBARU 05 PAGI', s: 6 }], [], head.map((v) => ({ v, s: 2 })),
+            [null, { v: 'RIWAYAT PEMINJAMAN BARANG', s: 7 }], [null, { v: 'SDN KALIBARU 05 PAGI', s: 15 }], [], head.map((v) => ({ v, s: 2 })),
             ...loans.map((l, i) => [i + 1, l.kode, l.nama, l.peminjam, l.keperluan || '', tgl(l.sejak, true), l.sampai ? tgl(l.sampai) : '–',
                 l.kembali ? tgl(l.kembali, true) : (l.terlambat ? 'BELUM (terlambat)' : 'Belum'), l.kondisi ? KONDISI[l.kondisi] : '', l.catatan || '']
                 .map((v, ci) => ({ v, s: ci === 0 ? 4 : 3 }))),
         ];
-        return buildXlsx({ sheet: 'Riwayat Pinjam', rows, merges: ['A1:J1'], widths: [5, 11, 28, 24, 24, 16, 14, 18, 14, 24], landscape: true, logoPng, logoPx: 40 });
+        return buildXlsx({ sheet: 'Riwayat Pinjam', rows, merges: ['B1:J1', 'B2:J2'], heights: { 1: 15, 2: 15, 3: 6 }, widths: [5, 11, 28, 24, 24, 16, 14, 18, 14, 24], landscape: true, logoPng });
     }
 
     // ------------------------------------------------------------------ monitoring

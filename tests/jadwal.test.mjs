@@ -67,7 +67,9 @@ test('Excel jadwal: judul, header hari, sel bergabung & istirahat', async () => 
     const bytes = J.xlsx(data());
     const [sh] = await X.readBook(bytes);
     assert.equal(sh.name, 'Jadwal 3 A');
-    assert.equal(sh.rows[0][0], 'JADWAL PELAJARAN KELAS 3.A');
+    assert.equal(sh.rows[0][1], 'JADWAL PELAJARAN');
+    assert.equal(sh.rows[1][1], 'TAHUN PELAJARAN 2026 / 2027');
+    assert.equal(sh.rows[2][6], 'KELAS : III.A');
     assert.deepEqual(sh.rows[4], ['NO.', 'WAKTU', 'SENIN', 'SELASA', 'RABU', 'KAMIS', "JUM'AT"]);
     assert.equal(sh.rows[5][1], '06.30–07.05');
     assert.equal(sh.rows[5][2], 'UPACARA BENDERA');
@@ -75,7 +77,7 @@ test('Excel jadwal: judul, header hari, sel bergabung & istirahat', async () => 
     assert.equal(sh.rows[10][2], 'ISTIRAHAT');
     assert.equal(sh.rows[11][2], 'BHS INDONESIA');
     const xml = new TextDecoder().decode(bytes);
-    for (const m of ['C6:C7', 'C8:C10', 'C11:G11', 'G14:G16']) assert.match(xml, new RegExp(`<mergeCell ref="${m}"/>`));
+    for (const m of ['B1:G1', 'B2:G2', 'C6:C7', 'C8:C10', 'C11:G11', 'G14:G16']) assert.match(xml, new RegExp(`<mergeCell ref="${m}"/>`));
 });
 
 test('cetak jadwal: kop, rowspan, istirahat, tanda tangan', () => {
