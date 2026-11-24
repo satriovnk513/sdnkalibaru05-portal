@@ -76,6 +76,10 @@ run "Status ikut kelas"             "$ROOT/supabase/migrations/20261128000001_st
 run "Status ikut kelas (ulang)"     "$ROOT/supabase/migrations/20261128000001_status_from_class.sql"
 run "Mapel per tingkat"             "$ROOT/supabase/migrations/20261129000001_subject_grade_range.sql"
 run "Mapel per tingkat (ulang)"     "$ROOT/supabase/migrations/20261129000001_subject_grade_range.sql"
+run "Statistik publik"              "$ROOT/supabase/migrations/20261130000001_statistik_publik.sql"
+run "Statistik publik (ulang)"      "$ROOT/supabase/migrations/20261130000001_statistik_publik.sql"
+run "Alasan keluar"                 "$ROOT/supabase/migrations/20261130000002_alasan_keluar.sql"
+run "Alasan keluar (ulang)"         "$ROOT/supabase/migrations/20261130000002_alasan_keluar.sql"
 
 echo "→ Tes Absensi"
 {

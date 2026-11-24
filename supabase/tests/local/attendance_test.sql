@@ -1522,6 +1522,55 @@ begin
     execute 'reset role';
     end;
 
+    -- ======================================================== Z. Statistik publik & alasan keluar
+    declare
+        v_st   jsonb;
+        v_sis  uuid := st1;
+        v_roms int;
+    begin
+    execute 'reset role';
+    perform set_config('request.jwt.claims', null, true);
+    v_st := public.get_public_stats();
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Z Statistik', 'u', 'get_public_stats memberi empat angka dan tidak membocorkan data pribadi',
+        'ok', (select count(*) from jsonb_object_keys(v_st)) = 4
+          and (v_st ? 'siswa') and (v_st ? 'guru') and (v_st ? 'rombel') and (v_st ? 'ekskul')
+          and (v_st ->> 'rombel')::int = (select count(*) from public.classes c join public.academic_years y on y.id = c.academic_year_id and y.is_active)
+          and (v_st ->> 'guru')::int = (select count(*) from public.staff));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Z Statistik', 'u', 'Pengunjung (anon) boleh memanggil get_public_stats, tapi tidak get_grades_admin_matrix',
+        'ok', has_function_privilege('anon', 'public.get_public_stats()', 'execute')
+          and not has_function_privilege('anon', 'public.get_grades_admin_matrix(smallint)', 'execute'));
+
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Z Keluar', 'u', 'Alasan keluar hanya nilai yang dikenal',
+        'ok', public.t_try(format('update public.student_records set archived_at = now(), exit_reason = %L where id = %L', 'Kabur', v_sis)) = '23514');
+
+    update public.student_records set archived_at = now(), exit_reason = 'Mutasi' where id = v_sis;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Z Keluar', 'u', 'Diarsipkan: tanggal keluar terisi sendiri, rombel ditutup, lepas dari daftar kelas',
+        'ok', (select exit_date is not null and exit_reason = 'Mutasi' from public.student_records where id = v_sis)
+          and not exists (select 1 from public.student_enrollments where student_id = v_sis and end_date is null));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Z Statistik', 'u', 'Siswa yang diarsipkan tidak ikut dihitung di statistik publik',
+        'ok', (public.get_public_stats() ->> 'siswa')::int = (v_st ->> 'siswa')::int - 1);
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Z Keluar', 'u', 'Siswa yang diarsipkan lepas dari daftar kelas',
+        'ok', not exists (select 1 from public.get_class_roster(c1a, current_date) r where r.student_id = v_sis));
+    execute 'reset role';
+    perform set_config('request.jwt.claims', null, true);
+
+    update public.student_records set archived_at = null where id = v_sis;
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Z Keluar', 'u', 'Dipulihkan: alasan & tanggal keluar dihapus, rombel dibuka lagi',
+        'ok', (select exit_reason is null and exit_date is null from public.student_records where id = v_sis)
+          and exists (select 1 from public.student_enrollments where student_id = v_sis and end_date is null)
+          and (public.get_public_stats() ->> 'siswa')::int = (v_st ->> 'siswa')::int);
+    end;
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end

@@ -68,6 +68,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const counters = document.querySelectorAll('.counter');
     const speed = 200;
 
+    // Angka statistik diambil dari database supaya ikut berubah saat data di
+    // Panel Admin berubah. Kalau gagal, angka bawaan di HTML yang dipakai.
+    const statCards = document.querySelectorAll('.counter[data-stat]');
+    if (statCards.length && window.supabaseClient) {
+        Promise.resolve(supabaseClient.rpc('get_public_stats')).then(({ data, error }) => {
+            if (error || !data) return;
+            statCards.forEach(el => {
+                const nilai = data[el.dataset.stat];
+                if (typeof nilai !== 'number' || nilai < 0) return;
+                el.setAttribute('data-target', nilai);
+                // Sudah terlanjur dianimasikan sebelum data datang: samakan langsung.
+                if (+el.innerText > 0) el.innerText = nilai;
+            });
+        }).catch(() => {});
+    }
+
     const animateCounters = () => {
         counters.forEach(counter => {
             const updateCount = () => {

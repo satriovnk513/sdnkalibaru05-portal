@@ -615,6 +615,9 @@
         .stu-confirm-box { background: var(--t-surface); border-radius: 16px; padding: 1.5rem; max-width: 420px; width: 100%; margin: auto; box-shadow: 0 24px 60px rgba(0,0,0,0.25); }
         .stu-confirm-box h3 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.15rem; color: var(--t-ink); }
         .stu-confirm-box p { color: var(--t-text); font-size: 0.92rem; line-height: 1.5; margin-top: 0.6rem; }
+        .stu-confirm-exit { display: grid; grid-template-columns: 1fr 10rem; gap: 0.7rem; margin-top: 1rem; }
+        .stu-confirm-exit[hidden] { display: none; }
+        @media (max-width: 480px) { .stu-confirm-exit { grid-template-columns: 1fr; } }
         .stu-confirm-actions { display: flex; gap: 0.6rem; margin-top: 1.25rem; }
         .stu-confirm-actions .stu-btn { flex: 1; margin-left: 0; }
         @media (max-width: 640px) {
@@ -1471,6 +1474,25 @@
         <div class="stu-confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="stuConfirmTitle">
             <h3 id="stuConfirmTitle">Arsipkan siswa?</h3>
             <p id="stuConfirmText"></p>
+            <div class="stu-confirm-exit" id="stuConfirmExit" hidden>
+                <div class="stu-form-item">
+                    <label for="stuExitReason">Alasan keluar <span class="stu-req">*</span></label>
+                    <select class="stu-input" id="stuExitReason">
+                        <option value="">Pilih alasan…</option>
+                        <option>Mutasi</option>
+                        <option>Mengundurkan diri</option>
+                        <option>Lulus</option>
+                        <option>Hilang</option>
+                        <option>Putus sekolah</option>
+                        <option>Meninggal</option>
+                        <option>Lainnya</option>
+                    </select>
+                </div>
+                <div class="stu-form-item">
+                    <label for="stuExitDate">Tanggal keluar</label>
+                    <input type="date" class="stu-input" id="stuExitDate">
+                </div>
+            </div>
             <div class="stu-confirm-actions">
                 <button type="button" class="stu-btn stu-btn-ghost" id="stuConfirmNo">Batal</button>
                 <button type="button" class="stu-btn stu-btn-danger" id="stuConfirmYes">Ya</button>
@@ -1507,7 +1529,7 @@
     <!-- Custom Scripts -->
     <script src="ai-service.js?v=3"></script>
     <script src="student-fields.js?v=2"></script>
-    <script src="admin-students.js?v=4"></script>
+    <script src="admin-students.js?v=5"></script>
     <script src="admin.js?v=7"></script>
     <script src="attendance-sheet.js?v=8"></script>
     <script src="admin-attendance.js?v=7"></script>
