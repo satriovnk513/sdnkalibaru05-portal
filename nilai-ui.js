@@ -452,6 +452,7 @@
             let lengkap = 0; let total = 0; let kosong = 0;
             const cellHtml = (k, m) => {
                 const c = (k.sel || {})[m.id] || {};
+                if (c.luar) return `<td class="nl-x hid" title="${esc(`${m.nama} hanya untuk ${m.kelas_teks || 'sebagian kelas'}`)}">·</td>`;
                 if (c.hidden) return '<td class="nl-x hid" title="Tidak diajarkan">—</td>';
                 const n = k.siswa || 0;
                 total += 1;
@@ -466,9 +467,9 @@
                 <div class="inv-stats"><div class="inv-stat"><b>${lengkap}</b><span>mapel × kelas lengkap</span></div>
                     <div class="inv-stat warn"><b>${total - lengkap - kosong}</b><span>sebagian terisi</span></div>
                     <div class="inv-stat"><b>${kosong}</b><span>belum mulai</span></div></div>
-                <p class="att-muted">Angka = siswa yang nilainya lengkap (UH 1–3, STS, SAS) / jumlah siswa. Titik kuning = KKTP belum diisi. Klik sel untuk melihat atau mengisi; klik nama kelas untuk semua mapel, riwayat, dan unduhan.</p>
+                <p class="att-muted">Angka = siswa yang nilainya lengkap (UH 1–3, STS, SAS) / jumlah siswa. Titik kuning = KKTP belum diisi. Klik sel untuk melihat atau mengisi; klik nama kelas untuk semua mapel, riwayat, dan unduhan. Tanda — berarti mapel disembunyikan di kelas itu, tanda · berarti mapel itu bukan untuk tingkat tersebut.</p>
                 <details class="nl-kode" open><summary><span class="nl-i" aria-hidden="true">i</span>Keterangan kode mapel</summary>
-                    <dl>${mx.mapel.map((m) => `<div><dt>${esc(m.kode)}</dt><dd>${esc(m.nama)}</dd></div>`).join('')}</dl></details>
+                    <dl>${mx.mapel.map((m) => `<div><dt>${esc(m.kode)}</dt><dd>${esc(m.nama)}${m.kelas_min > 1 || m.kelas_max < 6 ? ` <span class="att-muted">· hanya ${esc(m.kelas_teks)}</span>` : ''}</dd></div>`).join('')}</dl></details>
                 <div class="nl-mx-wrap"><table class="nl-mx"><thead><tr><th>Kelas</th>${mx.mapel.map((m) => `<th><abbr title="${esc(m.nama)}">${esc(m.kode)}</abbr></th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>
                 <div class="nl-legend"><span class="full"></span>Lengkap <span class="part"></span>Sebagian <span class="none"></span>Belum <span class="hid"></span>Tidak diajarkan</div>`;
             const kode = el.querySelector('.nl-kode');

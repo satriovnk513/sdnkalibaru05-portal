@@ -824,15 +824,16 @@ begin
         s_mtk uuid := (select id from public.subjects where code = 'MTK');
     begin
     v_no := v_no + 1;
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', '14 mapel dengan urutan tetap (BIN pertama, SER terakhir)',
-        'ok', (select count(*) from public.subjects where sort_order between 1 and 14) = 14
-          and (select code from public.subjects order by sort_order limit 1) = 'BIN');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', '15 mapel dengan urutan tetap (BIN pertama, SER terakhir)',
+        'ok', (select count(*) from public.subjects where sort_order between 1 and 15) = 15
+          and (select code from public.subjects order by sort_order limit 1) = 'BIN'
+          and (select code from public.subjects where sort_order = 15) = 'SER');
     perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
     execute 'set local role authenticated';
     v_j := public.get_class_grades(c1a, 1::smallint);
     v_no := v_no + 1;
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Nilai', 'u', 'Wali kelas melihat semua mapel; PAI diisi guru mapel (tidak bisa diubah wali), MTK bisa',
-        'ok', jsonb_array_length(v_j -> 'mapel') = (select count(*) from public.subjects) and jsonb_array_length(v_j -> 'siswa') = 3
+        'ok', jsonb_array_length(v_j -> 'mapel') = (select count(*) from public.subjects where grade_min <= 1) and jsonb_array_length(v_j -> 'siswa') = 3
           and exists (select 1 from jsonb_array_elements(v_j -> 'mapel') m where m ->> 'kode' = 'PAI' and not (m ->> 'can_edit')::boolean and m -> 'guru_mapel' = '["Susy Nurhayati"]'::jsonb)
           and exists (select 1 from jsonb_array_elements(v_j -> 'mapel') m where m ->> 'kode' = 'MTK' and (m ->> 'can_edit')::boolean));
     v_j := public.save_grades(c1a, 1::smallint, jsonb_build_array(jsonb_build_object('subject_id', s_mtk, 'kktp', 75, 'entries', jsonb_build_array(
@@ -924,7 +925,7 @@ begin
     execute 'set local role authenticated';
     v_no := v_no + 1;
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Q Hak', 'u', 'Kepala sekolah melihat semua mapel tapi tidak bisa mengubah',
-        'ok', jsonb_array_length(public.get_class_grades(c1a, 1::smallint) -> 'mapel') = (select count(*) from public.subjects)
+        'ok', jsonb_array_length(public.get_class_grades(c1a, 1::smallint) -> 'mapel') = (select count(*) from public.subjects where grade_min <= 1)
           and public.t_try(format($q$select public.save_grades(%L, 1::smallint, '[{"subject_id":"%s","entries":[{"student_id":"%s","uh1":80}]}]')$q$, c1a, s_mtk, st1)) = '42501');
     v_j := public.get_grades_admin_matrix(1::smallint);
     v_no := v_no + 1;
@@ -1473,6 +1474,51 @@ begin
     v_no := v_no + 1;
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'X Sinkron', 'u', 'Kolom turunan status_daftar ikut diperbarui',
         'ok', (select status_daftar from public.student_records where id = st2) = 'Tercantum di daftar kelas');
+    execute 'reset role';
+    end;
+
+    -- ======================================================== Y. Mapel per tingkat (KKA kelas 5 & 6)
+    declare
+        c6a    uuid := (select id from public.classes where name = '6 A');
+        s_kka  uuid := (select id from public.subjects where code = 'KKA');
+        v_m6   jsonb;
+    begin
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Y Mapel', 'u', 'KKA tercatat hanya untuk kelas 5 & 6',
+        'ok', (select grade_min = 5 and grade_max = 6 from public.subjects where id = s_kka)
+          and public.subject_grade_label(s_kka) = 'kelas 5 & 6'
+          and public.subject_in_class(c6a, s_kka) and not public.subject_in_class(c1a, s_kka));
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Y Mapel', 'u', 'Menu Nilai: KKA muncul di kelas 6 A, tidak di kelas 1 A',
+        'ok', exists (select 1 from jsonb_array_elements(public.get_class_grades(c6a, 1::smallint) -> 'mapel') m where m ->> 'kode' = 'KKA')
+          and not exists (select 1 from jsonb_array_elements(public.get_class_grades(c1a, 1::smallint) -> 'mapel') m where m ->> 'kode' = 'KKA'));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Y Mapel', 'u', 'Nilai KKA di kelas 1 A ditolak, di kelas 6 A diterima',
+        'ok', public.t_try(format('select public.save_grades(%L, 1::smallint, %L::jsonb)', c1a,
+                  jsonb_build_array(jsonb_build_object('subject_id', s_kka, 'entries',
+                      jsonb_build_array(jsonb_build_object('student_id', st1, 'uh1', 80)))))) = '42501'
+          and public.grade_can_edit(c6a, s_kka));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Y Mapel', 'u', 'Penugasan guru KKA ke kelas 1 A ditolak',
+        'ok', public.t_try(format('select public.set_subject_assignments(%L, %L, array[%L]::uuid[])', s_kka,
+                  (select id from public.staff where name = 'Susy Nurhayati'), c1a)) = '22023');
+    v_m6 := public.get_class_schedule(c6a) -> 'mapel';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Y Mapel', 'u', 'Pilihan mapel jadwal: KKA ada di kelas 6 A, tidak di kelas 1 A',
+        'ok', exists (select 1 from jsonb_array_elements(v_m6) m where m ->> 'kode' = 'KKA')
+          and not exists (select 1 from jsonb_array_elements(public.get_class_schedule(c1a) -> 'mapel') m where m ->> 'kode' = 'KKA'));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Y Mapel', 'u', 'Jadwal: KKA tidak bisa dipasang di kelas 1 A, bisa di kelas 6 A',
+        'ok', public.t_try(format($q$select public.save_schedule_entry(%L, 1::smallint, 1::smallint, 1::smallint, 'mapel', %L)$q$, c1a, s_kka)) = '22023'
+          and public.t_try(format($q$select public.save_schedule_entry(%L, 1::smallint, 1::smallint, 1::smallint, 'mapel', %L)$q$, c6a, s_kka)) = 'OK');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'Y Mapel', 'u', 'Matriks admin menandai KKA luar tingkat di kelas 1–4',
+        'ok', ((select k -> 'sel' -> (s_kka::text) ->> 'luar' from jsonb_array_elements(public.get_grades_admin_matrix(1::smallint) -> 'kelas') k
+                where k ->> 'nama' = '1 A'))::boolean
+          and not ((select k -> 'sel' -> (s_kka::text) ->> 'luar' from jsonb_array_elements(public.get_grades_admin_matrix(1::smallint) -> 'kelas') k
+                where k ->> 'nama' = '6 A'))::boolean);
     execute 'reset role';
     end;
 
