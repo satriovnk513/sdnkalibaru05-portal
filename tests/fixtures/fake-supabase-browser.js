@@ -26,7 +26,7 @@
     };
     F.sessions = F.sessions || {};   // key class|date|kind|subject → { id, records: {sid: {status, note}}, disimpan }
 
-    function err(message) { return { data: null, error: { message } }; }
+    function err(message, code) { return { data: null, error: code ? { message, code } : { message } }; }
     const ok = (data, extra = {}) => ({ data, error: null, ...extra });
 
     function homeFor(user) {
@@ -362,7 +362,8 @@
     }
 
     // ------------------------------------------------------------------ nilai tiruan
-    const GRADE_RPC = ['get_my_grade_classes', 'get_class_grades', 'save_grades', 'get_grade_history', 'set_class_subject_hidden', 'get_grades_admin_matrix'];
+    const GRADE_RPC = ['get_my_grade_classes', 'get_class_grades', 'save_grades', 'get_grade_history', 'set_class_subject_hidden',
+        'get_grades_admin_matrix', 'set_subject_uh_count'];
     const MAPEL = [
         { id: 'm-bin', kode: 'BIN', nama: 'Bahasa Indonesia', singkat: 'B. Indonesia' },
         { id: 'm-mtk', kode: 'MTK', nama: 'Matematika', singkat: 'Matematika' },
@@ -379,10 +380,15 @@
             { c: C1A, smt: 1, s: S(1), m: PAI, uh1: 90, uh2: 88, uh3: 92, sts: 85, sas: 90 },
         ],
         kktp: { [`${C1A}|m-mtk`]: 75, [`${C1A}|${PAI}`]: 70 },
+        uh: {},                                    // `${kelas}|${mapel}|${semester}` → jumlah kolom UH
         hidden: {},
         history: [],
         seq: 1,
     };
+    const UH_MAX = 10;
+    const uhN = (c, m, smt) => G.uh[`${c}|${m}|${smt}`] ?? 3;
+    const uhKeys = (c, m, smt) => Array.from({ length: uhN(c, m, smt) }, (_, i) => `uh${i + 1}`);
+    const fieldsOf = (c, m, smt) => [...uhKeys(c, m, smt), 'sts', 'sas'];
     const FIELDS = ['uh1', 'uh2', 'uh3', 'sts', 'sas'];
     const kelasNama = (c) => (c === C1A ? '1 A' : '3 A');
     function gradeCanEdit(user, c, m) {
@@ -400,6 +406,7 @@
             const c = a.p_class_id;
             const mapel = MAPEL.filter((m) => mapelDiKelas(m, c) && gradeCanView(user, c, m.id) && (!a.p_subject_id || a.p_subject_id === m.id)).map((m) => ({
                 ...m, kktp: G.kktp[`${c}|${m.id}`] ?? null, hidden: Boolean(G.hidden[`${c}|${m.id}`]),
+                jumlah_uh: uhN(c, m.id, a.p_semester),
                 guru_mapel: m.id === PAI ? (c === C1A ? ['Susy Nurhayati'] : ['Sunarsih, S.Pd.']) : null, can_edit: gradeCanEdit(user, c, m.id),
             }));
             const ids = new Set(mapel.map((m) => m.id));
@@ -421,6 +428,14 @@
             for (const it of a.p_items || []) {
                 const sub = MAPEL.find((x) => x.id === it.subject_id);
                 if (sub && !mapelDiKelas(sub, c)) return err(`Mapel ${sub.singkat} tidak diajarkan di kelas ini.`);
+                const batas = uhN(c, it.subject_id, smt);
+                for (const e of it.entries || []) {
+                    for (let k = batas + 1; k <= UH_MAX; k++) {
+                        if (e[`uh${k}`] !== undefined && e[`uh${k}`] !== null && e[`uh${k}`] !== '') {
+                            return err(`${sub.singkat} hanya punya ${batas} kolom UH di kelas ini, jadi UH${k} tidak bisa diisi.`);
+                        }
+                    }
+                }
                 if (!gradeCanEdit(user, c, it.subject_id)) return err('Anda tidak berhak mengubah nilai mapel ini.');
                 if ('kktp' in it) {
                     const k = `${c}|${it.subject_id}`;
@@ -428,8 +443,12 @@
                 }
                 for (const e of it.entries || []) {
                     let row = G.nilai.find((n) => n.c === c && n.smt === smt && n.s === e.student_id && n.m === it.subject_id);
-                    if (!row) { row = { c, smt, s: e.student_id, m: it.subject_id, uh1: null, uh2: null, uh3: null, sts: null, sas: null }; G.nilai.push(row); }
-                    for (const f of FIELDS) {
+                    if (!row) {
+                        row = { c, smt, s: e.student_id, m: it.subject_id, sts: null, sas: null };
+                        for (let k = 1; k <= UH_MAX; k++) row[`uh${k}`] = null;
+                        G.nilai.push(row);
+                    }
+                    for (const f of fieldsOf(c, it.subject_id, smt)) {
                         if (!(f in e)) continue;
                         let v = e[f] === '' ? null : e[f];
                         if (v === null && a.p_keep_blank) continue;
@@ -442,6 +461,37 @@
                 }
             }
             return ok(res);
+        }
+        case 'set_subject_uh_count': {
+            const c = a.p_class_id; const mid = a.p_subject_id; const smt = a.p_semester;
+            const baru = Number(a.p_count); const lama = uhN(c, mid, smt);
+            if (!gradeCanEdit(user, c, mid)) return err('Anda tidak berhak mengubah jumlah UH mapel ini.');
+            if (!(baru >= 1 && baru <= UH_MAX)) return err('Jumlah UH harus 1–10.');
+            let hapus = 0;
+            if (baru < lama) {
+                const buang = [];
+                for (let k = baru + 1; k <= lama; k++) buang.push(`uh${k}`);
+                const kena = G.nilai.filter((n) => n.c === c && n.m === mid && n.smt === smt && buang.some((f) => n[f] !== null && n[f] !== undefined));
+                if (kena.length && !a.p_force) {
+                    return err(`Masih ada nilai di kolom UH yang akan dibuang (${kena.length} siswa).`, '23514');
+                }
+                for (const n of kena) {
+                    for (const f of buang) {
+                        if (n[f] === null || n[f] === undefined) continue;
+                        G.history.unshift({ id: G.seq++, waktu: new Date().toISOString(), siswa: roster[c].find((r) => r.student_id === n.s)?.nama || null,
+                            mapel: MAPEL.find((x) => x.id === mid).singkat, semester: smt, kolom: f, lama: n[f], baru: null,
+                            oleh: user === 'admin' ? 'Paroji' : 'Sunarsih, S.Pd.', sumber: 'portal', c });
+                        n[f] = null; hapus += 1;
+                    }
+                }
+            }
+            G.uh[`${c}|${mid}|${smt}`] = baru;
+            if (baru !== lama) {
+                G.history.unshift({ id: G.seq++, waktu: new Date().toISOString(), siswa: null,
+                    mapel: MAPEL.find((x) => x.id === mid).singkat, semester: smt, kolom: 'jumlah_uh', lama, baru,
+                    oleh: user === 'admin' ? 'Paroji' : 'Sunarsih, S.Pd.', sumber: 'portal', c });
+            }
+            return ok({ jumlah: baru, sebelumnya: lama, terhapus: hapus });
         }
         case 'get_grade_history':
             return ok(G.history.filter((h) => h.c === a.p_class_id).map(({ c: _c, ...h }) => h));
@@ -457,6 +507,7 @@
                     sel: Object.fromEntries(MAPEL.map((m) => {
                         const rows = G.nilai.filter((n) => n.c === c && n.m === m.id && n.smt === a.p_semester);
                         return [m.id, { hidden: Boolean(G.hidden[`${c}|${m.id}`]), luar: !mapelDiKelas(m, c), kktp: G.kktp[`${c}|${m.id}`] ?? null,
+                            jumlah_uh: uhN(c, m.id, a.p_semester),
                             lengkap: rows.filter((n) => FIELDS.every((f) => n[f] !== null)).length, terisi: rows.filter((n) => FIELDS.some((f) => n[f] !== null)).length }];
                     })) })),
             });

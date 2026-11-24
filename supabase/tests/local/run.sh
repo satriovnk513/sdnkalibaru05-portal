@@ -82,6 +82,8 @@ run "Alasan keluar"                 "$ROOT/supabase/migrations/20261130000002_al
 run "Alasan keluar (ulang)"         "$ROOT/supabase/migrations/20261130000002_alasan_keluar.sql"
 run "Catatan keluar"               "$ROOT/supabase/migrations/20261130000003_catatan_keluar.sql"
 run "Catatan keluar (ulang)"        "$ROOT/supabase/migrations/20261130000003_catatan_keluar.sql"
+run "UH dinamis"                   "$ROOT/supabase/migrations/20261201000001_uh_dinamis.sql"
+run "UH dinamis (ulang)"            "$ROOT/supabase/migrations/20261201000001_uh_dinamis.sql"
 
 echo "→ Tes Absensi"
 {

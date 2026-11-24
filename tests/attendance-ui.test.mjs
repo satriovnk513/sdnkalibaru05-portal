@@ -1261,6 +1261,40 @@ async function runUi() {
         check(saved && saved.p_semester === 1 && saved.p_items[0].kktp === 70 && JSON.stringify(saved.p_items[0].entries) === JSON.stringify([{ student_id: SID(2), uh2: 90 }, { student_id: SID(3), uh1: 95 }]),
             `${T} save_grades hanya mengirim yang berubah + KKTP (${JSON.stringify(saved?.p_items).slice(0, 220)})`);
 
+        // Jumlah kolom UH bisa diubah guru
+        await page.waitForSelector('#nlUh');
+        check(await page.$eval('#nlUh', (e) => e.value) === '3'
+            && (await page.$$eval('.nl-grid-head span', (x) => x.map((e) => e.textContent))).join(',') === 'No,Nama siswa,UH 1,UH 2,UH 3,STS,SAS,NA',
+            `${T} bawaan 3 kolom UH`);
+        await page.selectOption('#nlUh', '5');
+        await page.waitForFunction(() => document.querySelectorAll('.nl-grid-head span').length === 10);
+        check((await page.$$eval('.nl-grid-head span', (x) => x.map((e) => e.textContent))).join(',') === 'No,Nama siswa,UH 1,UH 2,UH 3,UH 4,UH 5,STS,SAS,NA'
+            && await page.$eval('#nlUh', (e) => e.value) === '5', `${T} ditambah jadi 5 kolom UH tanpa konfirmasi`);
+        await page.fill(`[data-s="${SID(1)}"][data-f="uh5"]`, '100');
+        await page.click('#nlSave');
+        await page.waitForFunction(() => /Tersimpan/.test(document.getElementById('attToastHost')?.textContent || ''));
+        check((await na())[0] === '84', `${T} UH 5 ikut dirata-rata (NA 83 → 84, ${(await na())[0]})`);
+        await page.selectOption('#nlUh', '3');
+        await page.waitForSelector('.att-sheet:has-text("Kurangi jadi 3 kolom UH?")');
+        check(/UH 4, UH 5/.test(await page.textContent('.att-sheet')) && /Nilai 1 siswa/.test(await page.textContent('.att-sheet')),
+            `${T} dikurangi: ditanya dulu, menyebut kolom & berapa siswa yang nilainya hilang`);
+        await page.click('.att-sheet [data-act="no"]');
+        check(await page.$eval('#nlUh', (e) => e.value) === '5', `${T} batal → tetap 5 kolom`);
+        await page.selectOption('#nlUh', '3');
+        await page.waitForSelector('.att-sheet:has-text("Kurangi jadi 3 kolom UH?")');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => document.querySelectorAll('.nl-grid-head span').length === 8);
+        check(await page.$eval('#nlUh', (e) => e.value) === '3' && (await na())[0] === '83', `${T} dikonfirmasi: kembali 3 kolom, NA balik 83`);
+        await page.click('#gBack');
+        await page.waitForSelector('.nl-mp');
+        await page.click('[data-nv="riwayat"]');
+        await page.waitForSelector('.nl-hist');
+        const riwayat = await page.textContent('#nlHist');
+        check(/Jumlah UH/.test(riwayat), `${T} perubahan jumlah UH tercatat di Riwayat perubahan`);
+        await page.click('#gBack');
+        await page.waitForSelector('.nl-mp');
+        await page.click('.nl-mp:has-text("Matematika")');
+
         // Keluar dengan perubahan belum disimpan → konfirmasi
         await page.waitForSelector('#nlKktp');
         await page.fill(`[data-s="${SID(1)}"][data-f="sas"]`, '60');
@@ -1277,7 +1311,7 @@ async function runUi() {
         await page.click('[data-nv="riwayat"]');
         await page.waitForSelector('.nl-h');
         const hist = (await page.textContent('#nlHist')).replace(/\s+/g, ' ');
-        check((await page.$$('.nl-h')).length === 3 && /HARI INI/.test(hist) && /KKTP · Matematika.*75.*70/.test(hist) && /oleh Sunarsih/.test(hist), `${T} riwayat perubahan (lama → baru, oleh siapa) (${hist.slice(0, 160)})`);
+        check((await page.$$('.nl-h')).length === 7 && /HARI INI/.test(hist) && /KKTP · Matematika.*75.*70/.test(hist) && /oleh Sunarsih/.test(hist), `${T} riwayat perubahan (lama → baru, oleh siapa) (${hist.slice(0, 160)})`);
         await shot(page, 'nilai-03-riwayat-360.png');
         await page.click('#gBack');
         await page.waitForSelector('.nl-mp');
