@@ -10,8 +10,8 @@
     const STATUS_LISTED = 'Tercantum di daftar kelas';
     const STATUS_REVIEW = 'Perlu verifikasi lebih lanjut';
     const SCHOOL_YEAR = '2026/2027';
-    const LIST_COLUMNS = 'id,nik,nama_siswa,nipd,nisn,kelas,nama_ibu_kandung,status_daftar,archived_at,exit_reason,exit_date';
-    const DETAIL_COLUMNS = 'id,nik,nama_siswa,nipd,nisn,kelas,nama_ibu_kandung,status_daftar,status_dukcapil,payload,field_sources,matching_notes,source_names,archived_at,exit_reason,exit_date,updated_at';
+    const LIST_COLUMNS = 'id,nik,nama_siswa,nipd,nisn,kelas,nama_ibu_kandung,status_daftar,archived_at,exit_reason,exit_date,exit_note';
+    const DETAIL_COLUMNS = 'id,nik,nama_siswa,nipd,nisn,kelas,nama_ibu_kandung,status_daftar,status_dukcapil,payload,field_sources,matching_notes,source_names,archived_at,exit_reason,exit_date,exit_note,updated_at';
     const SEARCH_FIELDS = {
         all: ['nama_siswa', 'nik', 'nisn', 'nipd', 'nama_ibu_kandung'],
         nama_siswa: ['nama_siswa'], nik: ['nik'], nisn: ['nisn'], nipd: ['nipd'], nama_ibu_kandung: ['nama_ibu_kandung'],
@@ -361,7 +361,8 @@
         if (data.archived_at) {
             const alasan = data.exit_reason ? `Alasan keluar: ${data.exit_reason}` : 'Alasan keluar belum dicatat';
             const tgl = tglPendek(data.exit_date);
-            $('stuDetailArchived').textContent = `${alasan}${tgl ? ` (${tgl})` : ''}. Siswa ini tidak tampil di daftar aktif dan ringkasan. Pulihkan untuk mengubah datanya.`;
+            const catatan = data.exit_note ? ` Keterangan: ${data.exit_note}` : '';
+            $('stuDetailArchived').textContent = `${alasan}${tgl ? ` (${tgl})` : ''}.${catatan} Siswa ini tidak tampil di daftar aktif dan ringkasan. Pulihkan untuk mengubah datanya.`;
         }
         const acts = $('stuDetailActions');
         if (data.archived_at) {
@@ -781,9 +782,11 @@
         const kotakAlasan = $('stuConfirmExit');
         const pilihAlasan = $('stuExitReason');
         const isiTanggal = $('stuExitDate');
+        const isiCatatan = $('stuExitNote');
         kotakAlasan.hidden = !archive;
         if (archive) {
             pilihAlasan.value = student.exit_reason || '';
+            isiCatatan.value = student.exit_note || '';
             isiTanggal.value = (student.exit_date || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })).slice(0, 10);
             pilihAlasan.onchange = () => { yes.disabled = !pilihAlasan.value; };
         }
@@ -793,8 +796,8 @@
         yes.onclick = async () => {
             yes.disabled = true;
             const nilai = archive
-                ? { archived_at: new Date().toISOString(), exit_reason: pilihAlasan.value, exit_date: isiTanggal.value || null }
-                : { archived_at: null, exit_reason: null, exit_date: null };
+                ? { archived_at: new Date().toISOString(), exit_reason: pilihAlasan.value, exit_date: isiTanggal.value || null, exit_note: isiCatatan.value.trim() || null }
+                : { archived_at: null, exit_reason: null, exit_date: null, exit_note: null };
             let q = supabaseClient.from('student_records').update(nilai).eq('id', student.id);
             q = archive ? q.is('archived_at', null) : q.not('archived_at', 'is', null);
             const { data, error } = await q.select('id');

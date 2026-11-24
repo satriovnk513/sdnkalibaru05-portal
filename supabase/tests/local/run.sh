@@ -80,6 +80,8 @@ run "Statistik publik"              "$ROOT/supabase/migrations/20261130000001_st
 run "Statistik publik (ulang)"      "$ROOT/supabase/migrations/20261130000001_statistik_publik.sql"
 run "Alasan keluar"                 "$ROOT/supabase/migrations/20261130000002_alasan_keluar.sql"
 run "Alasan keluar (ulang)"         "$ROOT/supabase/migrations/20261130000002_alasan_keluar.sql"
+run "Catatan keluar"               "$ROOT/supabase/migrations/20261130000003_catatan_keluar.sql"
+run "Catatan keluar (ulang)"        "$ROOT/supabase/migrations/20261130000003_catatan_keluar.sql"
 
 echo "→ Tes Absensi"
 {
