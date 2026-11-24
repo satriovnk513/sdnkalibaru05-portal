@@ -363,7 +363,7 @@
 
     // ------------------------------------------------------------------ nilai tiruan
     const GRADE_RPC = ['get_my_grade_classes', 'get_class_grades', 'save_grades', 'get_grade_history', 'set_class_subject_hidden',
-        'get_grades_admin_matrix', 'set_subject_uh_count'];
+        'get_grades_admin_matrix', 'set_subject_uh_count', 'delete_subject_uh'];
     const MAPEL = [
         { id: 'm-bin', kode: 'BIN', nama: 'Bahasa Indonesia', singkat: 'B. Indonesia' },
         { id: 'm-mtk', kode: 'MTK', nama: 'Matematika', singkat: 'Matematika' },
@@ -492,6 +492,35 @@
                     oleh: user === 'admin' ? 'Paroji' : 'Sunarsih, S.Pd.', sumber: 'portal', c });
             }
             return ok({ jumlah: baru, sebelumnya: lama, terhapus: hapus });
+        }
+        case 'delete_subject_uh': {
+            const c = a.p_class_id; const mid = a.p_subject_id; const smt = a.p_semester; const ke = Number(a.p_ke);
+            const lama = uhN(c, mid, smt);
+            if (!gradeCanEdit(user, c, mid)) return err('Anda tidak berhak mengubah kolom UH mapel ini.');
+            if (lama <= 1) return err('Mapel ini tinggal satu kolom UH, tidak bisa dihapus lagi.');
+            if (!(ke >= 1 && ke <= lama)) return err(`Kolom UH ke-${ke} tidak ada; mapel ini punya ${lama} kolom.`);
+            const baris = G.nilai.filter((n) => n.c === c && n.m === mid && n.smt === smt);
+            const kena = baris.filter((n) => n[`uh${ke}`] !== null && n[`uh${ke}`] !== undefined);
+            if (kena.length && !a.p_force) return err(`Kolom UH ${ke} masih terisi untuk ${kena.length} siswa.`, '23514');
+            const oleh = user === 'admin' ? 'Paroji' : 'Sunarsih, S.Pd.';
+            const singkat = MAPEL.find((x) => x.id === mid).singkat;
+            let hapus = 0;
+            for (const n of kena) {
+                G.history.unshift({ id: G.seq++, waktu: new Date().toISOString(), siswa: roster[c].find((r) => r.student_id === n.s)?.nama || null,
+                    mapel: singkat, semester: smt, kolom: `uh${ke}`, lama: n[`uh${ke}`], baru: null, oleh, sumber: 'portal', c });
+                hapus += 1;
+            }
+            // Kolom sesudahnya naik satu; kolom terakhir dikosongkan.
+            for (const n of baris) {
+                for (let k = ke; k < UH_MAX; k++) n[`uh${k}`] = n[`uh${k + 1}`] ?? null;
+                n[`uh${UH_MAX}`] = null;
+            }
+            G.uh[`${c}|${mid}|${smt}`] = lama - 1;
+            G.history.unshift({ id: G.seq++, waktu: new Date().toISOString(), siswa: null, mapel: singkat, semester: smt,
+                kolom: 'jumlah_uh', lama, baru: lama - 1, oleh, sumber: 'portal', c });
+            G.history.unshift({ id: G.seq++, waktu: new Date().toISOString(), siswa: null, mapel: singkat, semester: smt,
+                kolom: 'hapus_uh', lama: ke, baru: null, oleh, sumber: 'portal', c });
+            return ok({ jumlah: lama - 1, sebelumnya: lama, dihapus_ke: ke, terhapus: hapus });
         }
         case 'get_grade_history':
             return ok(G.history.filter((h) => h.c === a.p_class_id).map(({ c: _c, ...h }) => h));

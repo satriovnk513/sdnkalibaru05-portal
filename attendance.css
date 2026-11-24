@@ -432,6 +432,13 @@
 .nl-hide-item input { width: 20px; height: 20px; accent-color: var(--att-brand); }
 
 .nl-uhset { background: var(--t-surface-2); border-color: var(--att-line); }
+.nl-uh-del { display: flex; flex-direction: column; gap: 4px; margin: -4px 0 12px; }
+.nl-uh-del .att-btn { align-self: flex-start; }
+.nl-uh-del span { font-size: .78rem; }
+.nl-uh-pick { display: grid; gap: 6px; margin-top: 10px; }
+.nl-uh-pick label { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--att-line); border-radius: 10px; cursor: pointer; }
+.nl-uh-pick label:has(input:checked) { border-color: var(--att-i); background: var(--t-blue-bg); }
+.nl-uh-pick span { margin-left: auto; font-size: .78rem; }
 .nl-uh-sel { min-width: 10rem; height: 44px; }
 .nl-kktp { display: flex; align-items: center; gap: 12px; background: var(--t-amber-bg); border: 1px solid var(--t-amber-line); border-radius: 14px; padding: 12px 14px; margin-bottom: 12px; }
 .nl-kktp > div { flex: 1; display: flex; flex-direction: column; gap: 2px; }

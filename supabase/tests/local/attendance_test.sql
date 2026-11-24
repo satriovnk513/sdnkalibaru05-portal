@@ -1579,6 +1579,7 @@ begin
         s_mtk2 uuid := (select id from public.subjects where code = 'MTK');
         s_bin  uuid := (select id from public.subjects where code = 'BIN');
         v_u    jsonb;
+        v_t1   text; v_t2 text;
     begin
     perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
     execute 'set local role authenticated';
@@ -1637,6 +1638,38 @@ begin
                  and semester = 1 and num_nonnulls(uh2, uh3) > 0) = 0);
     execute 'set local role authenticated';
     perform public.set_subject_uh_count(c1a, s_mtk2, 3::smallint, 1::smallint, true);
+
+    -- Hapus satu kolom di tengah: UH 1..4 = 61..64, buang UH 2 → 61, 63, 64.
+    perform public.set_subject_uh_count(c1a, s_bin, 4::smallint, 1::smallint, true);
+    perform public.save_grades(c1a, 1::smallint, jsonb_build_array(jsonb_build_object('subject_id', s_bin, 'entries',
+        jsonb_build_array(jsonb_build_object('student_id', st1, 'uh1', 61, 'uh2', 62, 'uh3', 63, 'uh4', 64)))));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AA UH', 'u', 'Hapus kolom di tengah ditolak dulu selama masih terisi',
+        'ok', public.t_try(format('select public.delete_subject_uh(%L, %L, 2::smallint, 1::smallint)', c1a, s_bin)) = '23514');
+    v_u := public.delete_subject_uh(c1a, s_bin, 2::smallint, 1::smallint, true);
+    execute 'reset role';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AA UH', 'u', 'UH 2 dibuang, kolom sesudahnya naik: 61/62/63/64 jadi 61/63/64',
+        'ok', v_u = '{"jumlah":3,"sebelumnya":4,"dihapus_ke":2,"terhapus":1}'::jsonb
+          and public.grade__uh_count(c1a, s_bin, 1::smallint) = 3
+          and (select jsonb_build_array(uh1, uh2, uh3, uh4) from public.student_grades
+               where class_id = c1a and subject_id = s_bin and semester = 1 and student_id = st1) = '[61,63,64,null]'::jsonb);
+    execute 'set local role authenticated';
+    v_t1 := public.t_try(format('select public.delete_subject_uh(%L, %L, 9::smallint, 1::smallint, true)', c1a, s_bin));
+    perform public.delete_subject_uh(c1a, s_bin, 1::smallint, 1::smallint, true);
+    perform public.delete_subject_uh(c1a, s_bin, 1::smallint, 1::smallint, true);
+    v_t2 := public.t_try(format('select public.delete_subject_uh(%L, %L, 1::smallint, 1::smallint, true)', c1a, s_bin));
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AA UH', 'u', 'Kolom UH ke-9 tidak ada, dan kolom terakhir tidak boleh dihapus',
+        'ok', v_t1 = '22023' and v_t2 = '22023' and public.grade__uh_count(c1a, s_bin, 1::smallint) = 1);
+    execute 'reset role';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AA UH', 'u', 'Penghapusan kolom tercatat di riwayat (hapus_uh + jumlah_uh)',
+        'ok', (select count(*) from public.grade_changes where class_id = c1a and subject_id = s_bin and field = 'hapus_uh') = 3
+          and (select count(*) from public.grade_changes where class_id = c1a and subject_id = s_bin
+                 and field = 'jumlah_uh' and old_value = 4 and new_value = 3) = 1);
+    execute 'set local role authenticated';
+    perform public.set_subject_uh_count(c1a, s_bin, 3::smallint, 1::smallint, true);
     execute 'reset role';
     perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
     execute 'set local role authenticated';
