@@ -30,7 +30,7 @@
     const FIELDS = fieldsOf(null);
     /** Semua nama kolom yang mungkin muncul di file Excel (UH 1–10 + STS + SAS). */
     const SEMUA_FIELD = [...Array.from({ length: UH_MAX }, (_, i) => `uh${i + 1}`), 'sts', 'sas'];
-    const LABEL = { sts: 'STS', sas: 'SAS', kktp: 'KKTP', jumlah_uh: 'Jumlah UH' };
+    const LABEL = { sts: 'STS', sas: 'SAS', kktp: 'KKTP', jumlah_uh: 'Jumlah UH', hapus_uh: 'Kolom UH dihapus' };
     for (let i = 1; i <= UH_MAX; i++) LABEL[`uh${i}`] = `UH ${i}`;
     const SEM = (s) => (Number(s) === 2 ? 'Genap' : 'Ganjil');
 

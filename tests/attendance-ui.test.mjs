@@ -1285,12 +1285,33 @@ async function runUi() {
         await page.click('.att-sheet [data-act="yes"]');
         await page.waitForFunction(() => document.querySelectorAll('.nl-grid-head span').length === 8);
         check(await page.$eval('#nlUh', (e) => e.value) === '3' && (await na())[0] === '83', `${T} dikonfirmasi: kembali 3 kolom, NA balik 83`);
+
+        // Hapus kolom UH di tengah: sisanya naik
+        await page.selectOption('#nlUh', '4');
+        await page.waitForFunction(() => document.querySelectorAll('.nl-grid-head span').length === 9);
+        await page.fill(`[data-s="${SID(1)}"][data-f="uh4"]`, '40');
+        await page.click('#nlSave');
+        await page.waitForFunction(() => /Tersimpan/.test(document.getElementById('attToastHost')?.textContent || ''));
+        const uhSatu = () => page.$$eval(`[data-row="${SID(1)}"] .nl-in`, (x) => x.map((e) => e.value).join(','));
+        check(await uhSatu() === '80,85,90,40,78,82', `${T} sebelum dihapus: UH 1–4 = 80, 85, 90, 40 (${await uhSatu()})`);
+        await page.click('#nlUhDel');
+        await page.waitForSelector('.nl-uh-pick');
+        check((await page.$$eval('.nl-uh-pick label', (x) => x.map((e) => e.textContent.replace(/\s+/g, ' ').trim()))).join(' | ')
+            === 'UH 1 3 nilai akan terhapus | UH 2 2 nilai akan terhapus | UH 3 1 nilai akan terhapus | UH 4 1 nilai akan terhapus',
+            `${T} pilihan kolom menyebut berapa nilai yang akan terhapus`);
+        await page.check('.nl-uh-pick input[value="2"]');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => document.querySelectorAll('.nl-grid-head span').length === 8);
+        check(await uhSatu() === '80,90,40,78,82' && await page.$eval('#nlUh', (e) => e.value) === '3',
+            `${T} UH 2 dihapus, UH 3 & 4 naik jadi UH 2 & 3 (${await uhSatu()})`);
+        check((await na())[0] === '75', `${T} NA ikut berubah setelah kolom dihapus (${(await na())[0]})`);
+
         await page.click('#gBack');
         await page.waitForSelector('.nl-mp');
         await page.click('[data-nv="riwayat"]');
         await page.waitForSelector('.nl-hist');
         const riwayat = await page.textContent('#nlHist');
-        check(/Jumlah UH/.test(riwayat), `${T} perubahan jumlah UH tercatat di Riwayat perubahan`);
+        check(/Jumlah UH/.test(riwayat) && /Kolom UH dihapus/.test(riwayat), `${T} perubahan & penghapusan kolom UH tercatat di Riwayat perubahan`);
         await page.click('#gBack');
         await page.waitForSelector('.nl-mp');
         await page.click('.nl-mp:has-text("Matematika")');
@@ -1311,7 +1332,7 @@ async function runUi() {
         await page.click('[data-nv="riwayat"]');
         await page.waitForSelector('.nl-h');
         const hist = (await page.textContent('#nlHist')).replace(/\s+/g, ' ');
-        check((await page.$$('.nl-h')).length === 7 && /HARI INI/.test(hist) && /KKTP · Matematika.*75.*70/.test(hist) && /oleh Sunarsih/.test(hist), `${T} riwayat perubahan (lama → baru, oleh siapa) (${hist.slice(0, 160)})`);
+        check((await page.$$('.nl-h')).length === 13 && /HARI INI/.test(hist) && /KKTP · Matematika.*75.*70/.test(hist) && /oleh Sunarsih/.test(hist), `${T} riwayat perubahan (lama → baru, oleh siapa) (${hist.slice(0, 160)})`);
         await shot(page, 'nilai-03-riwayat-360.png');
         await page.click('#gBack');
         await page.waitForSelector('.nl-mp');
@@ -1327,7 +1348,9 @@ async function runUi() {
         const book = await XR.readBook(readFileSync(tplPath));
         check(book.map((b) => b.name).join(',') === 'Petunjuk,Bahasa Indonesia,Matematika,Bahasa Inggris' && /Template_Nilai_Kelas_1_A_Smt_1/.test(dl.suggestedFilename()),
             `${T} template: hanya mapel yang bisa diisi (${book.map((b) => b.name)}) ${dl.suggestedFilename()}`);
-        check(book[2].rows[6].slice(4, 9).join(',') === '80,85,90,78,82' && book[2].rows[2][3] === '70', `${T} template berisi nilai & KKTP yang sudah ada`);
+        check(book[2].rows[5].slice(4).join(',') === 'UH 1,UH 2,UH 3,STS,SAS,Rata UH,Nilai Akhir,Keterangan'
+            && book[2].rows[6].slice(4, 9).join(',') === '80,90,40,78,82' && book[2].rows[2][3] === '70',
+            `${T} template berisi nilai & KKTP yang sudah ada, kolom UH sesuai jumlahnya (${book[2].rows[6].slice(4, 9)})`);
         if (hasOpenpyxl) {
             const r = spawnSync('python3', ['-c', 'import sys,openpyxl\nwb=openpyxl.load_workbook(sys.argv[1])\nws=wb["Matematika"]\nprint(ws.protection.sheet, ws["E7"].protection.locked, ws["K7"].protection.locked, ws.freeze_panes, len(ws.data_validations.dataValidation))', tplPath], { encoding: 'utf8' });
             check(r.stdout.trim() === 'True False True E7 2', `${T} template terbuka di Excel: lembar terkunci kecuali kotak nilai, beku di E7, validasi 0–100 (${r.stdout.trim() || r.stderr.slice(0, 120)})`);

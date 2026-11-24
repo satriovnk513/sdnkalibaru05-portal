@@ -33,7 +33,7 @@
     }
 
     // Perubahan yang berlaku untuk satu mapel di satu kelas, bukan untuk satu siswa.
-    const KELAS_LEVEL = new Set(['kktp', 'jumlah_uh']);
+    const KELAS_LEVEL = new Set(['kktp', 'jumlah_uh', 'hapus_uh']);
     let dirty = false;
     window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
@@ -206,6 +206,8 @@
                     <select id="nlUh" class="att-select nl-uh-sel" ${edit ? '' : 'disabled'} aria-label="Jumlah kolom UH">${
     Array.from({ length: N.UH_MAX - N.UH_MIN + 1 }, (_, i) => i + N.UH_MIN)
         .map((v) => `<option value="${v}" ${v === uhKeys.length ? 'selected' : ''}>${v} kolom UH</option>`).join('')}</select></section>
+                ${edit && uhKeys.length > 1 ? `<div class="nl-uh-del"><button type="button" class="att-btn att-btn-ghost" id="nlUhDel">Hapus satu kolom UH…</button>
+                    <span class="att-muted">Kalau yang batal bukan ulangan terakhir. Kolom sesudahnya naik, jadi nomornya tetap urut.</span></div>` : ''}
                 <div class="nl-stats" id="nlStats"></div>
                 <div class="att-muted nl-hint">Isi angka bulat 0–100. <b>NA</b> = 50% rata-rata UH + 25% STS + 25% SAS (otomatis, dibulatkan).${edit ? ' Tekan Enter untuk pindah ke kotak berikutnya.' : ''}</div>
                 <div class="nl-grid-head" aria-hidden="true" style="--nl-kol:${keys.length}"><span>No</span><span>Nama siswa</span>${keys.map((f) => `<span>${N.LABEL[f]}</span>`).join('')}<span>NA</span></div>
@@ -302,6 +304,34 @@
                         selUh.disabled = false;
                         toast(errMessage(err), 'err');
                     }
+                });
+            }
+
+            const btnDel = el.querySelector('#nlUhDel');
+            if (edit && btnDel) {
+                btnDel.addEventListener('click', async () => {
+                    if (dirty) { toast('Simpan dulu perubahan nilainya sebelum menghapus kolom UH.', 'err'); return; }
+                    // Berapa siswa yang punya nilai di tiap kolom — supaya guru tahu apa yang hilang.
+                    const isi = uhKeys.map((f) => d.siswa.filter((s) => kini.get(s.id)[f] !== null).length);
+                    let pilih = uhKeys.length;                       // bawaan: kolom terakhir
+                    const dengar = (ev) => { if (ev.target?.name === 'nlUhPick') pilih = Number(ev.target.value); };
+                    document.addEventListener('change', dengar);
+                    const html = `<p class="att-muted">Kolom yang dihapus hilang beserta nilainya, dan kolom sesudahnya naik satu.
+                            Penghapusannya tercatat di Riwayat perubahan.</p>
+                        <div class="nl-uh-pick">${uhKeys.map((f, i) => `<label><input type="radio" name="nlUhPick" value="${i + 1}" ${i + 1 === pilih ? 'checked' : ''}>
+                            <b>${N.LABEL[f]}</b> <span class="att-muted">${isi[i] ? `${isi[i]} nilai akan terhapus` : 'masih kosong'}</span></label>`).join('')}</div>`;
+                    const ya = await window.Att.confirm({ title: `Hapus satu kolom UH ${esc(m.nama)}`, html, confirmText: 'Hapus kolom', cancelText: 'Batal', danger: true });
+                    document.removeEventListener('change', dengar);
+                    if (!ya) return;
+                    btnDel.disabled = true;
+                    try {
+                        const hasil = await rpc('delete_subject_uh', {
+                            p_class_id: kelas, p_subject_id: m.id, p_ke: pilih, p_semester: smt, p_force: true });
+                        invalidate(kelas, smt);
+                        const n_hapus = Number(hasil?.terhapus) || 0;
+                        toast(`UH ${pilih} dihapus · sekarang ${hasil?.jumlah} kolom${n_hapus ? ` · ${n_hapus} nilai terhapus` : ''}`, 'ok');
+                        await viewIsi(el, p);
+                    } catch (err) { btnDel.disabled = false; toast(errMessage(err), 'err'); }
                 });
             }
 

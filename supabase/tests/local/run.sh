@@ -84,6 +84,8 @@ run "Catatan keluar"               "$ROOT/supabase/migrations/20261130000003_cat
 run "Catatan keluar (ulang)"        "$ROOT/supabase/migrations/20261130000003_catatan_keluar.sql"
 run "UH dinamis"                   "$ROOT/supabase/migrations/20261201000001_uh_dinamis.sql"
 run "UH dinamis (ulang)"            "$ROOT/supabase/migrations/20261201000001_uh_dinamis.sql"
+run "Hapus kolom UH"              "$ROOT/supabase/migrations/20261202000001_hapus_kolom_uh.sql"
+run "Hapus kolom UH (ulang)"       "$ROOT/supabase/migrations/20261202000001_hapus_kolom_uh.sql"
 
 echo "→ Tes Absensi"
 {
