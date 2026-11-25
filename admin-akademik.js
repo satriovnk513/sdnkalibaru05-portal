@@ -72,6 +72,21 @@
         Object.assign(state, { staff, years, classes, subjects, homeroom, assign });
         state.counts = new Map();
         for (const e of enr) state.counts.set(e.class_id, (state.counts.get(e.class_id) || 0) + 1);
+        // Jumlah L/P per rombel (untuk menyeimbangkan pembagian kelas). Opsional:
+        // kalau gagal dimuat, kolom tetap tampil tanpa rincian L/P.
+        state.jk = null;
+        try {
+            const rows = await q(sb.from('student_enrollments')
+                .select('class_id, siswa:student_records!inner(jk:payload->>siswa_jenis_kelamin_nama, archived_at)')
+                .is('end_date', null).is('siswa.archived_at', null));
+            state.jk = new Map();
+            for (const r of rows) {
+                const g = state.jk.get(r.class_id) || { L: 0, P: 0, X: 0 };
+                const jk = String(r.siswa?.jk || '').toLowerCase();
+                if (jk.startsWith('laki')) g.L++; else if (jk.startsWith('perempuan')) g.P++; else g.X++;
+                state.jk.set(r.class_id, g);
+            }
+        } catch { state.jk = null; }
     }
 
     // ------------------------------------------------------------------ form sheet
@@ -380,9 +395,14 @@
     function renderClasses() {
         const rows = activeClasses().map((c) => {
             const w = state.homeroom.filter((h) => h.class_id === c.id).sort((a, b) => a.position - b.position);
-            return { ...c, label: `Kelas ${c.name}`, siswa: state.counts.get(c.id) || 0, wali: w.map((x) => staffName(x.staff_id)).join(' · ') || '–' };
+            const jk = state.jk ? (state.jk.get(c.id) || { L: 0, P: 0, X: 0 }) : null;
+            return { ...c, label: `Kelas ${c.name}`, siswa: state.counts.get(c.id) || 0, jk, laki: jk?.L ?? -1, perempuan: jk?.P ?? -1,
+                wali: w.map((x) => staffName(x.staff_id)).join(' · ') || '–' };
         });
-        $('akClassInfo').textContent = `${rows.length} rombel · ${rows.reduce((a, r) => a + r.siswa, 0)} siswa`;
+        const tot = (k) => rows.reduce((a, r) => a + (r.jk?.[k] || 0), 0);
+        $('akClassInfo').textContent = `${rows.length} rombel · ${rows.reduce((a, r) => a + r.siswa, 0)} siswa`
+            + (state.jk ? ` · Laki-laki ${tot('L')} · Perempuan ${tot('P')}${tot('X') ? ` · JK belum diisi ${tot('X')}` : ''}` : '');
+        const jkCell = (n) => `<b>${esc(n)}</b>`;
         makeTable('kelas', $('akClassTable'), {
             rows,
             searchKeys: ['label', 'wali'],
@@ -391,6 +411,17 @@
             columns: [
                 { key: 'label', label: 'Kelas', sort: true, render: (r) => `<b>${esc(r.label)}</b>` },
                 { key: 'siswa', label: 'Jumlah siswa', sort: true, render: (r) => `${esc(r.siswa)} siswa` },
+                ...(state.jk ? [
+                    { key: 'laki', label: 'L', sort: true, render: (r) => jkCell(r.jk.L) },
+                    { key: 'perempuan', label: 'P', sort: true, render: (r) => jkCell(r.jk.P)
+                        + (r.jk.X ? ` <small class="att-muted" title="Jenis kelamin belum diisi">+${esc(r.jk.X)} ?</small>` : '') },
+                    { key: 'selisih', label: 'Selisih L–P', render: (r) => {
+                        const d = r.jk.L - r.jk.P;
+                        if (!r.siswa) return '–';
+                        const teks = d === 0 ? 'Seimbang' : `${d > 0 ? 'L' : 'P'} +${Math.abs(d)}`;
+                        return `<span class="att-badge ${Math.abs(d) <= 2 ? 'ok' : Math.abs(d) <= 5 ? 'warn' : 'bad'}">${esc(teks)}</span>`;
+                    } },
+                ] : []),
                 { key: 'wali', label: 'Wali kelas', sort: true },
                 { key: 'aksi', label: 'Aksi', className: 'att-actions', render: (r) => `<button type="button" class="att-btn att-btn-ghost att-btn-sm" data-class-edit="${esc(r.id)}">Edit</button>
                     <button type="button" class="att-btn att-btn-danger att-btn-sm" data-class-del="${esc(r.id)}">Hapus</button>` },
