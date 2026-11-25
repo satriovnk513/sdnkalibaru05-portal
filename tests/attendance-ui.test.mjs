@@ -2037,6 +2037,8 @@ async function runUi() {
         await page.click('.g-kartu-link');
         await page.waitForSelector('.kt-item');
         check((await page.$$('.kt-item')).length === 3 && /<b>3<\/b> siswa · <b>0<\/b> sudah ada foto/.test(await page.innerHTML('.kt-ring')), `${T} wali kelas: daftar siswa + jumlah foto`);
+        await page.waitForFunction(() => document.querySelector('#ktPrev')?.contentDocument?.querySelector('.kt .kt-pil'));
+        check(!(await page.$('#ktAtur')) && /belum di-upload/.test(await page.textContent('.kt-pratinjau-box')), `${T} wali: pratinjau kartu tampil; pengaturan hanya admin (TTD belum ada → diberi tahu)`);
         check(await overflow(page) <= 0, `${T} halaman kartu tidak bergeser ke samping`);
         // Satu foto: ketuk foto siswa.
         const [fc] = await Promise.all([page.waitForEvent('filechooser'), page.click('.kt-item [data-foto]')]);
@@ -2059,12 +2061,14 @@ async function runUi() {
         // Cetak A4: 3 kartu, foto tertanam, QR berisi token (bukan NISN).
         const pop = await popupFrom(page, () => page.click('#ktCetak'));
         const ptxt = (await pop.textContent('body')).replace(/\s+/g, ' ');
-        check((await pop.$$('.kt')).length === 3 && /KARTU PELAJAR/.test(ptxt) && /I\.A · 2026\/2027/.test(ptxt) && /Jakarta, 1 Mei 2019/.test(ptxt) && /Perempuan/.test(ptxt),
+        check((await pop.$$('.kt')).length === 3 && /KARTU PELAJAR/.test(ptxt) && /I\.A \(2026\/2027\)/.test(ptxt) && /Jakarta, 1 Mei 2019/.test(ptxt) && /Perempuan/.test(ptxt),
             `${T} cetak: 3 kartu berisi nama, NISN, kelas, TTL, jenis kelamin`);
         check(await pop.$$eval('.kt-foto img', (im) => im.length === 3 && im.every((i) => i.src.startsWith('data:'))), `${T} foto ikut tercetak (tertanam)`);
         check((await pop.$$eval('.tbar button', (b) => b.map((x) => x.textContent))).join('|') === 'Cetak|Download PDF|Tutup', `${T} pratinjau punya Cetak / Download PDF / Tutup`);
         const qr = await decodeQr(page, await pop.$eval('.kt-qr svg', (e) => e.outerHTML));
-        check(qr === null || qr === 'SDNKB05-00000000000000A1', `${T} QR kartu berisi token acak (${qr})`);
+        check(qr === null || qr === 'KB05-0000-0001', `${T} QR kartu berisi kode siswa (${qr})`);
+        check(/KB05-0000-0001/.test(ptxt) && /Kepala Fiktif, S\.Pd/.test(ptxt) && /NIP\. 197001012000031001/.test(ptxt) && await pop.$$eval('.kt-logo img', (im) => im.length === 3),
+            `${T} kartu memuat kode siswa, nama & NIP kepala sekolah (dari data guru), logo`);
         await shot(pop, 'kartu-03-cetak-a4.png');
         await pop.close();
         const pdfInfo = async (sel) => {
@@ -2084,6 +2088,12 @@ async function runUi() {
         await page.waitForFunction(() => /Kartu ke-2/.test(document.querySelector('.kt-item')?.textContent || ''));
         check(/Cetak \(1\)/.test(await page.textContent('#ktCetak')), `${T} kartu hilang: terbit ulang (kartu ke-2), langsung dipilih untuk dicetak`);
 
+        // Foto ikut tampil di profil siswa (Portal Guru) — wali bisa ganti.
+        await page.evaluate((sid) => { location.hash = `#/siswa/${sid}`; }, S(2));
+        await page.waitForSelector('#gProfFoto .kt-fs-img img');
+        check(/Ganti foto/.test(await page.textContent('#gProfFoto')), `${T} profil siswa: foto tampil + tombol Ganti foto untuk wali`);
+        await shot(page, 'kartu-07-profil-360.png');
+
         // Scan kartu di lembar absensi.
         await page.evaluate((c) => { location.hash = `#/absen?kelas=${c}&jenis=harian`; }, C1A);
         await page.waitForSelector('[data-scan]');
@@ -2092,19 +2102,19 @@ async function runUi() {
         await page.waitForSelector('.inv-cam video');
         await page.waitForFunction(() => /kartu siswa/.test(document.querySelector('.qs-msg')?.textContent || '') && window.__jsqrCalls > 0);
         const hasil = (re) => page.waitForFunction((src) => new RegExp(src).test(document.querySelector('.qs-hasil')?.textContent || ''), re.source);
-        await page.evaluate(() => { window.__qrAnswer = 'SDNKB05-00000000000000A2'; });
+        await page.evaluate(() => { window.__qrAnswer = 'KB05-0000-0002'; });
         await hasil(/Satu Dengan Nama/);
         check(await page.$('.qs-hasil.ok') && /Hadir 1 dari 3/.test(await page.textContent('.qs-sub')), `${T} scan kartu → siswa Hadir, hitungan naik`);
         await shot(page, 'kartu-05-scan-360.png');
-        await page.evaluate(() => { window.__qrAnswer = 'SDNKB05-00000000000000A1'; });
+        await page.evaluate(() => { window.__qrAnswer = 'KB05-0000-0001'; });
         await hasil(/tidak dikenal/);
         check(await page.$('.qs-hasil.err'), `${T} kartu lama (sudah diterbitkan ulang) ditolak`);
-        await page.evaluate((s4) => { window.__fake.kartu[s4] = { token: '00000000000000A4', versi: 1, foto: null }; window.__qrAnswer = 'SDNKB05-00000000000000A4'; }, S(4));
+        await page.evaluate((s4) => { window.__fake.kartu[s4] = { token: '00000004', versi: 1, foto: null }; window.__qrAnswer = 'KB05-0000-0004'; }, S(4));
         await hasil(/bukan kelas ini/);
         check(/III\.A/.test(await page.textContent('.qs-hasil')), `${T} kartu siswa kelas lain: diberi tahu kelasnya`);
         await page.evaluate(() => { window.__qrAnswer = 'https://contoh.test/bukan-kartu'; });
         await hasil(/bukan QR kartu siswa/);
-        await page.evaluate(() => { window.__qrAnswer = 'SDNKB05-00000000000000A2'; });
+        await page.evaluate(() => { window.__qrAnswer = 'KB05-0000-0002'; });
         await hasil(/sudah Hadir/);
         check(await page.$('.qs-hasil.info'), `${T} kartu yang sama di-scan lagi: "sudah Hadir", tidak dobel`);
         await page.evaluate(() => { window.__qrAnswer = null; });
@@ -2125,10 +2135,28 @@ async function runUi() {
         await page.click('.nav-item[data-tab="tabKartu"]');
         await page.waitForSelector('#ktAdmHost .kt-item');
         check((await page.$$('#ktAdmHost .kt-item')).length === 3 && await page.$('#ktKelas') && /Kartu Siswa/.test(await page.textContent('#topbarTitle')), `${T} admin: kartu per kelas, bisa pilih kelas`);
+        // Pengaturan kartu: tanggal TTD + upload tanda tangan (latar putih dihapus).
+        await page.click('#ktAtur');
+        await page.waitForSelector('.kt-set');
+        await page.fill('#ktSetTgl', '2026-07-13');
+        await page.fill('#ktSetNama', 'Drs. Kepala Baru, M.Pd');
+        const [fcT] = await Promise.all([page.waitForEvent('filechooser'), page.click('.kt-aset[data-k="ttd"] [data-up]')]);
+        await fcT.setFiles(join(REPO, 'logo-cetak.png'));
+        await page.waitForSelector('.kt-aset[data-k="ttd"] .kt-aset-img img');
+        await shot(page, 'kartu-08-pengaturan-1366.png');
+        await page.click('#ktSetSimpan');
+        await page.waitForSelector('.kt-set', { state: 'detached' });
+        const set = await page.evaluate(() => ({ s: window.__fake.kartuSet, up: window.__fake.uploads.filter((u) => u.startsWith('kartu-aset/')) }));
+        check(set.s.tanggal_ttd === '2026-07-13' && set.s.kepsek_nama === 'Drs. Kepala Baru, M.Pd' && /^ttd\/.+\.png$/.test(set.s.ttd || '') && set.up.length === 1,
+            `${T} pengaturan tersimpan: tanggal, nama kepsek, TTD (PNG) di bucket kartu-aset`);
+        await page.waitForFunction(() => /13 Juli 2026/.test(document.querySelector('.kt-atur-ringkas')?.textContent || ''));
+        await page.waitForFunction(() => document.querySelector('#ktPrev')?.contentDocument?.querySelector('.kt-ttd-gbr'));
+        const prevTxt = await page.evaluate(() => document.querySelector('#ktPrev').contentDocument.body.textContent);
+        check(/Jakarta, 13 Juli 2026/.test(prevTxt) && /Drs\. Kepala Baru, M\.Pd/.test(prevTxt), `${T} pratinjau langsung memakai TTD, tanggal & nama kepsek baru`);
+        await shot(page, 'kartu-06-admin-1366.png');
         await page.selectOption('#ktKelas', '00000000-0000-4000-8000-0000000000c3');
         await page.waitForFunction(() => document.querySelectorAll('#ktAdmHost .kt-item').length === 1);
         check(true, `${T} ganti kelas → daftar siswa kelas itu`);
-        await shot(page, 'kartu-06-admin-1366.png');
         check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
         await ctx.close();
     }

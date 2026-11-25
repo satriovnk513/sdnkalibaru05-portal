@@ -120,6 +120,7 @@ async function supa(route) {
     const accept = req.headers()['accept'] || '';
     const single = accept.includes('vnd.pgrst.object');
     if (p === '/rest/v1/user_roles') return role === 'admin' ? json(single ? { role: 'admin' } : [{ role: 'admin' }]) : (single ? json({ code: 'PGRST116', message: 'no rows' }, 406) : json([]));
+    if (p === '/rest/v1/rpc/get_student_photo') return json({ foto: null, bisa_kelola: role === 'admin' });
     if (p === '/rest/v1/rpc/student_summary') {
         if (role !== 'admin') return json([{ total_siswa: 0, tercantum: 0, perlu_verifikasi: 0, jumlah_rombel: 0, daftar_kelas: [] }]);
         const active = DB.filter((r) => !r.archived_at);
@@ -348,6 +349,8 @@ await page.waitForFunction(() => document.querySelectorAll('#stuDetailTabs .stu-
 const tabs = (await page.$$eval('#stuDetailTabs .stu-tab', (t) => t.map((x) => x.textContent))).filter((t) => t !== 'Riwayat Perubahan');
 check(tabs.join('|') === 'Data Siswa|Ayah|Ibu|Wali|Kontak Darurat|Anggota Keluarga|Keterangan Lain', `tab detail: ${tabs.join(', ')}`);
 check(await page.isVisible('#stuDetailBanner') && /Perlu verifikasi lebih lanjut/.test(await page.textContent('#stuDetailBanner')), 'banner perlu verifikasi');
+await page.waitForSelector('#stuDetailFoto [data-fs="up"]');
+check(/Upload foto/.test(await page.textContent('#stuDetailFoto')) && await page.$('#stuDetailFoto .kt-fs-img.kosong'), 'detail siswa: foto (kosong) + tombol Upload foto');
 await page.waitForTimeout(400);
 await shot(page, `4-detail-desktop.png`);
 let bad = [];

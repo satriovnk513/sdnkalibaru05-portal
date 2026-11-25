@@ -364,6 +364,16 @@
             const catatan = data.exit_note ? ` Keterangan: ${data.exit_note}` : '';
             $('stuDetailArchived').textContent = `${alasan}${tgl ? ` (${tgl})` : ''}.${catatan} Siswa ini tidak tampil di daftar aktif dan ringkasan. Pulihkan untuk mengubah datanya.`;
         }
+        // Foto siswa (dipakai juga di kartu pelajar) — kartu-ui.js.
+        const fotoHost = $('stuDetailFoto');
+        fotoHost.replaceChildren();
+        fotoHost.hidden = !window.KartuUI;
+        if (window.KartuUI) {
+            window.KartuUI.fotoSiswa({
+                host: fotoHost, storage: supabaseClient.storage, studentId: data.id, nama: data.nama_siswa,
+                rpc: async (fn, args) => { const { data: r, error: e } = await supabaseClient.rpc(fn, args); if (e) throw e; return r; },
+            });
+        }
         const acts = $('stuDetailActions');
         if (data.archived_at) {
             const rb = el('button', 'stu-btn stu-btn-restore', 'Pulihkan');

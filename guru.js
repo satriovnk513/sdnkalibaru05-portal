@@ -1258,6 +1258,7 @@
             const alamat = [al.jalan, al.rt || al.rw ? `RT ${al.rt || '-'}/RW ${al.rw || '-'}` : '', al.kelurahan, al.kecamatan].filter(Boolean).join(', ');
             setTop(idt.nama || 'Profil siswa', idt.kelas ? `Kelas ${idt.kelas}` : '', true);
             main(`<div class="att-card g-prof">
+                <div id="gProfFoto" style="margin-bottom:12px"></div>
                 <h3 style="margin-top:0">Identitas</h3>
                 <dl>${row('Nama', idt.nama)}${row('Kelas', idt.kelas)}${row('NIS', idt.nis)}${row('NISN', idt.nisn)}${row('NIK', idt.nik)}
                     ${row('Jenis kelamin', idt.jenis_kelamin === 'L' ? 'Laki-laki' : idt.jenis_kelamin === 'P' ? 'Perempuan' : '')}
@@ -1275,6 +1276,7 @@
                 ${p.catatan && Object.keys(p.catatan).length ? `<h3>Catatan</h3><dl>${row('Kebutuhan khusus', p.catatan.kebutuhan_khusus)}${row('Penerima KIP', p.catatan.penerima_kip)}${row('Usulan PIP', p.catatan.usulan_pip)}</dl>` : ''}
             </div>
             <p class="att-muted" style="margin-top:12px">Data salah atau kurang? Laporkan ke admin sekolah.</p>`);
+            if (window.KartuUI) window.KartuUI.fotoSiswa({ host: $('gProfFoto'), rpc, storage: sb.storage, studentId: id, nama: idt.nama });
         } catch (err) {
             main(`<div class="att-alert err">${esc(errMessage(err))}</div>`);
         }

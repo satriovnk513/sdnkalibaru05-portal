@@ -227,9 +227,12 @@
     }
 
     // ------------------------------------------------------------------ kartu siswa tiruan
-    const KARTU_RPC = ['get_student_cards', 'get_class_card_tokens', 'resolve_student_card', 'reissue_student_card', 'set_student_photo'];
+    const KARTU_RPC = ['get_student_cards', 'get_class_card_tokens', 'resolve_student_card', 'reissue_student_card', 'set_student_photo', 'set_card_settings', 'get_student_photo'];
     F.kartu = F.kartu || {};   // student_id → { token, versi, foto }
-    const kartuDari = (sid) => (F.kartu[sid] ||= { token: `00000000000000A${sid.slice(-1)}`, versi: 1, foto: null });
+    F.kartuSet = F.kartuSet || { tempat: 'Jakarta', tanggal_ttd: null, kepsek_nama: null, kepsek_nip: null, ttd: null, stempel: null, logo: null, latar: null,
+        kepsek_default: { nama: 'Kepala Fiktif, S.Pd', nip: '197001012000031001' } };
+    const kartuDari = (sid) => (F.kartu[sid] ||= { token: `0000000${sid.slice(-1)}`, versi: 1, foto: null });
+    const normKode = (t) => { let v = String(t || '').toUpperCase().replace(/[^0-9A-Z]/g, ''); if (v.length === 12 && v.startsWith('KB05')) v = v.slice(4); return v; };
     const kelasSiswa = (sid) => Object.keys(roster).find((c) => roster[c].some((r) => r.student_id === sid));
     function kartuRpc(fn, a, user) {
         const boleh = (cid) => user === 'admin' || (user === 'wali' && cid === C1A);
@@ -238,6 +241,7 @@
             if (!boleh(a.p_class_id)) return err('Kartu siswa hanya untuk admin, kepala sekolah, dan wali kelas rombel ini.', '42501');
             const nama = a.p_class_id === C1A ? '1 A' : '3 A';
             return ok({ kelas: { id: a.p_class_id, nama, tingkat: Number(nama[0]), rombel: nama[2], tahun_ajaran: '2026/2027' }, bisa_kelola: true,
+                admin: user === 'admin', pengaturan: { ...F.kartuSet },
                 siswa: (roster[a.p_class_id] || []).map((r) => {
                     const k = kartuDari(r.student_id);
                     return { student_id: r.student_id, nama: r.nama, nisn: r.nisn, nis: r.nis, jk: r.jenis_kelamin, tempat_lahir: 'JAKARTA', tanggal_lahir: '2019-05-01',
@@ -247,7 +251,7 @@
         case 'get_class_card_tokens':
             return ok((roster[a.p_class_id] || []).filter((r) => F.kartu[r.student_id]).map((r) => ({ student_id: r.student_id, token: F.kartu[r.student_id].token })));
         case 'resolve_student_card': {
-            const t = String(a.p_token || '').trim().toUpperCase();
+            const t = normKode(a.p_token);
             const sid = Object.keys(F.kartu).find((k) => F.kartu[k].token === t);
             if (!sid) return ok(null);
             const cid = kelasSiswa(sid);
@@ -256,9 +260,20 @@
         case 'reissue_student_card': {
             const k = kartuDari(a.p_student_id);
             k.versi += 1;
-            k.token = `00000000000000B${a.p_student_id.slice(-1)}`;
+            k.token = `000000B${a.p_student_id.slice(-1)}`;
             return ok({ token: k.token, versi: k.versi });
         }
+        case 'set_card_settings': {
+            if (user !== 'admin') return err('Hanya admin yang bisa mengubah pengaturan kartu.', '42501');
+            const hapus = [];
+            for (const [k, v] of Object.entries(a.p || {})) {
+                if (['ttd', 'stempel', 'logo', 'latar'].includes(k) && F.kartuSet[k] && F.kartuSet[k] !== v) hapus.push(F.kartuSet[k]);
+                F.kartuSet[k] = v === '' ? null : v;
+            }
+            return ok({ pengaturan: { ...F.kartuSet }, hapus });
+        }
+        case 'get_student_photo':
+            return ok({ foto: F.kartu[a.p_student_id]?.foto || null, bisa_kelola: user === 'admin' || (user === 'wali' && kelasSiswa(a.p_student_id) === C1A) });
         case 'set_student_photo': {
             const k = kartuDari(a.p_student_id);
             const lama = k.foto;

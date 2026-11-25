@@ -518,6 +518,7 @@
         body.stu-modal-open { overflow: hidden; }
         .stu-modal-box { background: var(--t-surface); border-radius: 16px; width: 100%; max-width: 980px; box-shadow: 0 24px 60px rgba(0,0,0,0.25); animation: modalIn 0.2s ease; overflow: hidden; }
         .stu-modal-head { display: flex; justify-content: space-between; gap: 1rem; padding: 1.4rem 1.5rem 1rem; border-bottom: 1px solid var(--t-line); }
+        .stu-foto-wrap { padding: 1rem 1.5rem 0; }
         .stu-modal-head h3 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.3rem; font-weight: 800; color: var(--t-ink); }
         .stu-detail-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
         .stu-chip { background: var(--t-surface-2); color: var(--t-text); border-radius: 99px; padding: 0.22rem 0.65rem; font-size: 0.76rem; font-weight: 600; }
@@ -1494,6 +1495,7 @@
                 <button type="button" class="stu-close" id="stuDetailClose" aria-label="Tutup detail"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
             </div>
             <div class="stu-detail-actions" id="stuDetailActions"></div>
+            <div class="stu-foto-wrap" id="stuDetailFoto" hidden></div>
             <div class="stu-banner stu-banner-archived" id="stuDetailArchived" hidden>Siswa ini diarsipkan — tidak tampil di daftar aktif dan ringkasan. Pulihkan untuk mengubah datanya.</div>
             <div class="stu-banner" id="stuDetailBanner" hidden>Perlu verifikasi lebih lanjut — siswa ini tidak tercantum di daftar kelas terbaru atau datanya belum lengkap.</div>
             <div class="stu-tabs" id="stuDetailTabs" role="tablist"></div>
@@ -1586,7 +1588,7 @@
     <!-- Custom Scripts -->
     <script src="ai-service.js?v=3"></script>
     <script src="student-fields.js?v=2"></script>
-    <script src="admin-students.js?v=6"></script>
+    <script src="admin-students.js?v=7"></script>
     <script src="password-toggle.js?v=1"></script>
     <script src="admin.js?v=9"></script>
     <script src="attendance-sheet.js?v=9"></script>
