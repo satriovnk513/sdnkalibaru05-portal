@@ -81,7 +81,7 @@
         const H = { border: true, bold: true, fill: 'E5E7EB', align: 'center', valign: 'center', wrap: true };
         const rows = [
             [{ v: `JURNAL MENGAJAR — ${nama}`, s: { bold: true, size: 13 } }],
-            [{ v: `${month.guru?.nama || ''}${month.guru?.nip ? ` · NIP ${month.guru.nip}` : ''} · ${RP.SCHOOL}`, s: { color: '475569' } }],
+            [{ v: `${month.guru?.nama || ''}${month.guru?.nip ? ` · ${RP.labelNip(month.guru.nip)}` : ''} · ${RP.SCHOOL}`, s: { color: '475569' } }],
             [],
             ['No', 'Tanggal', 'Hari', 'Kelas', 'Mapel / Catatan', 'Jam ke', 'Status', 'Materi', 'Keterangan'].map((v) => ({ v, s: H })),
         ];
@@ -114,7 +114,7 @@
                 .who { font-size: 8.5pt; margin: 0 0 2mm; }
             </style>
             ${RP.kopHtml('JURNAL MENGAJAR', { tahun_ajaran: '' }, nama).replace(/<div>TAHUN PELAJARAN\s*<\/div>/, '<div>CATATAN HARIAN GURU</div>')}
-            <div class="who">Nama: <b>${esc(month.guru?.nama || '')}</b>${month.guru?.nip ? ` · NIP ${esc(month.guru.nip)}` : ''}</div>
+            <div class="who">Nama: <b>${esc(month.guru?.nama || '')}</b>${month.guru?.nip ? ` · ${esc(RP.labelNip(month.guru.nip))}` : ''}</div>
             <table class="jr">
                 <colgroup><col style="width:8mm"><col style="width:22mm"><col style="width:15mm"><col style="width:12mm"><col style="width:38mm"><col style="width:13mm"><col style="width:24mm"><col><col style="width:48mm"></colgroup>
                 <thead><tr><th>NO</th><th>TANGGAL</th><th>HARI</th><th>KELAS</th><th>MAPEL / CATATAN</th><th>JAM KE</th><th>STATUS</th><th>MATERI</th><th>KETERANGAN</th></tr></thead>

@@ -164,6 +164,19 @@ test('HTML blanko: keterangan cara mengisi, judul jendela Blanko', () => {
     assert.doesNotMatch(h, /<td class="h">/, 'tidak ada tanda hadir');
 });
 
+test('label NIP/NUPTK di tanda tangan: tidak pernah "NIP. NUPTK."', () => {
+    assert.equal(RP.labelNip('NUPTK. 7448776677230133'), 'NUPTK. 7448776677230133');
+    assert.equal(RP.labelNip('197804252025211064'), 'NIP. 197804252025211064');
+    assert.equal(RP.labelNip('NIP. 197804252025211064'), 'NIP. 197804252025211064');
+    assert.equal(RP.labelNip('nuptk 123'), 'NUPTK. 123');
+    assert.equal(RP.labelNip('-'), 'NIP. -');
+    assert.equal(RP.labelNip(null), 'NIP. -');
+    assert.deepEqual(RP.pisahNip('NUPTK. 7448'), { jenis: 'NUPTK', nomor: '7448' });
+    const h = RP.monthlyHtml(month, { ...header, wali: [{ nama: 'Annisa Khoirotunnisa, S.Pd.', nip: 'NUPTK. 7448776677230133', posisi: 1 }] }, { showNip: true });
+    assert.match(h, /<div>NUPTK\. 7448776677230133<\/div>/);
+    assert.doesNotMatch(h, /NIP\. NUPTK/);
+});
+
 test('CRC32 sesuai nilai standar', () => {
     assert.equal(RP.crc32(new TextEncoder().encode('123456789')), 0xcbf43926);
 });

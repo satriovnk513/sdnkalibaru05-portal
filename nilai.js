@@ -407,8 +407,8 @@
         const ks = data.kepala_sekolah || {};
         const nm = (v) => esc(RP.namaTtd(v) || '........................');
         return `<div class="foot" style="margin-top:4mm">
-            <div class="ttd"><div>Mengetahui,</div><div>Kepala Sekolah</div><div class="sp"></div><b>${nm(ks.nama)}</b><div>NIP. ${esc(ks.nip || '-')}</div></div>
-            <div class="ttd"><div>${RP.CITY}, ${esc(RP.tglPanjang(tanggal))}</div><div>${esc(kananJudul)}</div><div class="sp"></div><b>${nm(kananNama)}</b><div>NIP. ${esc(kananNip || '-')}</div></div>
+            <div class="ttd"><div>Mengetahui,</div><div>Kepala Sekolah</div><div class="sp"></div><b>${nm(ks.nama)}</b><div>${esc(RP.labelNip(ks.nip))}</div></div>
+            <div class="ttd"><div>${RP.CITY}, ${esc(RP.tglPanjang(tanggal))}</div><div>${esc(kananJudul)}</div><div class="sp"></div><b>${nm(kananNama)}</b><div>${esc(RP.labelNip(kananNip))}</div></div>
         </div>`;
     }
     const wali1 = (data) => (data.wali || []).find((w) => w.posisi === 1) || (data.wali || [])[0] || {};

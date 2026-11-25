@@ -67,6 +67,24 @@
         return `--rh:${h.toFixed(2)}mm;--fs:${fs.toFixed(2)}pt`;
     }
 
+    /**
+     * Nomor pegawai di tanda tangan: "NIP. 1978…" untuk NIP, "NUPTK. 7448…" untuk NUPTK.
+     * Data staf menyimpan nomornya berawalan jenisnya ("NIP. …" / "NUPTK. …"); sebagian
+     * fungsi server sudah membuang "NIP." tapi membiarkan "NUPTK.", jadi jenisnya dibaca
+     * dari awalan dan bawaannya NIP. Kosong / "-" → "NIP. -".
+     */
+    function pisahNip(v) {
+        const s = String(v ?? '').trim();
+        const m = /^(NIP|NUPTK|NRK|NIK|NRPTK)\b\.?\s*:?\s*(.*)$/i.exec(s);
+        const jenis = m ? m[1].toUpperCase() : 'NIP';
+        const nomor = (m ? m[2] : s).trim();
+        return { jenis, nomor: nomor && nomor !== '-' ? nomor : '-' };
+    }
+    function labelNip(v) {
+        const { jenis, nomor } = pisahNip(v);
+        return `${jenis}. ${nomor}`;
+    }
+
     function pickWali(header, posisi) {
         const w = header?.wali || [];
         return w.find((x) => x.posisi === posisi) || w.find((x) => x.posisi === 1) || null;
@@ -134,7 +152,7 @@
     function ttdHtml(header, opts, tanggal) {
         const kepsek = header.kepala_sekolah || {};
         const wali = pickWali(header, opts.wali || 1) || {};
-        const nip = (v) => (opts.showNip !== false ? `<div>NIP. ${esc(v || '-')}</div>` : '');
+        const nip = (v) => (opts.showNip !== false ? `<div>${esc(labelNip(v))}</div>` : '');
         return `<div class="ttd"><div>Mengetahui,</div><div>Kepala Sekolah</div><div class="sp"></div>
                 <b>${esc(namaTtd(kepsek.nama) || '........................')}</b>${nip(kepsek.nip)}</div>
             <div class="ttd"><div>${CITY}, ${esc(tglPanjang(tanggal))}</div><div>Wali Kelas</div><div class="sp"></div>
@@ -448,7 +466,7 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
             a[0] = t(left); a[mid] = t(m); a[right] = t(r);
             return a;
         };
-        const nip = (v) => (opts.showNip !== false ? `NIP. ${v || '-'}` : '');
+        const nip = (v) => (opts.showNip !== false ? labelNip(v) : '');
         const nm = (v) => ({ v: namaTtd(v), s: compact ? 17 : 6 });
         return [
             [],
@@ -617,7 +635,7 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         return `${kind} ${romawi(header.kelas)} ${extra}`.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_');
     }
 
-    const api = { monthlyHtml, semesterHtml, monthlyXlsx, semesterXlsx, buildXlsx, crc32, print: printDoc, download, loadLogo, fileName, akhirBulan, ttdSemester, HADIR, romawi, namaTtd, pct, BULAN,
+    const api = { labelNip, pisahNip, monthlyHtml, semesterHtml, monthlyXlsx, semesterXlsx, buildXlsx, crc32, print: printDoc, download, loadLogo, fileName, akhirBulan, ttdSemester, HADIR, romawi, namaTtd, pct, BULAN,
         zipStore, colName, xmlEsc, kopHtml, wrapDoc, fit, tglPanjang, tpLabel, SCHOOL, CITY, kopLogo, colPx };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.RekapPrint = Object.freeze(api);

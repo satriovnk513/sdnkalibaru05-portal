@@ -117,8 +117,8 @@
         const w = (data.wali || []).find((x) => x.posisi === 1) || (data.wali || [])[0] || {};
         const nm = (v) => esc(RP.namaTtd(v) || '........................');
         return `<div class="foot" style="margin-top:4mm">
-            <div class="ttd"><div>Mengetahui,</div><div>Kepala Sekolah</div><div class="sp"></div><b>${nm(ks.nama)}</b><div>NIP. ${esc(ks.nip || '-')}</div></div>
-            <div class="ttd"><div>${RP.CITY}, ${esc(RP.tglPanjang(tanggal))}</div><div>Wali Kelas</div><div class="sp"></div><b>${nm(w.nama)}</b><div>NIP. ${esc(w.nip || '-')}</div></div>
+            <div class="ttd"><div>Mengetahui,</div><div>Kepala Sekolah</div><div class="sp"></div><b>${nm(ks.nama)}</b><div>${esc(RP.labelNip(ks.nip))}</div></div>
+            <div class="ttd"><div>${RP.CITY}, ${esc(RP.tglPanjang(tanggal))}</div><div>Wali Kelas</div><div class="sp"></div><b>${nm(w.nama)}</b><div>${esc(RP.labelNip(w.nip))}</div></div>
         </div>`;
     }
     function hariIniIso() {
