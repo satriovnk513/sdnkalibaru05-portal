@@ -19,17 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             .maybeSingle();
 
         if (roleData && roleData.role === 'admin') {
-            document.getElementById('loginOverlay').style.display = 'none';
-            document.getElementById('mainContent').style.display = 'flex';
-            updateSubRoles();
-            loadAdminGreeting();
-            loadStaff();
-            loadNews();
-            loadGallery();
-            loadEkskul();
-            loadAIMemory();
-            loadAISettingsIntoForm();
-            loadDashboardStats();
+            await bukaPanelAdmin();
         } else {
             await supabaseClient.auth.signOut();
             const errorMsg = document.getElementById('loginError');
@@ -48,6 +38,122 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 });
+
+// ---------------------------------------------------------------- gerbang login pertama
+// Akun admin/operator yang juga akun guru wajib (1) mengganti password awal
+// (= NIP/NUPTK, gampang ditebak) dan (2) punya PIN pemulihan sebelum bisa masuk
+// panel. Akun admin murni (bukan akun guru) tidak punya keduanya, jadi dilewati.
+
+function tampilkanPanel() {
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'flex';
+    updateSubRoles();
+    loadAdminGreeting();
+    loadStaff();
+    loadNews();
+    loadGallery();
+    loadEkskul();
+    loadAIMemory();
+    loadAISettingsIntoForm();
+    loadDashboardStats();
+}
+
+/** { gantiPassword, buatPin } — apa saja yang masih harus dibereskan akun ini. */
+async function syaratLoginPertama(userId) {
+    try {
+        const { data: acc, error } = await supabaseClient.from('teacher_accounts')
+            .select('must_change_password').eq('user_id', userId).maybeSingle();
+        if (error || !acc) return { gantiPassword: false, buatPin: false };
+        let adaPin = true;
+        try {
+            const { data: pin, error: e2 } = await supabaseClient.rpc('get_my_recovery_pin');
+            if (!e2) adaPin = Boolean(pin?.ada);
+        } catch { /* status PIN tidak terbaca: jangan kunci admin di luar */ }
+        return { gantiPassword: Boolean(acc.must_change_password), buatPin: !adaPin };
+    } catch {
+        return { gantiPassword: false, buatPin: false };
+    }
+}
+
+async function tokenSesi() {
+    let { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) ({ data: { session } } = await supabaseClient.auth.refreshSession());
+    if (!session?.access_token) throw new Error('Sesi habis. Silakan login ulang.');
+    return session.access_token;
+}
+
+async function panggilApi(url, body) {
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await tokenSesi()}` },
+        body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.error?.message || 'Gagal menyimpan. Coba lagi.');
+    return json;
+}
+
+async function bukaPanelAdmin() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const syarat = session ? await syaratLoginPertama(session.user.id) : { gantiPassword: false, buatPin: false };
+    if (!syarat.gantiPassword && !syarat.buatPin) { tampilkanPanel(); return; }
+
+    const box = document.getElementById('adminLoginBox');
+    const setup = document.getElementById('adminSetup');
+    const $s = (id) => document.getElementById(id);
+    box.hidden = true;
+    setup.hidden = false;
+    $s('adminSetupLead').textContent = syarat.gantiPassword
+        ? 'Password Anda masih password awal (NIP/NUPTK) yang mudah ditebak. Karena akun ini bisa membuka seluruh data sekolah, buat password baru dan PIN pemulihan dulu.'
+        : 'Akun admin wajib punya PIN pemulihan, supaya bisa mengatur ulang password sendiri kalau lupa. Buat PIN dulu sebelum lanjut.';
+    $s('adminSetupPwBaru').hidden = !syarat.gantiPassword;
+    $s('adminSetupPwLama').hidden = syarat.gantiPassword;
+    $s('adminSetupPinBox').hidden = false;
+    (syarat.gantiPassword ? $s('adminNewPw1') : $s('adminCurPw')).focus();
+
+    const salah = (m) => { const e = $s('adminSetupErr'); e.textContent = m; e.style.display = 'block'; };
+    ['adminPin1', 'adminPin2'].forEach((id) => $s(id).addEventListener('input', (e) => { e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6); }));
+    $s('adminSetupOut').onclick = async () => { await supabaseClient.auth.signOut(); location.reload(); };
+
+    await new Promise((selesai) => {
+        $s('adminSetup').onsubmit = async (ev) => {
+            ev.preventDefault();
+            $s('adminSetupErr').style.display = 'none';
+            let passwordUntukPin;
+            if (syarat.gantiPassword) {
+                const a = $s('adminNewPw1').value;
+                if (a.length < 8) return salah('Password baru minimal 8 karakter.');
+                if (a !== $s('adminNewPw2').value) return salah('Kedua password baru tidak sama.');
+                passwordUntukPin = a;
+            } else {
+                passwordUntukPin = $s('adminCurPw').value;
+                if (!passwordUntukPin) return salah('Isi password Anda saat ini.');
+            }
+            const pin = $s('adminPin1').value;
+            if (!/^[0-9]{6}$/.test(pin)) return salah('PIN harus 6 angka.');
+            if (pin !== $s('adminPin2').value) return salah('Kedua PIN tidak sama.');
+
+            const btn = $s('adminSetupBtn');
+            btn.disabled = true; btn.textContent = 'Menyimpan…';
+            try {
+                if (syarat.gantiPassword) {
+                    await panggilApi('/api/guru-change-password', { password: passwordUntukPin });
+                    syarat.gantiPassword = false;   // jangan diulang kalau PIN gagal
+                    $s('adminSetupPwBaru').hidden = true;
+                    $s('adminSetupPwLama').hidden = true;
+                }
+                await panggilApi('/api/guru-pin', { password: passwordUntukPin, pin });
+                setup.hidden = true;
+                box.hidden = false;
+                selesai();
+            } catch (err) {
+                salah(err.message);
+                btn.disabled = false; btn.textContent = 'Simpan & masuk';
+            }
+        };
+    });
+    tampilkanPanel();
+}
 
 async function checkLogin() {
     const email = document.getElementById('adminEmail').value.trim();
@@ -81,17 +187,7 @@ async function checkLogin() {
             .maybeSingle();
 
         if (roleData && roleData.role === 'admin') {
-            document.getElementById('loginOverlay').style.display = 'none';
-            document.getElementById('mainContent').style.display = 'flex';
-            updateSubRoles();
-            loadAdminGreeting();
-            loadStaff();
-            loadNews();
-            loadGallery();
-            loadEkskul();
-            loadAIMemory();
-            loadAISettingsIntoForm();
-            loadDashboardStats();
+            await bukaPanelAdmin();
         } else {
             await supabaseClient.auth.signOut();
             errorMsg.textContent = 'Akses ditolak: akun ini bukan admin. Guru silakan login di Portal Guru (tautan di bawah).';

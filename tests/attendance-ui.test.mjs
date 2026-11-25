@@ -99,6 +99,14 @@ async function runUi() {
             await r.request().frame().page().evaluate(() => { window.__fake.pin = true; });
             return r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
         });
+        await ctx.route('**/api/akun-email', async (r) => {
+            const b = JSON.parse(r.request().postData() || '{}');
+            apiCalls.push({ api: 'email', email: b.email, auth: r.request().headers().authorization });
+            if (b.password !== 'benar123') return r.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Password saat ini salah.' } }) });
+            if (b.email === 'dipakai@fiktif.test') return r.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Email itu sudah dipakai akun lain.' } }) });
+            await r.request().frame().page().evaluate((e) => { window.__fake.emailBaru = e; }, b.email);
+            return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, email: b.email }) });
+        });
         await ctx.route('**/api/admin/teacher-accounts', async (r) => {
             const req = r.request();
             const body = req.method() === 'POST' ? JSON.parse(req.postData() || '{}') : null;
@@ -593,11 +601,70 @@ async function runUi() {
             'setiap panggilan PIN membawa token, tidak pernah Bearer kosong');
         check(apiCalls.some((c) => c.api === 'pin' && c.pin === '483920' && /^Bearer /.test(c.auth || '')), 'PIN disimpan lewat API dengan token guru');
         check(/Ganti PIN/.test(await page.textContent('#gPinBtn')), 'setelah tersimpan tombol berubah jadi Ganti PIN');
+        // Ganti email sendiri
+        check(/Email sekarang/.test(await page.textContent('#gEmailCard')) && /wali@fiktif\.test/.test(await page.textContent('#gEmailCard')),
+            'kartu email menampilkan email sekarang');
+        await page.fill('#akEmailBaru', 'dipakai@fiktif.test');
+        await page.fill('#akEmailPw', 'benar123');
+        await page.click('#akEmailBtn');
+        await page.waitForFunction(() => !document.getElementById('akEmailErr').hidden);
+        check(/sudah dipakai/.test(await page.textContent('#akEmailErr')), 'email yang sudah dipakai akun lain ditolak dengan pesan jelas');
+        await page.fill('#akEmailBaru', 'Wali.Baru@Fiktif.test');
+        await page.click('#akEmailBtn');
+        await page.waitForFunction(() => /wali\.baru@fiktif\.test/.test(document.getElementById('gEmailCard')?.textContent || ''));
+        check(apiCalls.some((c) => c.api === 'email' && c.email === 'wali.baru@fiktif.test' && /^Bearer .+/.test(c.auth || '')),
+            'email baru dikirim (huruf kecil) dengan token guru, langsung tampil di halaman Akun');
         await shot(page, 'guru-08-akun-360.png');
         await page.click('#gLogout');
         await page.waitForSelector('#gLogin:not(.g-hidden)');
         check(true, 'keluar kembali ke halaman login');
         check(errors.length === 0, `tidak ada error JavaScript di /guru (${errors.join(' | ').slice(0, 120)})`);
+        await ctx.close();
+    }
+
+    // ============================================================ ADMIN — login pertama & Akun Saya
+    {
+        const { ctx, page, errors } = await newPage('/admin', { width: 390, height: 844 });
+        const T = '[Admin login pertama]';
+        // Operator yang juga akun guru, password masih NIP, belum punya PIN.
+        await page.evaluate(() => {
+            window.__fake.tables.teacher_accounts.push({ user_id: 'u-admin', email: 'admin@fiktif.test', must_change_password: true });
+            window.__fake.pin = false;
+        });
+        await page.fill('#adminEmail', 'admin@fiktif.test');
+        await page.fill('#adminPassword', '990000000000000009');
+        await page.click('.btn-login');
+        await page.waitForSelector('#adminSetup:not([hidden])');
+        check(await page.isHidden('#mainContent') && await page.isHidden('#adminLoginBox'), `${T} panel tertahan, form amankan akun tampil`);
+        check(await page.isVisible('#adminNewPw1') && await page.isVisible('#adminPin1') && await page.isHidden('#adminCurPw'),
+            `${T} minta password baru + PIN`);
+        await page.fill('#adminNewPw1', 'benar123');
+        await page.fill('#adminNewPw2', 'benar123');
+        await page.fill('#adminPin1', '483920');
+        await page.fill('#adminPin2', '483921');
+        await page.click('#adminSetupBtn');
+        check(/PIN tidak sama/.test(await page.textContent('#adminSetupErr')), `${T} PIN tidak sama ditolak`);
+        await page.fill('#adminPin2', '483920');
+        await shot(page, 'admin-login-pertama-390.png');
+        await page.click('#adminSetupBtn');
+        await page.waitForSelector('#mainContent', { state: 'visible' });
+        check(apiCalls.some((c) => c.api === 'changepw' && c.password === 'benar123') && apiCalls.some((c) => c.api === 'pin' && c.pin === '483920'),
+            `${T} password baru & PIN disimpan, panel terbuka`);
+
+        await page.evaluate(() => toggleSidebar());
+        await page.waitForTimeout(300);
+        await page.click('#navAkunSaya');
+        await page.waitForSelector('.ak-sheet');
+        const isi = await page.textContent('.ak-sheet');
+        check(/Email login/.test(isi) && /admin@fiktif\.test/.test(isi) && /Ganti password/.test(isi) && /PIN pemulihan/.test(isi) && /Sudah dibuat/.test(isi),
+            `${T} Akun Saya: email, password, PIN (sudah dibuat)`);
+        await page.fill('.ak-sheet #akEmailBaru', 'operator.baru@fiktif.test');
+        await page.fill('.ak-sheet #akEmailPw', 'benar123');
+        await page.click('.ak-sheet #akEmailBtn');
+        await page.waitForFunction(() => /operator\.baru@fiktif\.test/.test(document.querySelector('.ak-sheet .ak-now')?.textContent || ''));
+        check(true, `${T} admin bisa ganti email sendiri`);
+        await shot(page, 'admin-akun-saya-390.png');
+        check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 120)})`);
         await ctx.close();
     }
 

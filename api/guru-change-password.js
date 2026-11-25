@@ -1,5 +1,5 @@
 /**
- * POST /api/guru-change-password  (Authorization: Bearer <jwt guru>)  { password }
+ * POST /api/guru-change-password  (Authorization: Bearer <jwt guru/admin>)  { password }
  *   Mengganti password guru yang sedang login dan mencabut tanda
  *   "wajib ganti password" (password awal = NIP/NUPTK).
  *   Password baru tidak boleh sama dengan NIP/NUPTK atau email sendiri.
@@ -34,8 +34,13 @@ export default async function handler(req, res) {
 
     const acc = await sb('GET', `/rest/v1/teacher_accounts?select=login_id,email&user_id=eq.${caller.id}`, { key });
     if (!acc.ok) return sendError(res, 502, 'upstream_error', 'Server sedang bermasalah. Coba lagi.');
-    const row = Array.isArray(acc.json) ? acc.json[0] : null;
-    if (!row) return sendError(res, 403, 'not_teacher', 'Akun ini bukan akun guru.');
+    let row = Array.isArray(acc.json) ? acc.json[0] : null;
+    if (!row) {
+        // Akun admin tanpa data guru (mis. pemilik sistem) juga boleh mengganti passwordnya sendiri.
+        const role = await sb('GET', `/rest/v1/user_roles?select=role&role=eq.admin&user_id=eq.${caller.id}`, { key });
+        if (!role.ok || !Array.isArray(role.json) || !role.json.length) return sendError(res, 403, 'not_teacher', 'Akun ini bukan akun guru.');
+        row = { login_id: null, email: caller.email, admin_saja: true };
+    }
 
     const password = readBody(req)?.password;
     const problem = passwordProblem(password, row);
@@ -46,8 +51,10 @@ export default async function handler(req, res) {
         if (u.status === 422) return sendError(res, 400, 'invalid_password', 'Password ditolak. Pakai kombinasi huruf dan angka, minimal 8 karakter.');
         return sendError(res, 502, 'upstream_error', 'Gagal mengganti password. Coba lagi.');
     }
-    await sb('PATCH', `/rest/v1/teacher_accounts?user_id=eq.${caller.id}`, {
-        key, body: { must_change_password: false, updated_at: new Date().toISOString() }, headers: { Prefer: 'return=minimal' },
-    });
+    if (!row.admin_saja) {
+        await sb('PATCH', `/rest/v1/teacher_accounts?user_id=eq.${caller.id}`, {
+            key, body: { must_change_password: false, updated_at: new Date().toISOString() }, headers: { Prefer: 'return=minimal' },
+        });
+    }
     return res.status(200).json({ ok: true });
 }

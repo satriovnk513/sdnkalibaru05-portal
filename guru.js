@@ -1462,6 +1462,8 @@
                 <b>${esc(home.nama)}</b>
                 <div class="att-muted">${esc(home.jabatan || '')}${userEmail ? ` · ${esc(userEmail)}` : ''}</div>
             </div>
+            <h2>Email login</h2>
+            <div class="att-card" id="gEmailCard"></div>
             <h2>Ganti password</h2>
             <form class="att-card att-stack" id="gPwForm" novalidate>
                 <div class="att-field"><label for="gPw1">Password baru</label><input class="att-input" id="gPw1" type="password" autocomplete="new-password" minlength="8"></div>
@@ -1474,6 +1476,11 @@
             ${home.is_admin ? '<a class="att-btn att-btn-ghost att-btn-block" style="margin-top:16px" href="/admin">Buka Panel Admin</a>' : ''}
             <button type="button" class="att-btn att-btn-danger att-btn-block" id="gLogout" style="margin-top:16px">Keluar</button>`);
         $('gLogout').addEventListener('click', logout);
+        const pasangEmail = () => window.AkunSaya?.pasangFormEmail($('gEmailCard'), {
+            emailSekarang: userEmail,
+            onDone: (baru) => { userEmail = baru; renderAkun(); },
+        });
+        pasangEmail();
         $('gPwForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const a = $('gPw1').value;
