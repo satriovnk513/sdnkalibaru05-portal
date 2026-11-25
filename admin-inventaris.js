@@ -415,7 +415,7 @@
         if (!list.length) return toast('Belum ada barang untuk dicetak.', 'err');
         const v = await form({
             title: `Cetak ${list.length} stiker QR`,
-            submitText: 'Cetak / PDF',
+            submitText: 'Cetak / Download PDF',
             fields: [
                 { id: 'skip', label: 'Lewati slot di awal kertas', type: 'select', value: '0', options: Array.from({ length: 24 }, (_, i) => ({ value: String(i), label: i ? `${i} slot sudah terpakai` : 'Mulai dari slot pertama' })), hint: 'A4, 24 stiker per lembar (3 × 8). Berguna kalau kertas label sisa sebagian.' },
             ],

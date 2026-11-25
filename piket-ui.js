@@ -78,7 +78,8 @@
                 <div class="pk-act">
                     ${edit ? `<button type="button" class="att-btn att-btn-ghost" id="pkAcak">${ICON.shuffle} Acak ulang</button>` : ''}
                     <button type="button" class="att-btn att-btn-ghost" id="pkXls">${ICON.down} Excel</button>
-                    <button type="button" class="att-btn att-btn-ghost" id="pkPdf">${ICON.print} Cetak / PDF</button>
+                    <button type="button" class="att-btn att-btn-ghost" id="pkPdf">${ICON.print} Cetak</button>
+                    <button type="button" class="att-btn att-btn-ghost" id="pkPdfDl">${ICON.down} Download PDF</button>
                 </div>`;
 
             el.querySelector('#pkKelas')?.addEventListener('change', (e) => ctx.nav({ kelas: e.target.value }));
@@ -99,6 +100,7 @@
             el.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => pindah(el, list, data.siswa.find((s) => s.id === b.dataset.s))));
             el.querySelector('#pkXls').addEventListener('click', () => RP.download(P.xlsx(data), `${P.namaFile(data)}.xlsx`));
             el.querySelector('#pkPdf').addEventListener('click', () => { if (!RP.print(P.html(data))) toast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.', 'err'); });
+            RP.tombolPdf(el.querySelector('#pkPdfDl'), () => ({ html: P.html(data), nama: P.namaFile(data) }), toast);
         }
 
         function pindah(el, list, s) {

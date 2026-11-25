@@ -387,7 +387,7 @@
 <style>@page Section1 { size: ${doc.landscape ? '841.9pt 595.3pt; mso-page-orientation: landscape' : '595.3pt 841.9pt'}; margin: ${doc.landscape ? '34pt' : '45pt 42pt 40pt'}; } div.Section1 { page: Section1; } .pb { page-break-after: always; mso-special-character: line-break; }</style>
 </head><body><div class="Section1">${doc.body.replace(/<div class="pb"><\/div>/g, '<br clear="all" style="page-break-before:always">')}</div></body></html>`;
         }
-        const bar = mode === 'print' ? `<div class="tbar"><button onclick="window.print()">Cetak / Simpan PDF</button><span>${esc(doc.title)}</span></div>` : '';
+        const bar = mode === 'print' ? `<div class="tbar"><button onclick="window.print()">Cetak</button><span>${esc(doc.title)}</span></div>` : '';
         return `<!doctype html><html lang="id"><head>${head}</head><body class="${mode === 'print' ? 'lihat' : ''}">${bar}<div class="kertas">${doc.body}</div></body></html>`;
     }
 

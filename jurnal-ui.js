@@ -111,7 +111,8 @@
                     ${addOpen ? '' : `<button type="button" class="att-btn att-btn-ghost" id="jrAdd">${ICON.plus} Catatan lain</button>`}
                     <div class="jr-dl"><span class="att-muted">Unduh jurnal ${esc(RP.BULAN[Number(tgl.slice(5, 7)) - 1])} ${tgl.slice(0, 4)}:</span>
                         <button type="button" class="att-btn att-btn-ghost att-btn-sm" id="jrXls">${ICON.down} Excel</button>
-                        <button type="button" class="att-btn att-btn-ghost att-btn-sm" id="jrPdf">${ICON.print} PDF</button></div>
+                        <button type="button" class="att-btn att-btn-ghost att-btn-sm" id="jrPdf">${ICON.print} Cetak</button>
+                        <button type="button" class="att-btn att-btn-ghost att-btn-sm" id="jrPdfDl">${ICON.down} PDF</button></div>
                 </div>
                 <p class="att-muted jr-priv">Jurnal ini catatan pribadi Anda — tidak dilihat kepala sekolah. Operator sekolah bisa membantu merapikan (menghapus catatan dobel).</p>`;
 
@@ -180,10 +181,13 @@
                 try {
                     const m = await month();
                     if (!w) { toast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.', 'err'); return; }
-                    w.document.open(); w.document.write(JR.html(m)); w.document.close();
+                    const html = JR.html(m);
+                    w.document.open(); w.document.write(html); w.document.close();
+                    try { RP.pasangToolbar?.(w, html, JR.namaFile(m)); } catch { /* opsional */ }
                     setTimeout(() => { try { w.focus(); w.print(); } catch { /* tombol cetak tetap ada */ } }, 400);
                 } catch (err) { w?.close(); toast(errMessage(err), 'err'); }
             });
+            RP.tombolPdf(el.querySelector('#jrPdfDl'), async () => { const m = await month(); return { html: JR.html(m), nama: JR.namaFile(m) }; }, toast);
         }
 
         return { render };

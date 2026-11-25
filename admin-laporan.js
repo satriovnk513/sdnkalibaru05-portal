@@ -1,6 +1,6 @@
 // =============================================================================
 // Panel Admin — menu Laporan: Rekap Bulanan & Rekap Semester.
-// Pratinjau di layar, Cetak / PDF (format daftar hadir kertas), Export Excel.
+// Pratinjau di layar, Cetak, Download PDF (format daftar hadir kertas), Export Excel.
 // Data dari RPC get_class_month_recap, get_class_semester_recap,
 // get_class_report_header (hak akses diperiksa di database).
 // =============================================================================
@@ -174,6 +174,20 @@
                 `${RP.fileName('Blanko_Daftar_Hadir', d.header, `${BULAN[d.recap.bulan - 1]}_${d.recap.tahun}`)}.xlsx`);
             toast('Blanko Excel diunduh.');
         });
+        // Download PDF: langsung tersimpan ke folder Download, tanpa dialog cetak.
+        const namaBln = (d, awal) => RP.fileName(awal, d.header, `${BULAN[d.recap.bulan - 1]}_${d.recap.tahun}`);
+        RP.tombolPdf($('lpBlnPdf'), async () => {
+            const d = await ensureMonth();
+            return d && { html: RP.monthlyHtml(d.recap, d.header, opts('lpBln')), nama: namaBln(d, 'Daftar_Hadir') };
+        }, toast);
+        RP.tombolPdf($('lpBlnBlankPdf'), async () => {
+            const d = await ensureMonth();
+            return d && { html: RP.monthlyHtml(d.recap, d.header, { ...opts('lpBln'), blank: true }), nama: namaBln(d, 'Blanko_Daftar_Hadir') };
+        }, toast);
+        RP.tombolPdf($('lpSemPdf'), async () => {
+            const d = await ensureSemester();
+            return d && { html: RP.semesterHtml(d.recap, d.header, opts('lpSem')), nama: RP.fileName('Rekap_Semester', d.header, `${d.sem === 1 ? 'Ganjil' : 'Genap'}_${d.header.tahun_ajaran}`) };
+        }, toast);
         $('lpSemShow')?.addEventListener('click', showSemester);
         $('lpSemPrint')?.addEventListener('click', async () => {
             const d = await ensureSemester();

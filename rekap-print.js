@@ -162,7 +162,7 @@
     function wrapDoc(title, body, vars = '') {
         return `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=1123"><title>${esc(title)}</title>
             <style>${PRINT_CSS}</style></head><body>
-            <div class="tbar"><button onclick="window.print()">Cetak / Simpan PDF</button><button onclick="window.close()">Tutup</button></div>
+            <div class="tbar"><button onclick="window.print()">Cetak</button><button onclick="window.close()">Tutup</button></div>
             <div class="page" style="${vars}">${body}</div>
             </body></html>`;
     }
@@ -585,12 +585,49 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
 
     // ------------------------------------------------------------------ browser
     /** Buka dokumen di tab baru, tunggu logo/isi siap (maks. 3 detik), lalu buka dialog cetak. */
-    function printDoc(html) {
+    /**
+     * Toolbar jendela pratinjau: [Cetak] [Download PDF] [Tutup]. Menggantikan toolbar
+     * bawaan dokumen (kalau ada); dokumen tanpa toolbar (stiker QR) diberi satu.
+     * Tombol Download PDF memakai PdfUnduh dari halaman pembuka (portal), jadi
+     * dokumennya tidak perlu memuat skrip apa pun.
+     */
+    function pasangToolbar(w, html, nama) {
+        const d = w.document;
+        let bar = d.querySelector('.tbar');
+        if (!bar) {
+            bar = d.createElement('div');
+            bar.className = 'tbar pdf-tbar';
+            bar.style.cssText = 'position:fixed;top:8px;right:8px;display:flex;gap:8px;z-index:99';
+            const st = d.createElement('style');
+            st.textContent = '@media print { .pdf-tbar { display: none !important; } } .pdf-tbar button { font: 600 13px Arial; padding: 8px 14px; border-radius: 8px; border: 1px solid #999; background: #fff; cursor: pointer; }';
+            d.head.appendChild(st);
+            d.body.appendChild(bar);
+        }
+        bar.textContent = '';
+        const tombol = (teks, aksi) => { const b = d.createElement('button'); b.type = 'button'; b.textContent = teks; b.addEventListener('click', aksi); bar.appendChild(b); return b; };
+        tombol('Cetak', () => w.print());
+        const unduh = tombol('Download PDF', async () => {
+            unduh.disabled = true;
+            unduh.textContent = 'Menyiapkan PDF…';
+            try { await unduhPdf(html, nama); } catch (err) { w.alert(err?.message || 'Gagal membuat PDF.'); }
+            unduh.disabled = false;
+            unduh.textContent = 'Download PDF';
+        });
+        tombol('Tutup', () => w.close());
+    }
+
+    /**
+     * Pratinjau + dialog cetak. opts.autoPrint (bawaan true) membuka dialog cetak
+     * otomatis; opts.nama = nama file kalau diunduh sebagai PDF dari pratinjau.
+     */
+    function printDoc(html, opts = {}) {
         const w = root.open ? root.open('', '_blank') : null;
         if (!w) return false;
         w.document.open();
         w.document.write(html);
         w.document.close();
+        try { pasangToolbar(w, html, opts.nama); } catch { /* toolbar bawaan tetap ada */ }
+        if (opts.autoPrint === false) return true;
         const started = Date.now();
         const tick = () => {
             let ready = false;
@@ -605,6 +642,34 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         };
         setTimeout(tick, 300);
         return true;
+    }
+
+    /** Langsung simpan dokumen cetak sebagai PDF ke folder Download (butuh pdf-unduh.js). */
+    async function unduhPdf(html, nama) {
+        if (!root.PdfUnduh) throw new Error('Fitur Download PDF belum termuat. Muat ulang halaman.');
+        return root.PdfUnduh.dariHtml(html, nama);
+    }
+
+    /**
+     * Pasang perilaku tombol Download PDF: tombol dikunci & berlabel "Menyiapkan…"
+     * selama PDF disusun. buat() mengembalikan { html, nama } (boleh async).
+     */
+    function tombolPdf(btn, buat, toast) {
+        if (!btn) return;
+        btn.addEventListener('click', async () => {
+            const asli = btn.innerHTML;
+            btn.disabled = true;
+            btn.textContent = 'Menyiapkan PDF…';
+            try {
+                const r = await buat();
+                if (r) { await unduhPdf(r.html, r.nama); toast?.('PDF diunduh.'); }
+            } catch (err) {
+                toast?.(err?.message || 'Gagal membuat PDF.', 'err');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = asli;
+            }
+        });
     }
 
     /** Logo PNG untuk Excel (diambil sekali, lalu disimpan). null jika gagal — Excel tetap dibuat tanpa logo. */
@@ -635,7 +700,7 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         return `${kind} ${romawi(header.kelas)} ${extra}`.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '_');
     }
 
-    const api = { labelNip, pisahNip, monthlyHtml, semesterHtml, monthlyXlsx, semesterXlsx, buildXlsx, crc32, print: printDoc, download, loadLogo, fileName, akhirBulan, ttdSemester, HADIR, romawi, namaTtd, pct, BULAN,
+    const api = { unduhPdf, tombolPdf, pasangToolbar, labelNip, pisahNip, monthlyHtml, semesterHtml, monthlyXlsx, semesterXlsx, buildXlsx, crc32, print: printDoc, download, loadLogo, fileName, akhirBulan, ttdSemester, HADIR, romawi, namaTtd, pct, BULAN,
         zipStore, colName, xmlEsc, kopHtml, wrapDoc, fit, tglPanjang, tpLabel, SCHOOL, CITY, kopLogo, colPx };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.RekapPrint = Object.freeze(api);

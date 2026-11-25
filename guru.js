@@ -1025,7 +1025,7 @@
         setTop('Cetak & Dokumen', 'Buat sendiri, lalu cetak atau unduh');
         if (!myClasses().length) return main('<div class="att-alert info">Belum ada kelas yang bisa Anda lihat.</div>');
         const groups = [...new Set(Dok.TYPES.map((t) => t.grup))];
-        main(`<p class="att-muted" style="margin:0 0 12px">Pilih dokumen, isi seperlunya, lalu <b>Cetak / PDF</b> atau unduh <b>Word / Excel</b> untuk diedit. Data siswa terisi otomatis.</p>
+        main(`<p class="att-muted" style="margin:0 0 12px">Pilih dokumen, isi seperlunya, lalu <b>Cetak</b>, <b>Download PDF</b>, atau unduh <b>Word / Excel</b> untuk diedit. Data siswa terisi otomatis.</p>
             ${groups.map((g) => `<h2 class="g-dok-h">${esc(g)}</h2><div class="g-dok-grid">${Dok.TYPES.filter((t) => t.grup === g).map((t) => `
                 <a class="g-dok" href="#/dokumen/${t.id}"><span class="g-dok-ico">${DOK_ICON[g] || DOK_ICON.Daftar}</span>
                     <span class="g-dok-txt"><b>${esc(t.nama)}</b><small>${esc(t.ket)}</small></span>${ICON.chev}</a>`).join('')}</div>`).join('')}
@@ -1407,14 +1407,17 @@
                 <h2>Cetak &amp; unduh</h2>
                 <div class="att-card att-stack">
                     <div class="att-row"><b style="flex:1 1 100%">Daftar hadir ${esc(window.Att.BULAN[m - 1])} ${y}</b>
-                        <button type="button" class="att-btn att-btn-ghost" id="gRkPrint" style="flex:1">Cetak / PDF</button>
+                        <button type="button" class="att-btn att-btn-ghost" id="gRkPrint" style="flex:1">Cetak</button>
+                        <button type="button" class="att-btn att-btn-ghost" id="gRkPdf" style="flex:1">Download PDF</button>
                         <button type="button" class="att-btn att-btn-ghost" id="gRkXlsx" style="flex:1">Excel</button></div>
                     <div class="att-row"><span class="att-muted" style="flex:1 1 100%">Blanko kosong ${esc(window.Att.BULAN[m - 1])} ${y} — untuk diisi manual</span>
-                        <button type="button" class="att-btn att-btn-ghost" id="gRkBlankPrint" style="flex:1">Blanko PDF</button>
-                        <button type="button" class="att-btn att-btn-ghost" id="gRkBlankXlsx" style="flex:1">Blanko Excel</button></div>
+                        <button type="button" class="att-btn att-btn-ghost" id="gRkBlankPrint" style="flex:1">Cetak</button>
+                        <button type="button" class="att-btn att-btn-ghost" id="gRkBlankPdf" style="flex:1">Download PDF</button>
+                        <button type="button" class="att-btn att-btn-ghost" id="gRkBlankXlsx" style="flex:1">Excel</button></div>
                     <div class="att-field"><label for="gRkSem">Rekap semester (untuk rapor)</label>
                         <select class="att-select" id="gRkSem"><option value="1" ${m >= 7 ? 'selected' : ''}>Semester Ganjil (Jul–Des)</option><option value="2" ${m < 7 ? 'selected' : ''}>Semester Genap (Jan–Jun)</option></select></div>
-                    <div class="att-row"><button type="button" class="att-btn att-btn-ghost" id="gRkSemPrint" style="flex:1">Cetak / PDF</button>
+                    <div class="att-row"><button type="button" class="att-btn att-btn-ghost" id="gRkSemPrint" style="flex:1">Cetak</button>
+                        <button type="button" class="att-btn att-btn-ghost" id="gRkSemPdf" style="flex:1">Download PDF</button>
                         <button type="button" class="att-btn att-btn-ghost" id="gRkSemXlsx" style="flex:1">Excel</button></div>
                     <p class="att-muted" style="margin:0">Format sama dengan daftar hadir kertas, tanda tangan Kepala Sekolah dan wali kelas.</p>
                 </div>`;
@@ -1457,6 +1460,19 @@
             return { recap, h, s };
         };
         $('gRkSemPrint').addEventListener('click', guard(async () => { const d = await sem(); print(RP.semesterHtml(d.recap, d.h, { wali: myWali() })); }));
+        const namaBln = (h, awal) => RP.fileName(awal, h, `${window.Att.BULAN[monthRecap.bulan - 1]}_${monthRecap.tahun}`);
+        RP.tombolPdf($('gRkPdf'), async () => {
+            const h = await getHeader();
+            return { html: RP.monthlyHtml(monthRecap, h, { wali: myWali() }), nama: namaBln(h, 'Daftar_Hadir') };
+        }, toast);
+        RP.tombolPdf($('gRkBlankPdf'), async () => {
+            const h = await getHeader();
+            return { html: RP.monthlyHtml(monthRecap, h, { wali: myWali(), blank: true }), nama: namaBln(h, 'Blanko_Daftar_Hadir') };
+        }, toast);
+        RP.tombolPdf($('gRkSemPdf'), async () => {
+            const d = await sem();
+            return { html: RP.semesterHtml(d.recap, d.h, { wali: myWali() }), nama: RP.fileName('Rekap_Semester', d.h, `${d.s === 1 ? 'Ganjil' : 'Genap'}_${d.h.tahun_ajaran}`) };
+        }, toast);
         $('gRkSemXlsx').addEventListener('click', guard(async () => {
             const d = await sem();
             RP.download(RP.semesterXlsx(d.recap, d.h, { wali: myWali(), logoPng: await RP.loadLogo() }), `${RP.fileName('Rekap_Semester', d.h, `${d.s === 1 ? 'Ganjil' : 'Genap'}_${d.h.tahun_ajaran}`)}.xlsx`);

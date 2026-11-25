@@ -92,7 +92,7 @@ test('undangan: satu lembar umum, atau satu lembar per siswa; biodata semua sisw
 
 test('halaman: cetak punya tombol, Word punya namespace & pemisah halaman, pratinjau polos', () => {
     const doc = Dok.build('undangan', data, opts('undangan', { perSiswa: true }));
-    assert.match(Dok.page(doc, 'print'), /Cetak \/ Simpan PDF/);
+    assert.match(Dok.page(doc, 'print'), />Cetak</);
     const w = Dok.page(doc, 'word');
     assert.match(w, /schemas-microsoft-com:office:word/);
     assert.match(w, /page-break-before:always/);
