@@ -504,8 +504,10 @@
                     <h3>Unduh hasil nilai</h3>
                     <button type="button" class="nl-dl" id="nlXls"><span class="x">XLSX</span><div><b>Nilai semua mapel</b><small>Satu lembar per mapel + leger</small></div></button>
                     <div class="nl-dl-row"><select class="att-select" id="nlPm" aria-label="Mapel untuk PDF">${tampil.map((m) => `<option value="${esc(m.id)}">${esc(m.nama)}</option>`).join('')}</select>
-                        <button type="button" class="nl-dl" id="nlPdfM"><span class="p">PDF</span><div><b>Daftar nilai per mapel</b><small>UH, STS, SAS, NA, keterangan</small></div></button></div>
-                    <button type="button" class="nl-dl" id="nlPdfL"><span class="p">PDF</span><div><b>Leger nilai akhir kelas</b><small>Semua mapel dalam satu halaman</small></div></button>
+                        <button type="button" class="nl-dl" id="nlPdfM"><span class="p">CETAK</span><div><b>Daftar nilai per mapel</b><small>UH, STS, SAS, NA, keterangan</small></div></button>
+                        <button type="button" class="nl-dl" id="nlPdfMDl"><span class="p">PDF</span><div><b>Download PDF</b><small>Daftar nilai mapel terpilih</small></div></button></div>
+                    <div class="nl-dl-row"><button type="button" class="nl-dl" id="nlPdfL"><span class="p">CETAK</span><div><b>Leger nilai akhir kelas</b><small>Semua mapel dalam satu halaman</small></div></button>
+                        <button type="button" class="nl-dl" id="nlPdfLDl"><span class="p">PDF</span><div><b>Download PDF</b><small>Leger nilai akhir</small></div></button></div>
                 </section>`;
             wireNav(el);
 
@@ -523,6 +525,13 @@
             const print = (html) => { if (!RP.print(html)) toast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.', 'err'); };
             el.querySelector('#nlPdfM').addEventListener('click', () => { const id = el.querySelector('#nlPm').value; if (id) print(N.htmlMapel(d, id)); });
             el.querySelector('#nlPdfL').addEventListener('click', () => print(N.htmlLeger(d)));
+            RP.tombolPdf(el.querySelector('#nlPdfMDl'), () => {
+                const id = el.querySelector('#nlPm').value;
+                if (!id) throw new Error('Pilih mapel dulu.');
+                const m = tampil.find((x) => x.id === id);
+                return { html: N.htmlMapel(d, id), nama: N.namaFile('Nilai', d, m?.nama || '') };
+            }, toast);
+            RP.tombolPdf(el.querySelector('#nlPdfLDl'), () => ({ html: N.htmlLeger(d), nama: N.namaFile('Leger Nilai', d) }), toast);
 
             const file = el.querySelector('#nlFile');
             el.querySelector('#nlImp').addEventListener('click', () => { file.value = ''; file.click(); });

@@ -67,6 +67,7 @@ async function runUi() {
         // UI_THEME=dark menjalankan seluruh alur dalam mode gelap (untuk memeriksa tampilan).
         if (process.env.UI_THEME) await ctx.addInitScript((t) => { try { if (!localStorage.getItem('tema')) localStorage.setItem('tema', t); } catch { /* abaikan */ } }, process.env.UI_THEME);
         ctx.setDefaultTimeout(8000);
+        if (process.env.UI_DEBUG) ctx.on("page", (p) => { p.on("pageerror", (e) => console.error("PAGEERR", e.message)); p.on("console", (m) => m.type() === "error" && console.error("CONSOLE", m.text())); });
         await ctx.route('https://cdn.jsdelivr.net/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE }));
         // jsQR tiruan: "membaca" QR yang isinya diatur tes lewat window.__qrAnswer.
         await ctx.route('https://cdn.jsdelivr.net/npm/jsqr@*/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript',
@@ -429,6 +430,16 @@ async function runUi() {
             await popB.close();
             const [dlB] = await Promise.all([page.waitForEvent('download'), page.click('#gRkBlankXlsx')]);
             check(/^Blanko_Daftar_Hadir_I\.A_.*\.xlsx$/.test(dlB.suggestedFilename()), `guru: blanko Excel diunduh (${dlB.suggestedFilename()})`);
+            {
+                const [dp] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#gRkPdf')]);
+                const fp = await dp.path();
+                const head = fp ? (await import('node:fs')).readFileSync(fp).subarray(0, 5).toString('latin1') : '';
+                check(/^Daftar_Hadir_I\.A_.*\.pdf$/.test(dp.suggestedFilename()) && head === '%PDF-', `guru: Download PDF langsung mengunduh file PDF (${dp.suggestedFilename()} ${head})`);
+                const popT = await popupFrom(page, () => page.click('#gRkBlankPrint'));
+                const tb = await popT.$$eval('.tbar button', (bs) => bs.map((b) => b.textContent));
+                check(tb.join('|') === 'Cetak|Download PDF|Tutup', `guru: pratinjau punya tombol Cetak, Download PDF, Tutup (${tb})`);
+                await popT.close();
+            }
             const pop2 = await popupFrom(page, () => page.click('#gRkSemPrint'));
             check(/REKAP ABSENSI SEMESTER/.test(await pop2.textContent('body')), 'guru: cetak rekap semester');
             await pop2.close();

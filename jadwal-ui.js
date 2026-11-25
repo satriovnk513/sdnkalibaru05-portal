@@ -84,7 +84,8 @@
                     </div>
                     <div class="jd-tools">
                         <button type="button" class="att-btn att-btn-ghost att-btn-sm" id="jdXls">${ICON.down} Excel</button>
-                        <button type="button" class="att-btn att-btn-ghost att-btn-sm" id="jdPdf">${ICON.print} Cetak / PDF</button>
+                        <button type="button" class="att-btn att-btn-ghost att-btn-sm" id="jdPdf">${ICON.print} Cetak</button>
+                        <button type="button" class="att-btn att-btn-ghost att-btn-sm" id="jdPdfDl">${ICON.down} PDF</button>
                     </div>
                 </div>
                 <div id="jdBody"></div>`;
@@ -102,6 +103,7 @@
             el.querySelector('#jdPdf').addEventListener('click', () => {
                 if (!RP.print(J.htmlTabel(state.data))) toast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.', 'err');
             });
+            RP.tombolPdf(el.querySelector('#jdPdfDl'), () => ({ html: J.htmlTabel(state.data), nama: J.namaFile(state.data) }), toast);
             drawBody(el);
         }
 

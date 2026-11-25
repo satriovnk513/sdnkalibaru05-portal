@@ -119,7 +119,8 @@
                 <p class="att-muted cs-priv">${ICON.lock} Catatan hanya terlihat oleh penulisnya, wali kelas, kepala sekolah, dan operator sekolah.</p>
                 <div class="cs-act">
                     <button type="button" class="att-btn att-btn-primary att-btn-block" id="csTulis">+ Tulis catatan</button>
-                    <button type="button" class="att-btn att-btn-ghost att-btn-block" id="csPdf">Unduh rangkuman semester (PDF)</button>
+                    <button type="button" class="att-btn att-btn-ghost att-btn-block" id="csPdf">Cetak rangkuman semester</button>
+                    <button type="button" class="att-btn att-btn-ghost att-btn-block" id="csPdfDl">Download PDF rangkuman</button>
                 </div>`;
             el.querySelector('#csKelas').addEventListener('change', (e) => ctx.nav('kelas', { kelas: e.target.value, smt }));
             el.querySelectorAll('[data-smt]').forEach((b) => b.addEventListener('click', () => ctx.nav('kelas', { kelas, smt: Number(b.dataset.smt) })));
@@ -131,6 +132,7 @@
             }));
             el.querySelector('#csTulis').addEventListener('click', () => tulis({ kelas, siswa: d.siswa, pilih: [], onDone: () => viewKelas(el, { kelas, smt }) }));
             el.querySelector('#csPdf').addEventListener('click', () => { if (!RP.print(C.htmlKelas(d))) toast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.', 'err'); });
+            RP.tombolPdf(el.querySelector('#csPdfDl'), () => ({ html: C.htmlKelas(d), nama: `Rangkuman_Catatan_${String(d.kelas?.nama || 'Kelas').replace(/\s+/g, '_')}_Smt${d.semester || ''}` }), toast);
             draw();
         }
 
@@ -167,11 +169,13 @@
                 ${d.catatan.length ? `<ol class="cs-tlist">${d.catatan.map(card).join('')}</ol>` : `<div class="att-alert info">Belum ada catatan ${semua ? '' : 'di semester ini '}yang bisa Anda lihat.</div>`}
                 <div class="cs-act">
                     ${s.class_id ? `<button type="button" class="att-btn att-btn-primary att-btn-block" id="csTulis">+ Tulis catatan untuk ${esc(String(s.nama || '').split(' ')[0])}</button>` : ''}
-                    <button type="button" class="att-btn att-btn-ghost att-btn-block" id="csPdf">Unduh catatan ${esc(String(s.nama || '').split(' ')[0])} (PDF)</button>
+                    <button type="button" class="att-btn att-btn-ghost att-btn-block" id="csPdf">Cetak catatan ${esc(String(s.nama || '').split(' ')[0])}</button>
+                    <button type="button" class="att-btn att-btn-ghost att-btn-block" id="csPdfDl">Download PDF catatan</button>
                 </div>`;
             isiFoto(el);
             el.querySelectorAll('[data-semua]').forEach((b) => b.addEventListener('click', () => ctx.nav('siswa', { ...p, semua: b.dataset.semua })));
             el.querySelector('#csPdf').addEventListener('click', () => { if (!RP.print(C.htmlSiswa(d))) toast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.', 'err'); });
+            RP.tombolPdf(el.querySelector('#csPdfDl'), () => ({ html: C.htmlSiswa(d), nama: `Catatan_${String(s.nama || 'Siswa').replace(/\s+/g, '_')}` }), toast);
             const ulang = () => viewSiswa(el, p);
             el.querySelector('#csTulis')?.addEventListener('click', () => tulis({ kelas: s.class_id, siswa: [{ id: s.id, nama: s.nama }], pilih: [s.id], kunciSiswa: true, onDone: ulang }));
             el.querySelectorAll('[data-tl]').forEach((b) => b.addEventListener('click', () => tindakLanjut(d.catatan.find((n) => n.id === b.dataset.tl), ulang)));

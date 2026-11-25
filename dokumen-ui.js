@@ -128,7 +128,7 @@
                 ${type.fields.map((f) => fieldHtml(f, vals[f.key], data)).join('')}
                 <div class="att-alert err g-hidden" id="gDokErr" role="alert"></div>
                 <div class="g-dok-actions">
-                    ${has('print') ? '<button type="button" class="att-btn att-btn-primary" data-out="print">Cetak / PDF</button>' : ''}
+                    ${has('print') ? '<button type="button" class="att-btn att-btn-primary" data-out="print">Cetak</button><button type="button" class="att-btn att-btn-ghost" data-out="pdf">Download PDF</button>' : ''}
                     ${has('word') ? '<button type="button" class="att-btn att-btn-ghost" data-out="word">Unduh Word</button>' : ''}
                     ${has('xlsx') ? '<button type="button" class="att-btn att-btn-ghost" data-out="xlsx">Unduh Excel</button>' : ''}
                 </div>
@@ -213,6 +213,12 @@
             const RP = window.RekapPrint;
             if (b.dataset.out === 'print') {
                 if (!RP.print(Dok.page(doc, 'print', assets))) o.toast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.', 'err');
+            } else if (b.dataset.out === 'pdf') {
+                const label = b.textContent;
+                b.disabled = true; b.textContent = 'Menyiapkan PDF…';
+                try { await RP.unduhPdf(Dok.page(doc, 'print', assets), name); o.toast('PDF diunduh.'); }
+                catch (er) { o.toast(errMessage(er), 'err'); }
+                finally { b.disabled = false; b.textContent = label; }
             } else if (b.dataset.out === 'word') {
                 RP.download(new TextEncoder().encode(`﻿${Dok.page(doc, 'word')}`), `${name}.doc`, 'application/msword');
                 o.toast('File Word diunduh.');
