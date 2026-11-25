@@ -423,6 +423,12 @@ async function runUi() {
             check(/^Daftar_Hadir_I\.A_.*\.xlsx$/.test(dl.suggestedFilename()), `guru: nama file Excel (${dl.suggestedFilename()})`);
             const v = await xlsxCells(dl, ['C1', 'C3']);
             check(!v || (v[0] === 'DAFTAR HADIR SISWA' && v[1] === 'SDN KALIBARU 05 PAGI' && v[2] === 'logo'), `guru: file Excel valid + logo tertanam (${v})`);
+            const popB = await popupFrom(page, () => page.click('#gRkBlankPrint'));
+            check(!(/>✓</.test(await popB.content())) && /Isi: ✓ = hadir/.test(await popB.textContent('body')) && /KELAS : I\.A/.test(await popB.textContent('body')),
+                'guru: blanko daftar hadir PDF kosong untuk diisi tangan');
+            await popB.close();
+            const [dlB] = await Promise.all([page.waitForEvent('download'), page.click('#gRkBlankXlsx')]);
+            check(/^Blanko_Daftar_Hadir_I\.A_.*\.xlsx$/.test(dlB.suggestedFilename()), `guru: blanko Excel diunduh (${dlB.suggestedFilename()})`);
             const pop2 = await popupFrom(page, () => page.click('#gRkSemPrint'));
             check(/REKAP ABSENSI SEMESTER/.test(await pop2.textContent('body')), 'guru: cetak rekap semester');
             await pop2.close();
@@ -935,11 +941,14 @@ async function runUi() {
             await shot(pop, 'laporan-02-cetak-bulanan.png');
         }
         await pop.close();
-        await page.check('#lpBlnBlank');
-        const popB = await popupFrom(page, () => page.click('#lpBlnPrint'));
-        check(!(/>✓</.test(await popB.content())), `${T} blanko kosong tanpa isian`);
+        const popB = await popupFrom(page, () => page.click('#lpBlnBlankPrint'));
+        check(!(/>✓</.test(await popB.content())) && /Isi: ✓ = hadir/.test(await popB.textContent('body')) && /SISWA FIKTIF DUA/.test(await popB.textContent('body')),
+            `${T} blanko PDF: daftar siswa lengkap, kotak kosong, ada keterangan cara mengisi`);
         await popB.close();
-        await page.uncheck('#lpBlnBlank');
+        const [dlB] = await Promise.all([page.waitForEvent('download'), page.click('#lpBlnBlankXlsx')]);
+        check(/^Blanko_Daftar_Hadir_.*\.xlsx$/.test(dlB.suggestedFilename()), `${T} blanko Excel diunduh (${dlB.suggestedFilename()})`);
+        const vB = await xlsxCells(dlB, ['C1', 'D7', 'F7']);
+        check(!vB || (vB[0] === 'DAFTAR HADIR SISWA' && vB[1] === 'SISWA FIKTIF DUA' && vB[2] === 'None'), `${T} blanko Excel: nama siswa ada, kotak tanggal kosong (${vB})`);
         const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#lpBlnXlsx')]);
         const v = await xlsxCells(dl, ['C1', 'C3', 'D7']);
         check(!v || (v[0] === 'DAFTAR HADIR SISWA' && v[1] === 'SDN KALIBARU 05 PAGI' && v[2] === 'SISWA FIKTIF DUA' && v[3] === 'logo'), `${T} Excel bulanan valid + logo (${v})`);

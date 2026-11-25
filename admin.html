@@ -80,6 +80,7 @@
         #loginError, .admin-setup-err { color: #c0392b; font-size: 0.85rem; margin-top: 1rem; display: none; text-align: center; font-weight: 500; }
         .login-box[hidden], #adminSetup [hidden] { display: none !important; }
         .admin-setup-hint { font-size: 0.8rem; color: var(--t-muted); margin: -0.5rem 0 1.25rem; line-height: 1.5; }
+        .lp-blanko { margin-top: 6px; align-items: center; justify-content: flex-end; font-size: .82rem; }
         .admin-setup-out { width: 100%; border: none; cursor: pointer; font: inherit; }
         .login-box input[inputmode="numeric"] { letter-spacing: 0.3em; }
 
@@ -992,7 +993,8 @@
                 <!-- ═══ TAB REKAP BULANAN ═══ -->
                 <div id="tabRekapBulanan" class="tab-content">
                     <div class="section-header ak-head"><div><h2>Rekap Absensi Bulanan</h2><p class="att-muted" style="margin:4px 0 0">Format sama dengan daftar hadir kertas. Cetak / simpan PDF atau unduh Excel.</p></div>
-                        <div class="att-row"><button type="button" class="att-btn att-btn-ghost" id="lpBlnPrint">🖨 Cetak / PDF</button><button type="button" class="att-btn att-btn-primary" id="lpBlnXlsx">⬇ Export Excel</button></div></div>
+                        <div class="att-row"><button type="button" class="att-btn att-btn-ghost" id="lpBlnPrint">🖨 Cetak / PDF</button><button type="button" class="att-btn att-btn-primary" id="lpBlnXlsx">⬇ Export Excel</button></div>
+                        <div class="att-row lp-blanko"><span class="att-muted">Blanko kosong (isi manual):</span><button type="button" class="att-btn att-btn-ghost att-btn-sm" id="lpBlnBlankPrint">🖨 PDF</button><button type="button" class="att-btn att-btn-ghost att-btn-sm" id="lpBlnBlankXlsx">⬇ Excel</button></div></div>
                     <div class="admin-card">
                         <div class="att-table-tools">
                             <div class="att-field"><label for="lpBlnKelas">Kelas</label><select class="att-select" id="lpBlnKelas"></select></div>
@@ -1003,7 +1005,6 @@
                         </div>
                         <div class="att-row" style="margin:-4px 0 12px;gap:16px">
                             <label class="att-row" style="font-size:.88rem"><input type="checkbox" id="lpBlnNip" checked> Tampilkan NIP di laporan</label>
-                            <label class="att-row" style="font-size:.88rem"><input type="checkbox" id="lpBlnBlank"> Cetak blanko kosong (untuk diisi tangan)</label>
                         </div>
                         <div id="lpBlnOut"></div>
                     </div>
@@ -1583,8 +1584,8 @@
     <script src="akun-saya.js?v=1"></script>
     <script src="admin-attendance.js?v=8"></script>
     <script src="admin-akademik.js?v=3"></script>
-    <script src="rekap-print.js?v=7"></script>
-    <script src="admin-laporan.js?v=3"></script>
+    <script src="rekap-print.js?v=8"></script>
+    <script src="admin-laporan.js?v=4"></script>
     <script src="dokumen-templates.js?v=7"></script>
     <script src="dokumen-ui.js?v=2"></script>
     <script src="admin-dokumen.js?v=1"></script>

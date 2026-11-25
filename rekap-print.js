@@ -178,9 +178,9 @@
                 </thead>
                 <tbody>${rows || `<tr><td colspan="${days.length + 8}">Belum ada siswa.</td></tr>`}</tbody>
             </table>
-            <div class="ket">${blank ? 'Kolom merah = Sabtu, Minggu, atau hari libur.' : '✓ = hadir, S = sakit, I = izin, A = alpa, D = dispensasi. Kolom merah = Sabtu, Minggu, atau hari libur. Kolom kosong = absensi belum diisi.'}</div>
+            <div class="ket">${blank ? 'Isi: ✓ = hadir, S = sakit, I = izin, A = alpa, D = dispensasi. Kolom merah = Sabtu, Minggu, atau hari libur (tidak diisi).' : '✓ = hadir, S = sakit, I = izin, A = alpa, D = dispensasi. Kolom merah = Sabtu, Minggu, atau hari libur. Kolom kosong = absensi belum diisi.'}</div>
             <div class="foot"><div>Laki-laki = ${g.L}<br>Perempuan = ${g.P}</div>${ttdHtml(header, opts, last)}</div>`;
-        return wrapDoc(`Daftar Hadir ${romawi(header.kelas || recap.kelas)} ${BULAN[recap.bulan - 1]} ${recap.tahun}`, body, fit(Math.max(siswa.length, 1) + 2, 144, 4.6));
+        return wrapDoc(`${blank ? 'Blanko ' : ''}Daftar Hadir ${romawi(header.kelas || recap.kelas)} ${BULAN[recap.bulan - 1]} ${recap.tahun}`, body, fit(Math.max(siswa.length, 1) + 2, 144, 4.6));
     }
 
     function semesterHtml(recap, header, opts = {}) {
@@ -397,6 +397,7 @@
                 const c = typeof cell === 'object' ? cell : { v: cell };
                 const ref = `${colName(ci)}${ri + 1}`;
                 const s = c.s ? ` s="${c.s}"` : '';
+                if (c.f) return `<c r="${ref}"${s}><f>${xmlEsc(c.f)}</f></c>`;
                 if (c.v === null || c.v === undefined || c.v === '') return `<c r="${ref}"${s}/>`;
                 if (typeof c.v === 'number' && Number.isFinite(c.v)) return `<c r="${ref}"${s}><v>${c.v}</v></c>`;
                 return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${xmlEsc(c.v)}</t></is></c>`;
@@ -459,9 +460,15 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
         ];
     }
 
+    /**
+     * opts: { wali, showNip, logoPng, blank }
+     * blank = blanko kosong untuk diisi tangan / di Excel: kotak tanggal kosong,
+     * dan JUMLAH S/I/A berupa rumus COUNTIF sehingga terhitung sendiri saat diisi.
+     */
     function monthlyXlsx(recap, header, opts = {}) {
         // Tata letak meniru versi PDF: logo + judul kiri, KELAS kanan atas, tabel rapat
         // berhuruf kecil, kolom tanggal cukup lebar untuk 2 angka, Sabtu/Minggu/libur merah.
+        const kosong = Boolean(opts.blank);
         const days = recap.hari || [];
         const siswa = recap.siswa || [];
         const width = 5 + days.length + 3;
@@ -479,28 +486,36 @@ ${cols}<sheetData>${sheetRows}</sheetData>${mergeXml}<pageMargins left="0.3" rig
             [H('NO'), H(''), H(''), H('NAMA'), H('L/P'), H(`BULAN : ${BULAN[recap.bulan - 1].toUpperCase()} ${recap.tahun}`), ...days.slice(1).map(() => H('')), H('JUMLAH'), H(''), H('')],
             [H('ABS'), H('NIS'), H('NISN'), H(''), H(''), ...days.map((d) => ({ v: Number(d.tanggal.slice(8)), s: d.libur ? 13 : 9 })), H('S'), H('I'), H('A')],
         ];
-        for (const s of siswa) {
+        const hariA = colName(5);
+        const hariZ = colName(4 + Math.max(days.length, 1));
+        siswa.forEach((s, i) => {
             const t = counts(s.status);
+            const r = 7 + i;
+            // Blanko: kosong selama belum ada isinya, supaya cetakannya bersih untuk diisi tangan.
+            const hitung = (k) => `COUNTIF(${hariA}${r}:${hariZ}${r},"${k}")`;
+            const jumlah = (k) => (kosong ? { f: `IF(${hitung(k)}=0,"",${hitung(k)})`, s: 10 } : { v: t[k], s: 10 });
             rows.push([
                 { v: s.no, s: 10 }, { v: String(s.nis || ''), s: 10 }, { v: String(s.nisn || ''), s: 10 }, { v: String(s.nama || '').toUpperCase(), s: 11 }, { v: s.jk || '', s: 10 },
                 ...days.map((d) => {
-                    const v = (s.status || {})[d.tanggal];
+                    const v = kosong ? '' : (s.status || {})[d.tanggal];
                     return { v: d.libur || !v ? '' : (v === 'H' ? HADIR : v), s: d.libur ? 12 : 10 };
                 }),
-                { v: t.S, s: 10 }, { v: t.I, s: 10 }, { v: t.A, s: 10 },
+                jumlah('S'), jumlah('I'), jumlah('A'),
             ]);
-        }
+        });
         if (!siswa.length) rows.push([{ v: 'Belum ada siswa.', s: 10 }, ...blank(width - 1).map(() => ({ v: '', s: 10 }))]);
         const legendRow = rows.length + 1;
-        rows.push([{ v: '✓ = hadir, S = sakit, I = izin, A = alpa, D = dispensasi. Kolom merah = Sabtu, Minggu, atau hari libur. Kolom kosong = absensi belum diisi.', s: 14 }]);
+        rows.push([{ v: kosong
+            ? 'Isi: ✓ = hadir, S = sakit, I = izin, A = alpa, D = dispensasi. Kolom merah = Sabtu, Minggu, atau hari libur (tidak diisi). Jumlah S/I/A terhitung otomatis.'
+            : '✓ = hadir, S = sakit, I = izin, A = alpa, D = dispensasi. Kolom merah = Sabtu, Minggu, atau hari libur. Kolom kosong = absensi belum diisi.', s: 14 }]);
         rows.push(...footerRows(header, opts, akhirBulan(recap.tahun, recap.bulan), genderTotals(siswa), width,
             { mid: 6, right: Math.max(width - 11, 8), compact: true }));
-        const d0 = colName(5);
-        const dN = colName(4 + Math.max(days.length, 1));
+        const d0 = hariA;
+        const dN = hariZ;
         const heights = { 1: 15, 2: 15, 3: 15, 4: 4, 5: 13, 6: 13, [legendRow]: 12 };
         for (let i = 0; i < Math.max(siswa.length, 1); i++) heights[7 + i] = 13.5;
         return buildXlsx({
-            sheet: `${romawi(header.kelas || recap.kelas)} ${BULAN[recap.bulan - 1]} ${recap.tahun}`,
+            sheet: `${kosong ? 'Blanko ' : ''}${romawi(header.kelas || recap.kelas)} ${BULAN[recap.bulan - 1]} ${recap.tahun}`,
             rows,
             logoPng: opts.logoPng,
             heights,

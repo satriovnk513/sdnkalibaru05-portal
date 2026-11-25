@@ -37,7 +37,7 @@
         document.querySelectorAll('[data-lp-ta]').forEach((el) => { el.textContent = active ? active.name : '–'; });
     }
 
-    const opts = (p) => ({ wali: Number($(`${p}Wali`).value) || 1, showNip: $(`${p}Nip`).checked, blank: p === 'lpBln' ? $('lpBlnBlank').checked : false });
+    const opts = (p) => ({ wali: Number($(`${p}Wali`).value) || 1, showNip: $(`${p}Nip`).checked });
 
     // ------------------------------------------------------------------ bulanan
     async function showMonth() {
@@ -161,6 +161,18 @@
             if (!d) return;
             RP.download(RP.monthlyXlsx(d.recap, d.header, { ...opts('lpBln'), logoPng: await RP.loadLogo() }), `${RP.fileName('Daftar_Hadir', d.header, `${BULAN[d.recap.bulan - 1]}_${d.recap.tahun}`)}.xlsx`);
             toast('File Excel diunduh.');
+        });
+        // Blanko kosong: daftar siswa & tanggal bulan itu, kotak absensi dikosongkan untuk diisi tangan.
+        $('lpBlnBlankPrint')?.addEventListener('click', async () => {
+            const d = await ensureMonth();
+            if (d) doPrint(RP.monthlyHtml(d.recap, d.header, { ...opts('lpBln'), blank: true }));
+        });
+        $('lpBlnBlankXlsx')?.addEventListener('click', async () => {
+            const d = await ensureMonth();
+            if (!d) return;
+            RP.download(RP.monthlyXlsx(d.recap, d.header, { ...opts('lpBln'), blank: true, logoPng: await RP.loadLogo() }),
+                `${RP.fileName('Blanko_Daftar_Hadir', d.header, `${BULAN[d.recap.bulan - 1]}_${d.recap.tahun}`)}.xlsx`);
+            toast('Blanko Excel diunduh.');
         });
         $('lpSemShow')?.addEventListener('click', showSemester);
         $('lpSemPrint')?.addEventListener('click', async () => {
