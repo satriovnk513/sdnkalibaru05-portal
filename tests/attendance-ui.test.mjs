@@ -2021,4 +2021,144 @@ async function runUi() {
         check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
         await ctx.close();
     }
+
+    // ============================================================ KARTU SISWA — wali (HP) + scan absensi + admin
+    {
+        const T = '[Kartu 360]';
+        const { copyFileSync } = await import('node:fs');
+        const S = (n) => `00000000-0000-4000-8000-00000000005${n}`;
+        const C1A = '00000000-0000-4000-8000-0000000000c1';
+        const { ctx, page, errors } = await newPage('/guru#/', { width: 360, height: 780 });
+        await page.waitForSelector('#gLogin:not(.g-hidden)');
+        await page.fill('#gId', '990000000000000001');
+        await page.fill('#gPw', 'benar123');
+        await page.click('#gLoginBtn');
+        await page.waitForSelector('.g-kartu-link');
+        await page.click('.g-kartu-link');
+        await page.waitForSelector('.kt-item');
+        check((await page.$$('.kt-item')).length === 3 && /<b>3<\/b> siswa · <b>0<\/b> sudah ada foto/.test(await page.innerHTML('.kt-ring')), `${T} wali kelas: daftar siswa + jumlah foto`);
+        await page.waitForFunction(() => document.querySelector('#ktPrev')?.contentDocument?.querySelector('.kt .kt-pil'));
+        check(!(await page.$('#ktAtur')) && /belum di-upload/.test(await page.textContent('.kt-pratinjau-box')), `${T} wali: pratinjau kartu tampil; pengaturan hanya admin (TTD belum ada → diberi tahu)`);
+        check(await overflow(page) <= 0, `${T} halaman kartu tidak bergeser ke samping`);
+        // Satu foto: ketuk foto siswa.
+        const [fc] = await Promise.all([page.waitForEvent('filechooser'), page.click('.kt-item [data-foto]')]);
+        await fc.setFiles(join(REPO, 'logo-cetak.png'));
+        await page.waitForFunction(() => /<b>1<\/b> sudah ada foto/.test(document.querySelector('.kt-ring')?.innerHTML || ''));
+        const up = await page.evaluate(() => window.__fake.uploads.filter((u) => u.startsWith('foto-siswa/')));
+        check(up.length === 1 && up[0].startsWith(`foto-siswa/${S(1)}/`) && /\.jpg$/.test(up[0]), `${T} foto diunggah (JPG) ke folder siswanya (${up})`);
+        // Massal: nama file = NISN / diawali NIS; file lain dilaporkan tidak cocok.
+        const fdir = mkdtempSync(join(tmpdir(), 'kartu-foto-'));
+        const files = ['0090000001.png', '9003 - Tiga.png', 'IMG_9002.png'].map((n) => { const f = join(fdir, n); copyFileSync(join(REPO, 'logo-cetak.png'), f); return f; });
+        const [fc2] = await Promise.all([page.waitForEvent('filechooser'), page.click('#ktMassal')]);
+        await fc2.setFiles(files);
+        await page.waitForSelector('.kt-sheet [data-close]');
+        const ringkas = await page.textContent('.kt-sheet');
+        check(/2 foto terpasang/.test(ringkas) && /IMG_9002/.test(ringkas), `${T} upload massal: cocok lewat NISN & NIS, IMG_9002 tidak dipasang`);
+        await shot(page, 'kartu-02-massal-360.png');
+        await page.click('.kt-sheet [data-close]');
+        check(/<b>3<\/b> sudah ada foto/.test(await page.innerHTML('.kt-ring')), `${T} semua siswa sudah ada foto`);
+        await shot(page, 'kartu-01-guru-360.png');
+        // Cetak A4: 3 kartu, foto tertanam, QR berisi token (bukan NISN).
+        const pop = await popupFrom(page, () => page.click('#ktCetak'));
+        const ptxt = (await pop.textContent('body')).replace(/\s+/g, ' ');
+        check((await pop.$$('.kt')).length === 3 && /KARTU PELAJAR/.test(ptxt) && /I\.A \(2026\/2027\)/.test(ptxt) && /Jakarta, 1 Mei 2019/.test(ptxt) && /Perempuan/.test(ptxt),
+            `${T} cetak: 3 kartu berisi nama, NISN, kelas, TTL, jenis kelamin`);
+        check(await pop.$$eval('.kt-foto img', (im) => im.length === 3 && im.every((i) => i.src.startsWith('data:'))), `${T} foto ikut tercetak (tertanam)`);
+        check((await pop.$$eval('.tbar button', (b) => b.map((x) => x.textContent))).join('|') === 'Cetak|Download PDF|Tutup', `${T} pratinjau punya Cetak / Download PDF / Tutup`);
+        const qr = await decodeQr(page, await pop.$eval('.kt-qr svg', (e) => e.outerHTML));
+        check(qr === null || qr === 'KB05-0000-0001', `${T} QR kartu berisi kode siswa (${qr})`);
+        check(/KB05-0000-0001/.test(ptxt) && /Kepala Fiktif, S\.Pd/.test(ptxt) && /NIP\. 197001012000031001/.test(ptxt) && await pop.$$eval('.kt-logo img', (im) => im.length === 3),
+            `${T} kartu memuat kode siswa, nama & NIP kepala sekolah (dari data guru), logo`);
+        await shot(pop, 'kartu-03-cetak-a4.png');
+        await pop.close();
+        const pdfInfo = async (sel) => {
+            const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click(sel)]);
+            const b = readFileSync(await dl.path()).toString('latin1');
+            return { nama: dl.suggestedFilename(), pdf: b.startsWith('%PDF-'), count: /\/Count (\d+)/.exec(b)?.[1], box: /\/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/.exec(b)?.slice(1).join('x') };
+        };
+        const a4 = await pdfInfo('#ktPdf');
+        check(a4.nama === 'Kartu_Pelajar_I.A.pdf' && a4.pdf && a4.count === '1' && a4.box === '595.28x841.89', `${T} Download PDF A4: 1 lembar isi 3 kartu (${JSON.stringify(a4)})`);
+        await page.click('[data-format="pvc"]');
+        const pvc = await pdfInfo('#ktPdf');
+        check(pvc.nama === 'Kartu_Pelajar_I.A_PVC.pdf' && pvc.pdf && pvc.count === '3' && pvc.box === '242.65x153.07', `${T} Download PDF PVC: 3 halaman seukuran kartu (${JSON.stringify(pvc)})`);
+        // Kartu hilang → terbitkan ulang → hanya kartu itu yang dipilih untuk dicetak.
+        await page.click('.kt-item [data-atur]');
+        await page.click('.kt-sheet [data-a="hilang"]');
+        await page.click('.att-sheet [data-act="yes"]');
+        await page.waitForFunction(() => /Kartu ke-2/.test(document.querySelector('.kt-item')?.textContent || ''));
+        check(/Cetak \(1\)/.test(await page.textContent('#ktCetak')), `${T} kartu hilang: terbit ulang (kartu ke-2), langsung dipilih untuk dicetak`);
+
+        // Foto ikut tampil di profil siswa (Portal Guru) — wali bisa ganti.
+        await page.evaluate((sid) => { location.hash = `#/siswa/${sid}`; }, S(2));
+        await page.waitForSelector('#gProfFoto .kt-fs-img img');
+        check(/Ganti foto/.test(await page.textContent('#gProfFoto')), `${T} profil siswa: foto tampil + tombol Ganti foto untuk wali`);
+        await shot(page, 'kartu-07-profil-360.png');
+
+        // Scan kartu di lembar absensi.
+        await page.evaluate((c) => { location.hash = `#/absen?kelas=${c}&jenis=harian`; }, C1A);
+        await page.waitForSelector('[data-scan]');
+        await shot(page, 'kartu-04-absen-tombol-scan-360.png');
+        await page.click('[data-scan]');
+        await page.waitForSelector('.inv-cam video');
+        await page.waitForFunction(() => /kartu siswa/.test(document.querySelector('.qs-msg')?.textContent || '') && window.__jsqrCalls > 0);
+        const hasil = (re) => page.waitForFunction((src) => new RegExp(src).test(document.querySelector('.qs-hasil')?.textContent || ''), re.source);
+        await page.evaluate(() => { window.__qrAnswer = 'KB05-0000-0002'; });
+        await hasil(/Satu Dengan Nama/);
+        check(await page.$('.qs-hasil.ok') && /Hadir 1 dari 3/.test(await page.textContent('.qs-sub')), `${T} scan kartu → siswa Hadir, hitungan naik`);
+        await shot(page, 'kartu-05-scan-360.png');
+        await page.evaluate(() => { window.__qrAnswer = 'KB05-0000-0001'; });
+        await hasil(/tidak dikenal/);
+        check(await page.$('.qs-hasil.err'), `${T} kartu lama (sudah diterbitkan ulang) ditolak`);
+        await page.evaluate((s4) => { window.__fake.kartu[s4] = { token: '00000004', versi: 1, foto: null }; window.__qrAnswer = 'KB05-0000-0004'; }, S(4));
+        await hasil(/bukan kelas ini/);
+        check(/III\.A/.test(await page.textContent('.qs-hasil')), `${T} kartu siswa kelas lain: diberi tahu kelasnya`);
+        await page.evaluate(() => { window.__qrAnswer = 'https://contoh.test/bukan-kartu'; });
+        await hasil(/bukan QR kartu siswa/);
+        await page.evaluate(() => { window.__qrAnswer = 'KB05-0000-0002'; });
+        await hasil(/sudah Hadir/);
+        check(await page.$('.qs-hasil.info'), `${T} kartu yang sama di-scan lagi: "sudah Hadir", tidak dobel`);
+        await page.evaluate(() => { window.__qrAnswer = null; });
+        await page.click('.inv-cam-bar > button');
+        await page.waitForSelector('.inv-cam', { state: 'detached' });
+        check(await page.$('.att-item[data-i="1"] [data-st="H"][aria-pressed="true"]') && !(await page.$('.att-item[data-i="0"] [aria-pressed="true"]'))
+            && /1 siswa ditandai Hadir lewat kartu/.test(await page.textContent('#attToastHost')), `${T} selesai scan: status Hadir ada di lembar, belum tersimpan (tinggal Simpan)`);
+        check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
+    {
+        const T = '[Kartu admin 1366]';
+        const { ctx, page, errors } = await newPage('/admin', { width: 1366, height: 900 });
+        await page.fill('#adminEmail', 'admin@fiktif.test');
+        await page.fill('#adminPassword', 'x');
+        await page.click('.btn-login');
+        await page.waitForSelector('#mainContent', { state: 'visible' });
+        await page.click('.nav-item[data-tab="tabKartu"]');
+        await page.waitForSelector('#ktAdmHost .kt-item');
+        check((await page.$$('#ktAdmHost .kt-item')).length === 3 && await page.$('#ktKelas') && /Kartu Siswa/.test(await page.textContent('#topbarTitle')), `${T} admin: kartu per kelas, bisa pilih kelas`);
+        // Pengaturan kartu: tanggal TTD + upload tanda tangan (latar putih dihapus).
+        await page.click('#ktAtur');
+        await page.waitForSelector('.kt-set');
+        await page.fill('#ktSetTgl', '2026-07-13');
+        await page.fill('#ktSetNama', 'Drs. Kepala Baru, M.Pd');
+        const [fcT] = await Promise.all([page.waitForEvent('filechooser'), page.click('.kt-aset[data-k="ttd"] [data-up]')]);
+        await fcT.setFiles(join(REPO, 'logo-cetak.png'));
+        await page.waitForSelector('.kt-aset[data-k="ttd"] .kt-aset-img img');
+        await shot(page, 'kartu-08-pengaturan-1366.png');
+        await page.click('#ktSetSimpan');
+        await page.waitForSelector('.kt-set', { state: 'detached' });
+        const set = await page.evaluate(() => ({ s: window.__fake.kartuSet, up: window.__fake.uploads.filter((u) => u.startsWith('kartu-aset/')) }));
+        check(set.s.tanggal_ttd === '2026-07-13' && set.s.kepsek_nama === 'Drs. Kepala Baru, M.Pd' && /^ttd\/.+\.png$/.test(set.s.ttd || '') && set.up.length === 1,
+            `${T} pengaturan tersimpan: tanggal, nama kepsek, TTD (PNG) di bucket kartu-aset`);
+        await page.waitForFunction(() => /13 Juli 2026/.test(document.querySelector('.kt-atur-ringkas')?.textContent || ''));
+        await page.waitForFunction(() => document.querySelector('#ktPrev')?.contentDocument?.querySelector('.kt-ttd-gbr'));
+        const prevTxt = await page.evaluate(() => document.querySelector('#ktPrev').contentDocument.body.textContent);
+        check(/Jakarta, 13 Juli 2026/.test(prevTxt) && /Drs\. Kepala Baru, M\.Pd/.test(prevTxt), `${T} pratinjau langsung memakai TTD, tanggal & nama kepsek baru`);
+        await shot(page, 'kartu-06-admin-1366.png');
+        await page.selectOption('#ktKelas', '00000000-0000-4000-8000-0000000000c3');
+        await page.waitForFunction(() => document.querySelectorAll('#ktAdmHost .kt-item').length === 1);
+        check(true, `${T} ganti kelas → daftar siswa kelas itu`);
+        check(errors.length === 0, `${T} tidak ada error JavaScript (${errors.join(' | ').slice(0, 160)})`);
+        await ctx.close();
+    }
+
 }

@@ -189,6 +189,7 @@
         const ICO_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
         const ICO_RESET = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>';
         const ICO_INFO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>';
+        const ICO_QR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z"/><path d="M14 14h2v2h-2zM18 14h2M14 18h2M18 18h2v2"/></svg>';
 
         /** Keterangan dilipat jadi satu baris berikon "i". Terbuka sendiri hanya saat pertama kali dilihat di perangkat ini. */
         function notesHtml() {
@@ -229,6 +230,7 @@
             const body = `
                 ${sheet.isian_awal_dari_harian && !sheet.session ? '<div class="att-alert info" style="margin-bottom:12px">Status sudah diisi awal dari absensi harian wali kelas. Sesuaikan jika perlu.</div>' : ''}
                 ${notesHtml()}
+                ${editable && opts.onScan ? `<button type="button" class="att-btn att-btn-block att-btn-scan att-noprint" data-scan>${ICO_QR}Scan kartu siswa → otomatis Hadir</button>` : ''}
                 <div class="att-alert err att-hidden" id="attMissing" role="alert" style="margin:8px 0"></div>
                 <ul class="att-list">${students.map(itemHtml).join('')}</ul>
                 ${editable ? `<div class="att-savebar att-noprint">
@@ -312,8 +314,34 @@
                 saveDraft();
                 return;
             }
+            if (e.target.closest('[data-scan]') && editable && opts.onScan) {
+                opts.onScan({ siswa: students, tandaiHadir, selesai: () => { render(); updateMissing(); } });
+                return;
+            }
             if (e.target.closest('#attSave')) await doSave(e.target.closest('#attSave'));
         };
+
+        /**
+         * Scan kartu: tandai satu siswa Hadir tanpa menggambar ulang seluruh lembar.
+         * Kembali { nama, sebelum, hadir, kosong, total } atau null kalau bukan siswa lembar ini.
+         */
+        function tandaiHadir(studentId) {
+            const i = students.findIndex((s) => s.student_id === studentId);
+            if (i < 0) return null;
+            const s = students[i];
+            const sebelum = s.status;
+            if (sebelum !== 'H') {
+                s.status = 'H';
+                const item = container.querySelector(`.att-item[data-i="${i}"]`);
+                item?.querySelectorAll('[data-st]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.st === 'H')));
+                item?.classList.remove('att-missing');
+                updateCounts();
+                updateMissing();
+                saveDraft();
+            }
+            const c = counts();
+            return { nama: s.nama, sebelum, sebelumLabel: sebelum ? STATUS[sebelum] : '', hadir: c.H, kosong: c.kosong, total: students.length };
+        }
         container.onclick = onClick;
         if (headHost) headHost.onclick = onClick;
 
@@ -365,7 +393,7 @@
         }
 
         render();
-        return { students, rerender: render };
+        return { students, rerender: render, tandaiHadir };
     }
 
     // ------------------------------------------------------------------ panel tempel di atas

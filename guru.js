@@ -475,6 +475,7 @@
         if (home.wali_kelas.length || home.mapel.length || home.is_pimpinan) parts.push(nilaiCard());
         if (home.wali_kelas.length || home.mapel.length) parts.push(jurnalCard());
         parts.push(catatanCard());
+        if (home.wali_kelas.length || home.is_pimpinan) parts.push(kartuCard());
         // Pinjam barang: di bawah Jurnal mengajar.
         if (myLoans?.aktif?.length) parts.push(loansBox(myLoans.aktif));
         else {
@@ -688,6 +689,32 @@
         await catatanUI.render($('gCatatanHost'), view, Object.fromEntries(params));
     }
 
+    // ------------------------------------------------------------------ kartu siswa (kartu-ui.js)
+    function kartuCard() {
+        return `<a class="g-sched g-chip g-pinjam-link g-kartu-link" href="#/kartu"><span class="g-sched-ico">${ICON.qr}</span>
+            <span class="g-sched-txt"><b>Kartu siswa</b><span>Foto siswa &amp; cetak kartu pelajar ber-QR untuk absen</span></span>${ICON.chev}</a>`;
+    }
+
+    let kartuUI = null;
+    async function renderKartu(params) {
+        if (!kartuUI) {
+            kartuUI = window.KartuUI.create({
+                rpc, storage: sb.storage,
+                kelas: async () => {
+                    const src = home.is_pimpinan ? [...home.wali_kelas, ...home.semua_kelas] : home.wali_kelas;
+                    const seen = new Map();
+                    for (const k of src) if (!seen.has(k.class_id)) seen.set(k.class_id, { id: k.class_id, label: `Kelas ${romawi(k.kelas)}` });
+                    return [...seen.values()];
+                },
+                onKelas: (id) => { history.replaceState(null, '', `#/kartu?kelas=${id}`); curHash = location.hash; },
+            });
+        }
+        setNav('');
+        setTop('Kartu Siswa', 'Foto & cetak kartu pelajar', true);
+        main('<div id="gKartuHost"></div>');
+        await kartuUI.render($('gKartuHost'), params.get('kelas'));
+    }
+
     function jurnalCard() {
         return `<a class="g-sched g-chip g-pinjam-link g-jurnal-link" href="#/jurnal"><span class="g-sched-ico">${ICON.clip}</span>
             <span class="g-sched-txt"><b>Jurnal mengajar</b><span>Tandai terlaksana &amp; catat materi hari ini · catatan pribadi</span></span>${ICON.chev}</a>`;
@@ -803,128 +830,21 @@
         $('gMyHist').classList.toggle('g-hidden', !myLoans.riwayat.length);
     }
 
-    // Pemindai QR di dalam portal. Pakai BarcodeDetector bawaan browser kalau ada (Chrome Android),
-    // selain itu jsQR (dimuat dari CDN hanya saat dibutuhkan) — jalan di semua HP termasuk iPhone.
-    const JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
-    let jsqrLoading = null;
-    function loadJsQR() {
-        const ready = window.jsQR?.default || window.jsQR;
-        if (typeof ready === 'function') return Promise.resolve(ready);
-        if (!jsqrLoading) {
-            jsqrLoading = new Promise((resolve, reject) => {
-                const sc = document.createElement('script');
-                sc.src = window.__JSQR_URL || JSQR_URL;
-                sc.async = true;
-                sc.onload = () => { const fn = window.jsQR?.default || window.jsQR; return typeof fn === 'function' ? resolve(fn) : reject(new Error('Pemindai QR gagal dimuat.')); };
-                sc.onerror = () => { jsqrLoading = null; reject(new Error('Pemindai QR gagal dimuat. Periksa koneksi internet.')); };
-                document.head.appendChild(sc);
-            });
-        }
-        return jsqrLoading;
-    }
-
-    /** → fungsi async (video|img) → teks QR atau null. */
-    async function makeQrReader() {
-        if ('BarcodeDetector' in window) {
-            try {
-                const formats = await window.BarcodeDetector.getSupportedFormats?.();
-                if (!formats || formats.includes('qr_code')) {
-                    const det = new window.BarcodeDetector({ formats: ['qr_code'] });
-                    return async (src) => (await det.detect(src))[0]?.rawValue || null;
-                }
-            } catch { /* pakai jsQR */ }
-        }
-        const jsQR = await loadJsQR();
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        return async (src) => {
-            const w = src.videoWidth || src.naturalWidth || src.width;
-            const h = src.videoHeight || src.naturalHeight || src.height;
-            if (!w || !h) return null;
-            const k = Math.min(1, 800 / Math.max(w, h));
-            canvas.width = Math.round(w * k);
-            canvas.height = Math.round(h * k);
-            ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
-            const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            return jsQR(img.data, canvas.width, canvas.height, { inversionAttempts: 'dontInvert' })?.data || null;
-        };
-    }
-
+    // Pemindai QR: qr-scan.js (kamera di dalam portal; cadangan lewat foto).
     const openScanned = (raw) => go(`/pinjam/${encodeURIComponent(Inv.codeFromScan(raw))}`);
 
-    /** Cadangan bila kamera langsung tidak bisa dibuka: ambil foto stiker lalu dibaca. */
-    async function photoScan(reason) {
-        const ok = await window.Att.confirm({
-            title: 'Scan lewat foto',
-            html: `<p class="att-muted">${esc(reason)}</p><p class="att-muted">Ketuk <b>Foto stiker QR</b>, arahkan kamera ke stiker di barang, lalu ambil foto. Kalau stiker rusak, ketik kode barang yang tercetak di bawah QR.</p>`,
-            confirmText: 'Foto stiker QR', cancelText: 'Tutup',
-        });
-        if (!ok) return;
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.setAttribute('capture', 'environment');
-        input.addEventListener('change', async () => {
-            const file = input.files?.[0];
-            if (!file) return;
-            const url = URL.createObjectURL(file);
-            try {
-                const img = new Image();
-                await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('Foto tidak bisa dibuka.')); img.src = url; });
-                const read = await makeQrReader();
-                const text = await read(img);
-                if (text) openScanned(text);
-                else toast('QR belum terbaca. Coba foto lebih dekat & tidak buram, atau ketik kode barangnya.', 'err');
-            } catch (err) {
-                toast(errMessage(err), 'err');
-            } finally { URL.revokeObjectURL(url); }
-        }, { once: true });
-        input.click();
-    }
-
     /** Tombol "Scan QR barang": langsung buka kamera di dalam portal. */
-    async function openScanner() {
-        if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) {
-            return photoScan('Browser ini tidak bisa membuka kamera langsung dari portal.');
-        }
-        const ov = document.createElement('div');
-        ov.className = 'inv-cam';
-        ov.innerHTML = `<video playsinline muted autoplay></video><div class="inv-cam-frame"></div>
-            <div class="inv-cam-bar"><b id="gCamMsg">Membuka kamera…</b><button type="button" class="att-btn att-btn-ghost">Batal</button></div>`;
-        document.body.appendChild(ov);
-        let stream = null;
-        let done = false;
-        const stop = () => { done = true; stream?.getTracks().forEach((t) => t.stop()); ov.remove(); };
-        ov.querySelector('button').addEventListener('click', stop);
-        let read;
-        try {
-            [stream, read] = await Promise.all([
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }),
-                makeQrReader().catch(() => null),
-            ]);
-        } catch (err) {
-            const denied = err?.name === 'NotAllowedError' || err?.name === 'SecurityError';
-            stop();
-            return photoScan(denied
-                ? 'Izin kamera ditolak. Izinkan kamera untuk situs ini di pengaturan browser, atau pakai foto.'
-                : 'Kamera tidak bisa dibuka di HP ini.');
-        }
-        if (done) { stream.getTracks().forEach((t) => t.stop()); return; }
-        if (!read) { stop(); toast('Pemindai QR gagal dimuat. Periksa koneksi internet, atau ketik kode barang.', 'err'); return; }
-        const video = ov.querySelector('video');
-        video.srcObject = stream;
-        try { await video.play(); } catch { /* abaikan */ }
-        const msg = ov.querySelector('#gCamMsg');
-        if (msg) msg.textContent = 'Arahkan ke stiker QR barang';
-        const tick = async () => {
-            if (done) return;
-            try {
-                const text = video.readyState >= 2 ? await read(video) : null;
-                if (text) { stop(); openScanned(text); return; }
-            } catch { /* frame belum siap */ }
-            setTimeout(tick, 200);
-        };
-        tick();
+    function openScanner() {
+        return window.QrScan.kamera({
+            petunjuk: 'Arahkan ke stiker QR barang',
+            onTeks: (text) => { openScanned(text); return 'stop'; },
+            foto: {
+                judul: 'Scan lewat foto',
+                petunjuk: 'Ketuk <b>Foto stiker QR</b>, arahkan kamera ke stiker di barang, lalu ambil foto. Kalau stiker rusak, ketik kode barang yang tercetak di bawah QR.',
+                tombol: 'Foto stiker QR',
+                gagal: 'QR belum terbaca. Coba foto lebih dekat & tidak buram, atau ketik kode barangnya.',
+            },
+        });
     }
 
     async function renderPinjamItem(code) {
@@ -1268,6 +1188,7 @@
                 notes: subj && /^PAI/i.test(subj.kode || '') ? ['Bagi yang beragama <b>Non-Muslim</b>, mohon diberi status <b>Dispensasi</b>.'] : [],
                 back: { href: '#/', label: 'Kembali ke Menu Utama' },
                 subtitle: `Kelas ${romawi(kelas.kelas)} · ${fmtDate(date)}`,
+                onScan: window.KartuUI ? (ctl) => window.KartuUI.scanAbsen({ rpc, classId, sheet: ctl }) : null,
                 onSave: async (entries) => {
                     await rpc('save_attendance', {
                         p_class_id: classId, p_date: date, p_kind: kind, p_subject_id: subjectId, p_entries: entries, p_reason: null,
@@ -1337,6 +1258,7 @@
             const alamat = [al.jalan, al.rt || al.rw ? `RT ${al.rt || '-'}/RW ${al.rw || '-'}` : '', al.kelurahan, al.kecamatan].filter(Boolean).join(', ');
             setTop(idt.nama || 'Profil siswa', idt.kelas ? `Kelas ${idt.kelas}` : '', true);
             main(`<div class="att-card g-prof">
+                <div id="gProfFoto" style="margin-bottom:12px"></div>
                 <h3 style="margin-top:0">Identitas</h3>
                 <dl>${row('Nama', idt.nama)}${row('Kelas', idt.kelas)}${row('NIS', idt.nis)}${row('NISN', idt.nisn)}${row('NIK', idt.nik)}
                     ${row('Jenis kelamin', idt.jenis_kelamin === 'L' ? 'Laki-laki' : idt.jenis_kelamin === 'P' ? 'Perempuan' : '')}
@@ -1354,6 +1276,7 @@
                 ${p.catatan && Object.keys(p.catatan).length ? `<h3>Catatan</h3><dl>${row('Kebutuhan khusus', p.catatan.kebutuhan_khusus)}${row('Penerima KIP', p.catatan.penerima_kip)}${row('Usulan PIP', p.catatan.usulan_pip)}</dl>` : ''}
             </div>
             <p class="att-muted" style="margin-top:12px">Data salah atau kurang? Laporkan ke admin sekolah.</p>`);
+            if (window.KartuUI) window.KartuUI.fotoSiswa({ host: $('gProfFoto'), rpc, storage: sb.storage, studentId: id, nama: idt.nama });
         } catch (err) {
             main(`<div class="att-alert err">${esc(errMessage(err))}</div>`);
         }
@@ -1585,6 +1508,7 @@
         if (path === '/pinjam') return renderPinjamList();
         if (path.startsWith('/pinjam/')) return renderPinjamItem(decodeURIComponent(path.slice(8)));
         if (path === '/jurnal') return renderJurnal(params);
+        if (path === '/kartu') return renderKartu(params);
         if (path === '/catatan') return renderCatatan('kelas', params);
         if (path === '/catatan/siswa') return renderCatatan('siswa', params);
         if (path === '/piket') return renderPiket(params);
@@ -1608,7 +1532,7 @@
             const p = parseHash().params;
             return go(catatanPath('kelas', { kelas: p.get('kelas'), smt: p.get('smt') }));
         }
-        if (parseHash().path.startsWith('/jadwal') || ['/jurnal', '/piket', '/catatan'].includes(parseHash().path)) return go('/');
+        if (parseHash().path.startsWith('/jadwal') || ['/jurnal', '/piket', '/catatan', '/kartu'].includes(parseHash().path)) return go('/');
         if (parseHash().path.startsWith('/nilai/')) {
             const p = parseHash().params;
             return go(nilaiPath('kelas', { kelas: p.get('kelas'), smt: p.get('smt') }));
