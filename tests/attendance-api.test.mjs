@@ -278,6 +278,36 @@ test('akun guru: centang/lepas admin pada akun yang sudah ada langsung berlaku; 
     assert.ok(db.roles.some((x) => x.user_id === ADMIN), 'admin sendiri tetap');
 });
 
+test('akun guru: ganti NIP/NUPTK — password awal ikut berubah selama guru belum menggantinya', async () => {
+    db.accs[0].must_change_password = true;
+    let r = await call(accounts, { token: 'jwt-admin', body: { action: 'save_request', staff_id: ST(1), email: 'guru@fiktif.test', login_id: '1978 0425 2025 211064' } });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.password_baru, true);
+    assert.equal(r.body.password, '197804252025211064');
+    assert.equal(r.body.dari_nip, true);
+    assert.equal(db.accs[0].login_id, '197804252025211064');
+    assert.ok(calls.some((c) => c.method === 'PUT' && c.path === `/auth/v1/admin/users/${GURU}` && c.body?.password === '197804252025211064'),
+        'password di Auth ikut diganti ke NIP baru');
+
+    // Guru sudah pernah mengganti password sendiri → password tidak disentuh.
+    db.accs[0].must_change_password = false;
+    const sebelum = calls.length;
+    r = await call(accounts, { token: 'jwt-admin', body: { action: 'save_request', staff_id: ST(1), email: 'guru@fiktif.test', login_id: '1757756658200032' } });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.nip_berubah, true);
+    assert.equal(r.body.password, undefined);
+    assert.equal(db.accs[0].login_id, '1757756658200032');
+    assert.ok(!calls.slice(sebelum).some((c) => c.method === 'PUT' && c.body?.password), 'password guru tidak disentuh');
+
+    // NIP tidak berubah (mis. hanya ganti email) → tidak ada reset.
+    const sebelum2 = calls.length;
+    r = await call(accounts, { token: 'jwt-admin', body: { action: 'save_request', staff_id: ST(1), email: 'guru@fiktif.test', login_id: '1757756658200032' } });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.password_baru, undefined);
+    assert.ok(!calls.slice(sebelum2).some((c) => c.method === 'PUT' && c.body?.password));
+    db.accs[0].login_id = '990000000000000001';
+});
+
 test('akun guru: validasi data', () => {
     assert.ok(normalizeRequest({ staff_id: ST(1), email: 'bukan-email' }).error);
     assert.ok(normalizeRequest({ staff_id: ST(1), email: 'a@b.cd', login_id: '12a' }).error);
