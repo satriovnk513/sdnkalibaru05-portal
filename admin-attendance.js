@@ -203,8 +203,15 @@
             if (b.dataset.acc === 'edit') {
                 const v = await editForm(row);
                 if (!v) return;
-                await api('POST', { action: 'save_request', ...v });
-                toast('Data akun tersimpan.');
+                const r = await api('POST', { action: 'save_request', ...v });
+                if (r?.password_baru) {
+                    // NIP/NUPTK diganti sebelum guru pernah mengganti password awalnya.
+                    showPasswords([{ ...r, ok: true }], `NIP/NUPTK ${row.nama} diganti — password awal ikut berubah`);
+                } else if (r?.nip_berubah) {
+                    toast('Tersimpan. Guru login dengan NIP/NUPTK baru; password tetap yang sudah ia buat.');
+                } else {
+                    toast('Data akun tersimpan.');
+                }
             } else if (b.dataset.acc === 'create') {
                 const { results } = await api('POST', { action: 'create', staff_ids: [row.staff_id] });
                 showPasswords(results, `Akun ${row.nama}`);

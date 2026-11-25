@@ -7,7 +7,11 @@
  *   reset_password  { staff_id }             buat password baru
  *   set_active      { staff_id, active }     aktifkan / nonaktifkan
  *   save_request    { staff_id, email, login_id, make_admin }  tambah/ubah data akun; untuk akun yang
- *                   sudah dibuat, make_admin langsung memberi/mencabut akses Panel Admin
+ *                   sudah dibuat, make_admin langsung memberi/mencabut akses Panel Admin.
+ *                   Kalau NIP/NUPTK diganti pada akun yang password awalnya belum pernah
+ *                   diganti guru, password awal ikut menjadi NIP/NUPTK baru (dikembalikan
+ *                   di respons) — kalau tidak, guru tetap memegang password awal lama
+ *                   padahal admin membagikan "password = NIP".
  *   delete_request  { staff_id }             hapus dari daftar (hanya jika akun belum dibuat)
  *   clear_pin       { staff_id }             hapus PIN pemulihan (guru lupa PIN)
  *
@@ -43,7 +47,7 @@ async function loadState(key) {
     const [staff, reqs, accs, pins] = await Promise.all([
         sb('GET', '/rest/v1/staff?select=id,name,role,order_index&order=order_index.asc,name.asc', { key }),
         sb('GET', '/rest/v1/teacher_account_requests?select=staff_id,email,login_id,make_admin', { key }),
-        sb('GET', '/rest/v1/teacher_accounts?select=user_id,staff_id,email,login_id,is_active,created_at', { key }),
+        sb('GET', '/rest/v1/teacher_accounts?select=user_id,staff_id,email,login_id,is_active,created_at,must_change_password', { key }),
         sb('GET', '/rest/v1/teacher_recovery_pins?select=user_id', { key }),
     ]);
     if (!staff.ok || !reqs.ok || !accs.ok) throw new Error('upstream');
@@ -77,6 +81,13 @@ async function adminUserIds(key, userIds) {
     if (!userIds.length) return new Set();
     const r = await sb('GET', `/rest/v1/user_roles?select=user_id&role=eq.admin&user_id=in.(${userIds.join(',')})`, { key });
     return new Set((r.ok ? r.json : []).map((x) => x.user_id));
+}
+
+function saveRequest(key, n) {
+    return sb('POST', '/rest/v1/teacher_account_requests?on_conflict=staff_id', {
+        key, body: { ...n, updated_at: new Date().toISOString() },
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    });
 }
 
 /** Password awal: NIP/NUPTK; acak kalau guru tidak punya NIP/NUPTK. */
@@ -207,11 +218,26 @@ export default async function handler(req, res) {
                         key, body: { user_id: acc.user_id, role: 'admin' }, headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' } })
                     : await sb('DELETE', `/rest/v1/user_roles?user_id=eq.${acc.user_id}&role=eq.admin`, { key, headers: { Prefer: 'return=minimal' } });
                 if (!role.ok) return sendError(res, 502, 'upstream_error', 'Data tersimpan, tapi akses admin gagal diubah. Coba lagi.');
+
+                const nipBerubah = (acc.login_id || null) !== (n.login_id || null);
+                if (nipBerubah && acc.must_change_password !== false) {
+                    // Password awal masih dipakai → ikutkan ke NIP/NUPTK baru.
+                    const { password, dari_nip } = initialPassword(n.login_id);
+                    const r = await sb('PUT', `/auth/v1/admin/users/${acc.user_id}`, { key, body: { password } });
+                    if (!r.ok) return sendError(res, 502, 'upstream_error', 'Data tersimpan, tapi password awal gagal diganti. Klik Reset password.');
+                    await saveRequest(key, n);
+                    return res.status(200).json({
+                        ok: true, password_baru: true, staff_id: n.staff_id, nama: staffBy.get(n.staff_id)?.name,
+                        email: n.email, login_id: n.login_id, password, dari_nip,
+                    });
+                }
+                if (nipBerubah) {
+                    const r = await saveRequest(key, n);
+                    if (!r.ok) return sendError(res, 409, 'conflict', 'Email atau NIP/NUPTK sudah dipakai.');
+                    return res.status(200).json({ ok: true, nip_berubah: true });
+                }
             }
-            const up = await sb('POST', '/rest/v1/teacher_account_requests?on_conflict=staff_id', {
-                key, body: { ...n, updated_at: new Date().toISOString() },
-                headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-            });
+            const up = await saveRequest(key, n);
             if (!up.ok) return sendError(res, 409, 'conflict', 'Email atau NIP/NUPTK sudah dipakai.');
             return res.status(200).json({ ok: true });
         }
