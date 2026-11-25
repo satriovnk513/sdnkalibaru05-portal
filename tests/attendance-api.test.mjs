@@ -12,6 +12,7 @@ const { default: accounts, buildRows, normalizeRequest, generatePassword } = awa
 const { default: setPin, pinIsWeak } = await import('../api/guru-pin.js');
 const { default: resetPw } = await import('../api/guru-reset-password.js');
 const { default: changePw, passwordProblem } = await import('../api/guru-change-password.js');
+const { default: gantiEmail, cleanEmail } = await import('../api/akun-email.js');
 
 const ORIGIN = 'https://sdnkalibaru05.sch.id';
 const ADMIN = '00000000-0000-4000-8000-0000000000a1';
@@ -75,7 +76,15 @@ globalThis.fetch = async (url, opts = {}) => {
         return json(200, { id: `11111111-0000-4000-8000-${String(db.authUsers.size).padStart(12, '0')}` });
     }
     if (p.startsWith('/auth/v1/admin/users/')) {
-        if (method === 'PUT' && body?.password) db.pwChanged[p.split('/').pop()] = body.password;
+        const id = p.split('/').pop();
+        if (method === 'PUT' && body?.password) db.pwChanged[id] = body.password;
+        if (method === 'PUT' && body?.email) {
+            const lama = db.emails[id];
+            if (body.email !== lama && db.authUsers.has(body.email)) return json(422, { msg: 'email_exists' });
+            if (lama) db.authUsers.delete(lama);
+            db.authUsers.add(body.email);
+            db.emails[id] = body.email;
+        }
         return json(200, {});
     }
     if (p === '/rest/v1/rpc/set_recovery_pin') {
@@ -112,6 +121,12 @@ globalThis.fetch = async (url, opts = {}) => {
     if (p === '/rest/v1/user_roles' && method === 'DELETE') {
         const uid = q.get('user_id').replace('eq.', '');
         db.roles = db.roles.filter((r) => !(r.user_id === uid && r.role === 'admin'));
+        return json(204);
+    }
+    if (p === '/rest/v1/teacher_account_requests' && method === 'PATCH') {
+        const sid = q.get('staff_id')?.replace('eq.', '');
+        const r = db.reqs.find((x) => x.staff_id === sid);
+        if (r) Object.assign(r, body);
         return json(204);
     }
     if (p === '/rest/v1/teacher_account_requests' && method === 'POST') {
@@ -308,6 +323,54 @@ test('akun guru: ganti NIP/NUPTK — password awal ikut berubah selama guru belu
     db.accs[0].login_id = '990000000000000001';
 });
 
+test('ganti email sendiri: guru — password wajib benar, data akun ikut berubah', async () => {
+    const kirim = (b, token = 'jwt-guru') => call(gantiEmail, { token, body: b });
+    let r = await kirim({ email: 'baru@fiktif.test', password: 'salah' });
+    assert.equal(r.status, 401);
+    assert.equal(db.emails[GURU], 'guru@fiktif.test', 'password salah → tidak ada yang berubah');
+    r = await kirim({ email: 'bukan-email', password: 'rahasia123' });
+    assert.equal(r.status, 400);
+    r = await kirim({ email: ' GURU@fiktif.test ', password: 'rahasia123' });
+    assert.equal(r.status, 400, 'sama dengan email sekarang');
+    db.authUsers.add('dipakai@fiktif.test');
+    r = await kirim({ email: 'dipakai@fiktif.test', password: 'rahasia123' });
+    assert.equal(r.status, 409);
+    assert.match(r.body.error.message, /sudah dipakai/);
+    r = await kirim({ email: ' Baru@Fiktif.test ', password: 'rahasia123' });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.email, 'baru@fiktif.test');
+    assert.equal(db.emails[GURU], 'baru@fiktif.test', 'email di Auth diganti');
+    assert.ok(calls.some((c) => c.method === 'PUT' && c.body?.email === 'baru@fiktif.test' && c.body?.email_confirm === true), 'langsung aktif tanpa email verifikasi');
+    assert.equal(db.accs[0].email, 'baru@fiktif.test', 'teacher_accounts ikut');
+    assert.equal(db.reqs.find((x) => x.staff_id === ST(1)).email, 'baru@fiktif.test', 'daftar Akun Guru ikut');
+    // Login lewat NIP tetap jalan dengan email baru.
+    db.passwords['baru@fiktif.test'] = 'rahasia123';
+    r = await call(login, { body: { identifier: '990000000000000001', password: 'rahasia123' } });
+    assert.equal(r.status, 200);
+    db.accs[0].email = 'guru@fiktif.test'; db.emails[GURU] = 'guru@fiktif.test';
+});
+
+test('ganti email sendiri: admin murni (bukan akun guru) juga bisa; tanpa login ditolak', async () => {
+    db.passwords['admin@fiktif.test'] = 'adminrahasia';
+    let r = await call(gantiEmail, { token: 'jwt-admin', body: { email: 'satrio@fiktif.test', password: 'adminrahasia' } });
+    assert.equal(r.status, 200);
+    assert.equal(db.emails[ADMIN], 'satrio@fiktif.test');
+    r = await call(gantiEmail, { body: { email: 'x@fiktif.test', password: 'a' } });
+    assert.equal(r.status, 401);
+    assert.equal(cleanEmail(' A@B.co '), 'a@b.co');
+    assert.equal(cleanEmail('a@b'), null);
+});
+
+test('ganti password: admin murni (bukan akun guru) boleh, akun tanpa peran ditolak', async () => {
+    let r = await call(changePw, { token: 'jwt-admin', body: { password: 'passwordbaru1' } });
+    assert.equal(r.status, 200);
+    assert.equal(db.pwChanged[ADMIN], 'passwordbaru1');
+    assert.ok(!calls.some((c) => c.method === 'PATCH' && c.path.startsWith('/rest/v1/teacher_accounts')), 'tidak menyentuh teacher_accounts');
+    db.tokens['jwt-lain'] = '00000000-0000-4000-8000-0000000000c1';
+    r = await call(changePw, { token: 'jwt-lain', body: { password: 'passwordbaru1' } });
+    assert.equal(r.status, 403);
+});
+
 test('akun guru: validasi data', () => {
     assert.ok(normalizeRequest({ staff_id: ST(1), email: 'bukan-email' }).error);
     assert.ok(normalizeRequest({ staff_id: ST(1), email: 'a@b.cd', login_id: '12a' }).error);
@@ -463,8 +526,9 @@ test('guru ganti password: tanda wajib-ganti dicabut; NIP sebagai password ditol
     assert.equal(r.status, 200);
     assert.equal(db.pwChanged[GURU], 'RahasiaBaru7');
     assert.equal(db.accs[0].must_change_password, false);
-    r = await call(changePw, { token: 'jwt-admin', body: { password: 'RahasiaBaru7' } });
-    assert.equal(r.status, 403, 'akun tanpa data guru ditolak');
+    db.tokens['jwt-tanpa-peran'] = '00000000-0000-4000-8000-0000000000d1';
+    r = await call(changePw, { token: 'jwt-tanpa-peran', body: { password: 'RahasiaBaru7' } });
+    assert.equal(r.status, 403, 'akun tanpa data guru dan bukan admin ditolak');
 });
 
 test('lupa password lewat PIN: password baru = NIP ditolak; sukses mencabut tanda wajib-ganti', async () => {

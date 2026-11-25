@@ -77,7 +77,11 @@
             font-weight: 600; font-size: 0.9rem; transition: 0.2s;
         }
         .login-box .back-link:hover { background: var(--t-surface-3); }
-        #loginError { color: #c0392b; font-size: 0.85rem; margin-top: 1rem; display: none; text-align: center; font-weight: 500; }
+        #loginError, .admin-setup-err { color: #c0392b; font-size: 0.85rem; margin-top: 1rem; display: none; text-align: center; font-weight: 500; }
+        .login-box[hidden], #adminSetup [hidden] { display: none !important; }
+        .admin-setup-hint { font-size: 0.8rem; color: var(--t-muted); margin: -0.5rem 0 1.25rem; line-height: 1.5; }
+        .admin-setup-out { width: 100%; border: none; cursor: pointer; font: inherit; }
+        .login-box input[inputmode="numeric"] { letter-spacing: 0.3em; }
 
         /* ── Admin Layout ── */
         .admin-layout { display: flex; min-height: 100vh; }
@@ -657,7 +661,7 @@
             </div>
         </div>
         <div class="login-form-side">
-            <div class="login-box">
+            <div class="login-box" id="adminLoginBox">
                 <button type="button" class="theme-toggle admin-login-theme" data-theme-toggle aria-label="Ganti mode gelap"></button>
                 <h2>Selamat Datang 👋</h2>
                 <p class="login-subtitle">Masuk ke dashboard admin</p>
@@ -674,6 +678,39 @@
                 <a href="/" class="back-link">← Kembali ke Beranda</a>
                 <p id="loginError">Email atau password salah!</p>
             </div>
+            <form class="login-box" id="adminSetup" hidden novalidate>
+                <h2>Amankan akun dulu 🔐</h2>
+                <p class="login-subtitle" id="adminSetupLead"></p>
+                <div id="adminSetupPwBaru" hidden>
+                    <div class="login-field">
+                        <label for="adminNewPw1">Password baru</label>
+                        <input type="password" id="adminNewPw1" autocomplete="new-password" minlength="8">
+                    </div>
+                    <div class="login-field">
+                        <label for="adminNewPw2">Ulangi password baru</label>
+                        <input type="password" id="adminNewPw2" autocomplete="new-password" minlength="8">
+                    </div>
+                    <p class="admin-setup-hint">Minimal 8 karakter, tidak boleh sama dengan NIP/NUPTK atau email.</p>
+                </div>
+                <div class="login-field" id="adminSetupPwLama" hidden>
+                    <label for="adminCurPw">Password saat ini</label>
+                    <input type="password" id="adminCurPw" autocomplete="current-password">
+                </div>
+                <div id="adminSetupPinBox">
+                    <div class="login-field">
+                        <label for="adminPin1">PIN pemulihan (6 angka)</label>
+                        <input type="password" id="adminPin1" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off">
+                    </div>
+                    <div class="login-field">
+                        <label for="adminPin2">Ulangi PIN</label>
+                        <input type="password" id="adminPin2" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off">
+                    </div>
+                    <p class="admin-setup-hint">Dipakai kalau lupa password: di halaman login Portal Guru pilih "Lupa password?", masukkan PIN ini, lalu buat password baru sendiri. Jangan pakai 123456, 111111, atau tanggal lahir.</p>
+                </div>
+                <button type="submit" class="btn-login" id="adminSetupBtn">Simpan &amp; masuk</button>
+                <p id="adminSetupErr" class="admin-setup-err" role="alert"></p>
+                <button type="button" class="back-link admin-setup-out" id="adminSetupOut">Keluar</button>
+            </form>
         </div>
     </div>
 
@@ -800,6 +837,10 @@
                 <a href="/" class="nav-item">
                     <svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                     Kembali ke Website
+                </a>
+                <a class="nav-item" href="#" id="navAkunSaya" onclick="event.preventDefault(); if (document.getElementById('sidebar')?.classList.contains('open')) toggleSidebar(); window.AkunSaya && window.AkunSaya.bukaAdmin()">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+                    Akun Saya
                 </a>
                 <a class="nav-item logout-item" onclick="logout()">
                     <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -1537,8 +1578,9 @@
     <script src="student-fields.js?v=2"></script>
     <script src="admin-students.js?v=6"></script>
     <script src="password-toggle.js?v=1"></script>
-    <script src="admin.js?v=8"></script>
+    <script src="admin.js?v=9"></script>
     <script src="attendance-sheet.js?v=8"></script>
+    <script src="akun-saya.js?v=1"></script>
     <script src="admin-attendance.js?v=8"></script>
     <script src="admin-akademik.js?v=3"></script>
     <script src="rekap-print.js?v=7"></script>
