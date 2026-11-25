@@ -1333,6 +1333,14 @@ async function runUi() {
         await page.waitForSelector('.nl-h');
         const hist = (await page.textContent('#nlHist')).replace(/\s+/g, ' ');
         check((await page.$$('.nl-h')).length === 13 && /HARI INI/.test(hist) && /KKTP · Matematika.*75.*70/.test(hist) && /oleh Sunarsih/.test(hist), `${T} riwayat perubahan (lama → baru, oleh siapa) (${hist.slice(0, 160)})`);
+        check(/RABU, 25 NOV 2026|HARI INI · [A-Z]+, \d+ [A-Z]+ \d{4}/.test(hist) && /\d{2}\.\d{2}WIB/.test(hist)
+            && /KKTP · Matematika Turun −5/.test(hist) && /Nilai diisi/.test(hist) && /Nilai dihapus/.test(hist)
+            && /Kolom UH ditambah 2/.test(hist) && /Kolom UH 2 dibuang/.test(hist),
+            `${T} riwayat memberi tanggal + jam WIB dan tanda diisi/turun/dihapus/kolom (${hist.slice(0, 200)})`);
+        await page.click('.nl-hsum button[data-j="hapus"]');
+        check((await page.$$eval('.nl-h', (x) => x.map((e) => e.dataset.jenis))).every((j) => j === 'hapus') && (await page.$$('.nl-h')).length > 0,
+            `${T} filter "Dihapus" hanya menampilkan nilai yang dihapus`);
+        await page.click('.nl-hsum button[data-j=""]');
         await shot(page, 'nilai-03-riwayat-360.png');
         await page.click('#gBack');
         await page.waitForSelector('.nl-mp');

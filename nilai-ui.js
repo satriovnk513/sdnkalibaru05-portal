@@ -198,6 +198,7 @@
                     data-s="${esc(s.id)}" data-f="${f}" value="${v ?? ''}" aria-label="${esc(N.LABEL[f])} ${esc(s.nama)}" ${edit ? '' : 'readonly tabindex="-1"'}></label>`;
             };
             el.innerHTML = `${head(el, m.nama, sub(d), ['kelas', { kelas, smt }])}
+                <a href="#" class="nl-hlink" data-nv="riwayat" data-p="${esc(JSON.stringify({ kelas, smt, fm: m.singkat, dari: m.id }))}">${ICON.hist} Riwayat perubahan ${esc(m.nama)}</a>
                 ${!edit ? `<div class="att-alert info" style="margin-bottom:12px">${m.guru_mapel?.length ? `Mapel ini diisi guru mapel (${esc(m.guru_mapel.join(', '))}).` : 'Anda hanya bisa melihat nilai mapel ini.'}</div>` : ''}
                 <section class="nl-kktp"><div><label for="nlKktp">KKTP ${esc(m.nama)} kelas ini</label><span class="att-muted">Batas tuntas, diisi guru per mapel</span></div>
                     <input id="nlKktp" class="nl-in nl-kktp-in" inputmode="numeric" maxlength="3" value="${kktp ?? ''}" ${edit ? '' : 'readonly'} aria-label="KKTP"></section>
@@ -400,34 +401,77 @@
         const tglFmt = new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
         const isoJkt = (t) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date(t));
 
+        /**
+         * Jenis perubahan satu baris riwayat, untuk lencana & filter.
+         * kelompok: isi | naik | turun | hapus | atur
+         */
+        function jenisRiwayat(x) {
+            const lama = x.lama === null || x.lama === undefined ? null : Number(x.lama);
+            const baru = x.baru === null || x.baru === undefined ? null : Number(x.baru);
+            if (x.kolom === 'hapus_uh') return { k: 'atur', cls: 'del', teks: `Kolom UH ${lama} dibuang · kolom sesudahnya naik` };
+            if (x.kolom === 'jumlah_uh') {
+                const d = baru - lama;
+                return { k: 'atur', cls: d > 0 ? 'up' : 'down', teks: d > 0 ? `Kolom UH ditambah ${d}` : `Kolom UH dikurangi ${-d}` };
+            }
+            const atur = x.kolom === 'kktp';
+            if (lama === null && baru !== null) return { k: atur ? 'atur' : 'isi', cls: 'add', teks: atur ? 'KKTP diisi' : 'Nilai diisi' };
+            if (baru === null) return { k: atur ? 'atur' : 'hapus', cls: 'del', teks: atur ? 'KKTP dikosongkan' : 'Nilai dihapus' };
+            const d = baru - lama;
+            return { k: atur ? 'atur' : (d > 0 ? 'naik' : 'turun'), cls: d > 0 ? 'up' : 'down', teks: d > 0 ? `Naik +${d}` : `Turun −${-d}` };
+        }
+
         async function viewRiwayat(el, p) {
             const kelas = p.kelas; const smt = Number(p.smt) || semesterNow();
-            const [d, h] = await Promise.all([classData(kelas, smt), rpc('get_grade_history', { p_class_id: kelas, p_semester: smt, p_limit: 1000 })]);
+            const [d, h] = await Promise.all([classData(kelas, smt), rpc('get_grade_history', { p_class_id: kelas, p_semester: smt, p_limit: 2000 })]);
             const mapel = [...new Set(h.map((x) => x.mapel))].sort();
-            el.innerHTML = `${head(el, 'Riwayat Perubahan', sub(d), ['kelas', { kelas, smt }])}
+            const per = { isi: 0, naik: 0, turun: 0, hapus: 0, atur: 0 };
+            for (const x of h) per[jenisRiwayat(x).k] += 1;
+            const back = p.dari ? ['isi', { kelas, smt, mapel: p.dari }] : ['kelas', { kelas, smt }];
+            el.innerHTML = `${head(el, 'Riwayat Nilai', sub(d), back)}
+                <div class="nl-hsum" role="group" aria-label="Ringkasan perubahan">
+                    <button type="button" data-j="" aria-pressed="true"><b>${h.length}</b><span>Semua</span></button>
+                    <button type="button" data-j="isi" class="add"><b>${per.isi}</b><span>Diisi</span></button>
+                    <button type="button" data-j="naik" class="up"><b>${per.naik}</b><span>Naik</span></button>
+                    <button type="button" data-j="turun" class="down"><b>${per.turun}</b><span>Turun</span></button>
+                    <button type="button" data-j="hapus" class="del"><b>${per.hapus}</b><span>Dihapus</span></button>
+                    <button type="button" data-j="atur"><b>${per.atur}</b><span>KKTP &amp; kolom UH</span></button>
+                </div>
                 <div class="nl-filter att-row">
-                    <div class="att-field"><label for="nlFm">Mapel</label><select class="att-select" id="nlFm"><option value="">Semua mapel</option>${mapel.map((m) => `<option>${esc(m)}</option>`).join('')}</select></div>
+                    <div class="att-field"><label for="nlFm">Mapel</label><select class="att-select" id="nlFm"><option value="">Semua mapel</option>${mapel.map((m) => `<option ${m === p.fm ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></div>
                     <div class="att-field"><label for="nlFs">Siswa</label><input class="att-input" id="nlFs" type="search" placeholder="Cari siswa"></div>
                 </div>
                 <div id="nlHist"></div>
-                <p class="att-muted nl-note">Setiap nilai yang diisi, diubah, atau dihapus tercatat otomatis: siapa, kapan, nilai lama → baru. Riwayat tidak bisa dihapus.</p>`;
+                <p class="att-muted nl-note">Setiap nilai yang diisi, diubah, atau dihapus tercatat otomatis — tanggal & jam (WIB), siapa yang mengubah, dan nilai lama → baru. Riwayat bisa dilihat guru pengisi, wali kelas, admin, dan kepala sekolah, dan tidak bisa dihapus siapa pun.</p>`;
             wireNav(el);
             const today = window.Att.todayJakarta();
+            let jenis = '';
             const draw = () => {
                 const fm = el.querySelector('#nlFm').value;
                 const fs = el.querySelector('#nlFs').value.trim().toLowerCase();
-                const rows = h.filter((x) => (!fm || x.mapel === fm) && (!fs || String(x.siswa || '').toLowerCase().includes(fs)));
+                const rows = h.filter((x) => (!fm || x.mapel === fm) && (!fs || String(x.siswa || '').toLowerCase().includes(fs))
+                    && (!jenis || jenisRiwayat(x).k === jenis));
                 if (!rows.length) { el.querySelector('#nlHist').innerHTML = `<div class="att-alert info">${h.length ? 'Tidak ada yang cocok dengan filter.' : 'Belum ada perubahan nilai di semester ini.'}</div>`; return; }
                 const groups = new Map();
                 for (const x of rows) { const k = isoJkt(x.waktu); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(x); }
-                el.querySelector('#nlHist').innerHTML = [...groups].map(([k, xs]) => `<div class="nl-day">${k === today ? 'HARI INI' : esc(tglFmt.format(new Date(xs[0].waktu)).toUpperCase())}</div>
-                    <section class="nl-list nl-hist">${xs.map((x) => `<div class="nl-h">
-                        <div class="nl-h-jam">${esc(jamFmt.format(new Date(x.waktu)))}</div>
-                        <div class="nl-h-body"><div>${KELAS_LEVEL.has(x.kolom) ? `<b>${esc(N.LABEL[x.kolom] || x.kolom)}</b>` : `<b>${esc(x.siswa || '-')}</b>`} · ${esc(x.mapel)}${KELAS_LEVEL.has(x.kolom) ? '' : ` <b>${esc(N.LABEL[x.kolom] || x.kolom)}</b>`}</div>
-                            <div class="nl-h-val"><span class="old">${x.lama ?? '–'}</span>${ICON.arrow}<span class="${x.baru === null ? 'del' : 'new'}">${x.baru ?? 'dihapus'}</span></div>
+                el.querySelector('#nlHist').innerHTML = [...groups].map(([k, xs]) => `<div class="nl-day">${k === today ? 'HARI INI · ' : ''}${esc(tglFmt.format(new Date(xs[0].waktu)).toUpperCase())}</div>
+                    <section class="nl-list nl-hist">${xs.map((x) => {
+        const j = jenisRiwayat(x);
+        const tingkatMapel = KELAS_LEVEL.has(x.kolom);
+        const nilai = x.kolom === 'hapus_uh' ? '' : `<div class="nl-h-val"><span class="old">${x.lama ?? '–'}</span>${ICON.arrow}<span class="${x.baru === null ? 'del' : 'new'}">${x.baru ?? 'kosong'}</span></div>`;
+        return `<div class="nl-h" data-jenis="${j.k}">
+                        <div class="nl-h-jam">${esc(jamFmt.format(new Date(x.waktu)))}<small>WIB</small></div>
+                        <div class="nl-h-body">
+                            <div>${tingkatMapel ? `<b>${esc(N.LABEL[x.kolom] || x.kolom)}</b>` : `<b>${esc(x.siswa || '-')}</b>`} · ${esc(x.mapel)}${tingkatMapel ? '' : ` <b>${esc(N.LABEL[x.kolom] || x.kolom)}</b>`}</div>
+                            <div class="nl-h-row"><span class="nl-h-tag ${j.cls}">${esc(j.teks)}</span>${nilai}</div>
                             <div class="att-muted">oleh ${esc(x.oleh || '-')}${x.sumber === 'impor' ? ' · lewat impor Excel' : (x.sumber === 'admin' ? ' · admin' : '')}</div></div>
-                    </div>`).join('')}</section>`).join('');
+                    </div>`;
+    }).join('')}</section>`).join('');
             };
+            el.querySelectorAll('.nl-hsum button').forEach((b) => b.addEventListener('click', () => {
+                jenis = b.dataset.j;
+                el.querySelectorAll('.nl-hsum button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+                draw();
+            }));
             el.querySelector('#nlFm').addEventListener('change', draw);
             el.querySelector('#nlFs').addEventListener('input', draw);
             draw();
