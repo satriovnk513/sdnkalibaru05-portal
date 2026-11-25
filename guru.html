@@ -31,9 +31,6 @@
         .g-login form > .att-field { flex: none; }
         .g-login-card { background: var(--t-surface); border: 1px solid var(--att-line); border-radius: 20px; padding: 24px 20px; box-shadow: 0 10px 30px -18px rgba(15, 23, 42, 0.35); }
         @media (min-width: 480px) { .g-login-card { padding: 32px 28px; } }
-        .g-pass { position: relative; }
-        .g-pass .att-input { padding-right: 76px; }
-        .g-pass button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); min-height: 36px; border: none; background: none; color: var(--att-muted); font-weight: 600; cursor: pointer; padding: 0 10px; }
         .g-login-foot { margin-top: 20px; text-align: center; line-height: 1.6; }
         .g-link { border: none; background: none; padding: 6px 4px; color: var(--att-brand); font: 600 0.9rem 'Inter', sans-serif; text-decoration: underline; cursor: pointer; min-height: 36px; }
         .g-pin { letter-spacing: 0.5em; font-variant-numeric: tabular-nums; }
@@ -240,10 +237,7 @@
             </div>
             <div class="att-field">
                 <label for="gPw">Password</label>
-                <div class="g-pass">
-                    <input class="att-input" id="gPw" name="password" type="password" autocomplete="current-password" required>
-                    <button type="button" id="gPwToggle" aria-controls="gPw">Lihat</button>
-                </div>
+                <input class="att-input" id="gPw" name="password" type="password" autocomplete="current-password" required>
             </div>
             <div class="att-alert err g-hidden" id="gLoginErr" role="alert"></div>
             <button type="submit" class="att-btn att-btn-primary att-btn-block" id="gLoginBtn">Masuk</button>
@@ -322,6 +316,7 @@
     <script src="piket-ui.js?v=1"></script>
     <script src="catatan.js?v=1"></script>
     <script src="catatan-ui.js?v=1"></script>
-    <script src="guru.js?v=29"></script>
+    <script src="password-toggle.js?v=1"></script>
+    <script src="guru.js?v=30"></script>
 </body>
 </html>

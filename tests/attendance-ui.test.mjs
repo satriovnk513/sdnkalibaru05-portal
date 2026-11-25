@@ -206,6 +206,12 @@ async function runUi() {
 
         await page.fill('#gId', '990000000000000001');
         await page.fill('#gPw', 'salah');
+        check(await page.getAttribute('#gPw', 'type') === 'password' && await page.isVisible('#gPw + .pwt-btn'), 'password guru tersembunyi, ada tombol mata');
+        await page.click('#gPw + .pwt-btn');
+        check(await page.getAttribute('#gPw', 'type') === 'text' && await page.getAttribute('#gPw + .pwt-btn', 'aria-pressed') === 'true'
+            && await page.inputValue('#gPw') === 'salah', 'klik mata → password terlihat, isinya tetap');
+        await page.click('#gPw + .pwt-btn');
+        check(await page.getAttribute('#gPw', 'type') === 'password', 'klik lagi → tersembunyi lagi');
         await page.click('#gLoginBtn');
         await page.waitForFunction(() => /password salah/.test(document.getElementById('gLoginErr').textContent) && !document.getElementById('gLoginErr').classList.contains('g-hidden'));
         check(/err/.test(await page.getAttribute('#gLoginErr', 'class')), 'password salah menampilkan pesan (merah, bukan pesan sukses sebelumnya)');
@@ -600,6 +606,14 @@ async function runUi() {
         const { ctx, page, errors } = await newPage('/admin', { width: vp.width, height: vp.height });
         await page.fill('#adminEmail', 'admin@fiktif.test');
         await page.fill('#adminPassword', 'x');
+        if (vp.tag === '390' && !globalThis.__matUji) {
+            globalThis.__matUji = true;
+            await page.click('#adminPassword + .pwt-btn');
+            check(await page.getAttribute('#adminPassword', 'type') === 'text', 'login admin: tombol mata menampilkan password');
+            const lebar = await page.evaluate(() => [document.getElementById('adminEmail').getBoundingClientRect().width, document.getElementById('adminPassword').getBoundingClientRect().width]);
+            check(Math.abs(lebar[0] - lebar[1]) < 2, `login admin: kolom password tetap selebar kolom email (${lebar})`);
+            await shot(page, 'admin-login-mata-390.png');
+        }
         await page.click('.btn-login');
         await page.waitForSelector('#mainContent', { state: 'visible' });
         if (vp.tag === '1366') check(/Portal Guru/.test(await page.textContent('.login-box')), 'login admin menautkan ke Portal Guru');

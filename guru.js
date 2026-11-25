@@ -96,13 +96,6 @@
         err.textContent = message || '';
     }
 
-    $('gPwToggle').addEventListener('click', () => {
-        const pw = $('gPw');
-        const show = pw.type === 'password';
-        pw.type = show ? 'text' : 'password';
-        $('gPwToggle').textContent = show ? 'Sembunyi' : 'Lihat';
-    });
-
     $('gLoginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const identifier = $('gId').value.trim();
