@@ -120,6 +120,50 @@ for f in sys.argv[1:3]:
     }
 });
 
+const soffice = spawnSync('soffice', ['--version'], { encoding: 'utf8' });
+test('XLSX blanko: kotak tanggal kosong, jumlah S/I/A rumus yang menghitung sendiri saat diisi', { skip: py.status !== 0 ? 'openpyxl tidak tersedia' : false }, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'blanko-'));
+    try {
+        const f = join(dir, 'blanko.xlsx');
+        writeFileSync(f, RP.monthlyXlsx(month, header, { blank: true }));
+        const script = `
+import sys, openpyxl
+m = openpyxl.load_workbook(sys.argv[1]).active
+akhir = 5 + 31
+isi = [m.cell(r, c).value for r in (7, 8) for c in range(6, akhir + 1)]
+print(m.title, '|', sum(1 for v in isi if v not in (None, '')), '|', m.cell(7, akhir + 1).value, '|', m.cell(7, akhir + 3).value, '|', next(str(m.cell(r, 1).value)[:4] for r in range(1, m.max_row + 1) if str(m.cell(r, 1).value or '').startswith('Isi')))
+m['F7'] = 'S'; m['G7'] = 'S'; m['H7'] = 'A'
+m.parent.save(sys.argv[2])
+`;
+        const isi = join(dir, 'isi.xlsx');
+        const r = spawnSync('python3', ['-c', script, f, isi], { encoding: 'utf8' });
+        assert.equal(r.status, 0, r.stderr);
+        const [judul, terisi, rumusS, rumusA, ket] = r.stdout.trim().split(' | ');
+        assert.equal(judul, 'Blanko III.A Desember 2026');
+        assert.equal(Number(terisi), 0, 'semua kotak tanggal kosong');
+        assert.equal(rumusS, '=IF(COUNTIF(F7:AJ7,"S")=0,"",COUNTIF(F7:AJ7,"S"))');
+        assert.equal(rumusA, '=IF(COUNTIF(F7:AJ7,"A")=0,"",COUNTIF(F7:AJ7,"A"))');
+        assert.equal(ket, 'Isi:');
+        if (soffice.status === 0) {
+            const c = spawnSync('soffice', ['--headless', '--convert-to', 'csv', '--outdir', dir, isi], { encoding: 'utf8', timeout: 60000 });
+            assert.equal(c.status, 0, c.stderr);
+            const baris7 = readFileSync(join(dir, 'isi.csv'), 'utf8').split('\n')[6].split(',');
+            assert.deepEqual(baris7.slice(-3), ['2', '', '1'], 'setelah diisi S, S, A → jumlah S=2, I kosong, A=1');
+            const baris8 = readFileSync(join(dir, 'isi.csv'), 'utf8').split('\n')[7].split(',');
+            assert.deepEqual(baris8.slice(-3), ['', '', ''], 'baris yang belum diisi tetap bersih (tanpa angka 0)');
+        }
+    } finally {
+        rmSync(dir, { recursive: true, force: true });
+    }
+});
+
+test('HTML blanko: keterangan cara mengisi, judul jendela Blanko', () => {
+    const h = RP.monthlyHtml(month, header, { blank: true });
+    assert.match(h, /Isi: ✓ = hadir, S = sakit/);
+    assert.match(h, /<title>Blanko Daftar Hadir III\.A Desember 2026<\/title>/);
+    assert.doesNotMatch(h, /<td class="h">/, 'tidak ada tanda hadir');
+});
+
 test('CRC32 sesuai nilai standar', () => {
     assert.equal(RP.crc32(new TextEncoder().encode('123456789')), 0xcbf43926);
 });

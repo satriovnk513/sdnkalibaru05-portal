@@ -1409,6 +1409,9 @@
                     <div class="att-row"><b style="flex:1 1 100%">Daftar hadir ${esc(window.Att.BULAN[m - 1])} ${y}</b>
                         <button type="button" class="att-btn att-btn-ghost" id="gRkPrint" style="flex:1">Cetak / PDF</button>
                         <button type="button" class="att-btn att-btn-ghost" id="gRkXlsx" style="flex:1">Excel</button></div>
+                    <div class="att-row"><span class="att-muted" style="flex:1 1 100%">Blanko kosong ${esc(window.Att.BULAN[m - 1])} ${y} — untuk diisi manual</span>
+                        <button type="button" class="att-btn att-btn-ghost" id="gRkBlankPrint" style="flex:1">Blanko PDF</button>
+                        <button type="button" class="att-btn att-btn-ghost" id="gRkBlankXlsx" style="flex:1">Blanko Excel</button></div>
                     <div class="att-field"><label for="gRkSem">Rekap semester (untuk rapor)</label>
                         <select class="att-select" id="gRkSem"><option value="1" ${m >= 7 ? 'selected' : ''}>Semester Ganjil (Jul–Des)</option><option value="2" ${m < 7 ? 'selected' : ''}>Semester Genap (Jan–Jun)</option></select></div>
                     <div class="att-row"><button type="button" class="att-btn att-btn-ghost" id="gRkSemPrint" style="flex:1">Cetak / PDF</button>
@@ -1440,6 +1443,13 @@
             const h = await getHeader();
             RP.download(RP.monthlyXlsx(monthRecap, h, { wali: myWali(), logoPng: await RP.loadLogo() }), `${RP.fileName('Daftar_Hadir', h, `${window.Att.BULAN[monthRecap.bulan - 1]}_${monthRecap.tahun}`)}.xlsx`);
             toast('File Excel diunduh.');
+        }));
+        $('gRkBlankPrint').addEventListener('click', guard(async () => print(RP.monthlyHtml(monthRecap, await getHeader(), { wali: myWali(), blank: true }))));
+        $('gRkBlankXlsx').addEventListener('click', guard(async () => {
+            const h = await getHeader();
+            RP.download(RP.monthlyXlsx(monthRecap, h, { wali: myWali(), blank: true, logoPng: await RP.loadLogo() }),
+                `${RP.fileName('Blanko_Daftar_Hadir', h, `${window.Att.BULAN[monthRecap.bulan - 1]}_${monthRecap.tahun}`)}.xlsx`);
+            toast('Blanko Excel diunduh.');
         }));
         const sem = async () => {
             const s = Number($('gRkSem').value);
