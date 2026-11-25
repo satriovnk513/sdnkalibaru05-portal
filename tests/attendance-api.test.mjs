@@ -410,8 +410,8 @@ test('origin sama dengan host deployment diterima, origin asing tetap ditolak', 
 
 // ---------------------------------------------------------------- PIN pemulihan
 test('PIN lemah dikenali (sama dengan aturan database)', () => {
-    for (const p of ['123456', '654321', '111111', '121212', '123123', '112233', '12345', '12a456', '']) assert.equal(pinIsWeak(p), true, p);
-    for (const p of ['483920', '205817', '730194']) assert.equal(pinIsWeak(p), false, p);
+    for (const p of ['12345', '12a456', '', '1234567']) assert.equal(pinIsWeak(p), true, p);
+    for (const p of ['483920', '123456', '111111', '121212']) assert.equal(pinIsWeak(p), false, `${p} boleh dipakai`);
 });
 
 test('buat PIN: wajib login, password saat ini benar, PIN tidak lemah', async () => {
@@ -422,8 +422,8 @@ test('buat PIN: wajib login, password saat ini benar, PIN tidak lemah', async ()
     assert.match(r.body.error.message, /Password saat ini salah/);
     assert.equal(db.pins[GURU], undefined);
     r = await call(setPin, { token: 'jwt-guru', body: { password: 'rahasia123', pin: '123456' } });
-    assert.equal(r.status, 400);
-    assert.equal(r.body.error.type, 'weak_pin');
+    assert.equal(r.status, 200, 'PIN gampang (123456) boleh');
+    assert.equal(db.pins[GURU].pin, '123456');
     r = await call(setPin, { token: 'jwt-guru', body: { password: 'rahasia123', pin: '48392' } });
     assert.equal(r.status, 400);
     r = await call(setPin, { token: 'jwt-guru', body: { password: 'rahasia123', pin: '483920' } });

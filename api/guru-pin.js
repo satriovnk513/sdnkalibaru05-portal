@@ -12,14 +12,9 @@ import {
 
 const limited = makeRateLimiter(10 * 60 * 1000, 8);
 
-/** Sama dengan public.recovery_pin_is_weak di database (dicek lagi di sana). */
+/** PIN boleh 6 angka apa saja; yang ditolak hanya yang bukan 6 angka (sama dengan public.recovery_pin_is_weak). */
 export function pinIsWeak(pin) {
-    const p = String(pin ?? '');
-    if (!/^[0-9]{6}$/.test(p)) return true;
-    if (/^(.)\1{5}$/.test(p)) return true;
-    if ('0123456789012'.includes(p) || '9876543210987'.includes(p)) return true;
-    if (/^(..)\1\1$/.test(p) || /^(...)\1$/.test(p)) return true;
-    return ['112233', '111222'].includes(p);
+    return !/^[0-9]{6}$/.test(String(pin ?? ''));
 }
 
 export default async function handler(req, res) {
@@ -39,7 +34,6 @@ export default async function handler(req, res) {
     const pin = typeof body?.pin === 'string' ? body.pin.trim() : '';
     if (!password || password.length > 200) return sendError(res, 400, 'invalid_request', 'Isi password Anda saat ini.');
     if (!/^[0-9]{6}$/.test(pin)) return sendError(res, 400, 'invalid_pin', 'PIN harus 6 angka.');
-    if (pinIsWeak(pin)) return sendError(res, 400, 'weak_pin', 'PIN terlalu mudah ditebak (mis. 123456 atau 111111). Pakai 6 angka acak.');
 
     const tok = await sb('POST', '/auth/v1/token?grant_type=password', {
         key: SUPABASE_ANON_KEY, body: { email: caller.email, password },
@@ -51,7 +45,7 @@ export default async function handler(req, res) {
 
     const r = await sb('POST', '/rest/v1/rpc/set_recovery_pin', { key, body: { p_user: caller.id, p_pin: pin } });
     if (!r.ok) {
-        if (r.json?.code === '22023') return sendError(res, 400, 'weak_pin', 'PIN terlalu mudah ditebak. Pakai 6 angka acak.');
+        if (r.json?.code === '22023') return sendError(res, 400, 'invalid_pin', 'PIN harus 6 angka.');
         if (r.json?.code === 'P0002') return sendError(res, 403, 'not_teacher', 'Akun ini bukan akun guru.');
         return sendError(res, 502, 'upstream_error', 'Gagal menyimpan PIN. Coba lagi.');
     }

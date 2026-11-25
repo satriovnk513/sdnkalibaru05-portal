@@ -86,6 +86,7 @@ run "UH dinamis"                   "$ROOT/supabase/migrations/20261201000001_uh_
 run "UH dinamis (ulang)"            "$ROOT/supabase/migrations/20261201000001_uh_dinamis.sql"
 run "Hapus kolom UH"              "$ROOT/supabase/migrations/20261202000001_hapus_kolom_uh.sql"
 run "Hapus kolom UH (ulang)"       "$ROOT/supabase/migrations/20261202000001_hapus_kolom_uh.sql"
+run "PIN bebas"                   "$ROOT/supabase/migrations/20261203000001_pin_bebas.sql"
 
 echo "→ Tes Absensi"
 {

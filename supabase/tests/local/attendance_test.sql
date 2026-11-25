@@ -491,12 +491,11 @@ begin
     -- service_role (API server)
     execute 'set local role service_role';
     v_no := v_no + 1;
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'PIN lemah ditolak (123456, 111111, 121212, 987654, 12345)',
-        'ok', public.recovery_pin_is_weak('123456') and public.recovery_pin_is_weak('111111') and public.recovery_pin_is_weak('121212')
-          and public.recovery_pin_is_weak('987654') and public.recovery_pin_is_weak('12345') and public.recovery_pin_is_weak('12a456')
-          and not public.recovery_pin_is_weak('483920'));
-    v_no := v_no + 1; v_r := public.t_try(format('select public.set_recovery_pin(%L, %L)', u_wali1a, '123456'));
-    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'set_recovery_pin menolak PIN lemah', 'ok', v_r = '22023');
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'PIN bebas 6 angka (123456, 111111 boleh); yang bukan 6 angka ditolak',
+        'ok', not public.recovery_pin_is_weak('123456') and not public.recovery_pin_is_weak('111111') and not public.recovery_pin_is_weak('483920')
+          and public.recovery_pin_is_weak('12345') and public.recovery_pin_is_weak('12a456') and public.recovery_pin_is_weak(null));
+    v_no := v_no + 1; v_r := public.t_try(format('select public.set_recovery_pin(%L, %L)', u_wali1a, '12a456'));
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'set_recovery_pin menolak PIN yang bukan 6 angka', 'ok', v_r = '22023');
     v_no := v_no + 1; v_r := public.t_try(format('select public.set_recovery_pin(%L, %L)', gen_random_uuid(), '483920'));
     v_log := v_log || jsonb_build_object('no', v_no, 'k', 'L PIN', 'u', 'set_recovery_pin menolak user yang bukan akun guru', 'ok', v_r = 'P0002');
     perform public.set_recovery_pin(u_wali1a, '483920');
