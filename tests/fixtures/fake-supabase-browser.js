@@ -932,7 +932,12 @@
         F.calls.push({ table, ops: kinds });
         const single = kinds.includes('maybeSingle') || kinds.includes('single');
         if (table === 'user_roles') {
-            const rows = currentUser() === 'admin' ? [{ role: 'admin' }] : [];
+            // Seperti di produksi: akun admin juga punya peran guru (2 baris), jadi
+            // maybeSingle() tanpa filter peran gagal — persis bug "bukan admin".
+            const uid = currentUser() === 'admin' ? 'u-admin' : 'u-lain';
+            const all = currentUser() === 'admin' ? [{ user_id: uid, role: 'guru' }, { user_id: uid, role: 'admin' }] : [{ user_id: uid, role: 'guru' }];
+            const rows = all.filter((r) => ops.every(([m, a]) => m !== 'eq' || a[0] !== 'role' || r.role === a[1]));
+            if (single && rows.length > 1) return { data: null, error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' } };
             return single ? { data: rows[0] ?? null, error: null } : { data: rows, error: null };
         }
         if (table === 'attendance_sessions') {

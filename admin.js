@@ -9,10 +9,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if (session) {
         // Validate admin role
+        // Satu akun bisa punya beberapa peran (mis. guru + admin), jadi cari baris
+        // admin-nya saja — maybeSingle() tanpa filter peran gagal kalau barisnya > 1.
         const { data: roleData, error: roleError } = await supabaseClient
             .from('user_roles')
             .select('role')
             .eq('user_id', session.user.id)
+            .eq('role', 'admin')
             .maybeSingle();
 
         if (roleData && roleData.role === 'admin') {
@@ -74,6 +77,7 @@ async function checkLogin() {
             .from('user_roles')
             .select('role')
             .eq('user_id', data.user.id)
+            .eq('role', 'admin')
             .maybeSingle();
 
         if (roleData && roleData.role === 'admin') {
