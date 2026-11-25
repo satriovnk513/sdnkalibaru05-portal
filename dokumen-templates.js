@@ -16,6 +16,7 @@
 
     const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const RP = typeof module !== 'undefined' && module.exports && typeof require === 'function' ? require('./rekap-print.js') : root.RekapPrint;
     const ORIGIN = root.location && /^https?:/.test(root.location.origin || '') ? root.location.origin : 'https://sdnkalibaru05.sch.id';
 
     // Kop surat resmi sekolah (sumber: KOP SURAT SEKOLAH TERBARU 2026.docx). Ubah di sini bila kop berganti.
@@ -187,7 +188,7 @@
     }
     const gridOpen = (n, landscape) => { const f = fitGrid(n, landscape); return `<table class="grid" width="100%" style="font-size:${f.fs}pt">`; };
 
-    const nip = (p) => (p?.nip ? `NIP. ${esc(p.nip)}` : 'NIP. -');
+    const nip = (p) => esc(RP.labelNip(p?.nip));
     const orang = (p) => `<b><u>${esc(p?.nama || titik(34))}</u></b><br>${nip(p)}`;
 
     /** Blok tanda tangan. kiri/kanan: { atas: [..baris], orang } atau null. */
@@ -279,7 +280,7 @@
                 <div class="judul" style="margin-top:14pt"><u>SURAT KETERANGAN AKTIF SEKOLAH</u></div>
                 <div class="subjudul" style="margin-bottom:14pt">Nomor : ${nomorSurat(o)}</div>
                 <p>Yang bertanda tangan di bawah ini:</p>
-                <table class="noborder indent">${row('Nama', ks?.nama)}${row('NIP', ks?.nip)}${row('Jabatan', `Kepala ${KOP.nama}`)}</table>
+                <table class="noborder indent">${row('Nama', ks?.nama)}${row(RP.pisahNip(ks?.nip).jenis, RP.pisahNip(ks?.nip).nomor)}${row('Jabatan', `Kepala ${KOP.nama}`)}</table>
                 <p>menerangkan dengan sebenarnya bahwa:</p>
                 <table class="noborder indent">${row('Nama', s.nama)}${row('NIS / NISN', [s.nis, s.nisn].filter(Boolean).join(' / '))}${row('Tempat, tanggal lahir', ttl(s))}
                     ${row('Jenis kelamin', jkPanjang(s.jk))}${row('Kelas', romawi(d.kelas))}${row('Nama orang tua / wali', ortu(s))}${row('Alamat', s.alamat)}</table>

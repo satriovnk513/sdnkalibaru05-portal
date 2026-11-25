@@ -425,7 +425,7 @@
         const parts = [];
 
         parts.push(`<div class="g-welcome"><b>${ICON.home} Dashboard Guru</b>
-            <span class="att-muted">Selamat datang, <b>${esc(home.nama)}</b>${staffExtra?.nip ? ` (${esc(staffExtra.nip)})` : ''}</span></div>`);
+            <span class="att-muted">Selamat datang, <b>${esc(home.nama)}</b>${staffExtra?.nip ? ` (${esc(window.RekapPrint?.labelNip ? window.RekapPrint.labelNip(staffExtra.nip) : staffExtra.nip)})` : ''}</span></div>`);
 
         // Kartu utama: tugas absensi terdekat
         const wali0 = home.wali_kelas[0];

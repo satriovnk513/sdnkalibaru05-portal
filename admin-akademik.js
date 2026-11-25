@@ -467,7 +467,7 @@
             return { id: c.id, kelas: `Kelas ${c.name}`, w1, w2, w1n: w1 ? staffName(w1) : '', w2n: w2 ? staffName(w2) : '' };
         });
         $('akHrCount').textContent = `${rows.length} kelas`;
-        const person = (id) => (id ? `<b>${esc(staffName(id))}</b>${staffNip(id) ? `<br><span class="att-muted" style="font-size:.76rem">NIP: ${esc(staffNip(id))}</span>` : ''}` : '<span class="att-badge mute">Tidak ada</span>');
+        const person = (id) => (id ? `<b>${esc(staffName(id))}</b>${staffNip(id) ? `<br><span class="att-muted" style="font-size:.76rem">${esc(window.RekapPrint?.labelNip ? window.RekapPrint.labelNip(staffNip(id)) : staffNip(id))}</span>` : ''}` : '<span class="att-badge mute">Tidak ada</span>');
         makeTable('wali-kelas', $('akHrTable'), {
             rows,
             searchKeys: ['kelas', 'w1n', 'w2n'],
