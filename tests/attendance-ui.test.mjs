@@ -851,7 +851,11 @@ async function runUi() {
         // Data Kelas
         await page.evaluate(() => showTab('tabClasses'));
         await page.waitForSelector('#akClassTable .att-table');
-        check(/2 rombel · 4 siswa/.test(await page.textContent('#akClassInfo')), `${T} Data Kelas: jumlah rombel dan siswa`);
+        check(/2 rombel · 4 siswa · Laki-laki 2 · Perempuan 2/.test(await page.textContent('#akClassInfo')), `${T} Data Kelas: jumlah rombel, siswa, dan L/P (${await page.textContent('#akClassInfo')})`);
+        {
+            const t = await page.textContent('#akClassTable');
+            check(/L\s*\+1/.test(t) && /P\s*\+1/.test(t), `${T} Data Kelas: selisih L–P per rombel tampil`);
+        }
         await page.click('[data-class-del]');
         await page.waitForSelector('#attToastHost .att-alert.err');
         check(/masih punya 3 siswa/.test(await page.textContent('#attToastHost')), `${T} kelas yang masih ada siswanya tidak bisa dihapus`);

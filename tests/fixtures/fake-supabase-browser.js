@@ -886,8 +886,9 @@
             { subject_id: PAI, class_id: C3A, staff_id: ST(3) },
         ],
         student_enrollments: [
-            { class_id: C1A, end_date: null }, { class_id: C1A, end_date: null }, { class_id: C1A, end_date: null },
-            { class_id: C3A, end_date: null },
+            { class_id: C1A, end_date: null, siswa: { jk: 'Laki-laki', archived_at: null } }, { class_id: C1A, end_date: null, siswa: { jk: 'Laki-laki', archived_at: null } },
+            { class_id: C1A, end_date: null, siswa: { jk: 'Perempuan', archived_at: null } },
+            { class_id: C3A, end_date: null, siswa: { jk: 'Perempuan', archived_at: null } },
         ],
         school_holidays: [
             { holiday_date: '2026-12-25', name: 'Kelahiran Yesus Kristus', kind: 'nasional', source: 'SKB 3 Menteri 2026' },
