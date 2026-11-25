@@ -837,3 +837,53 @@ button.jd-slot:hover { background: var(--t-surface-2); }
     .ad-table td > div { text-align: right; }
     .ad-table td.ad-aksi, .ad-table td.ad-aksi .att-actions { justify-content: flex-start; }
 }
+
+/* ---------------------------------------------------------------- Kartu Siswa (kartu-ui.js) */
+.att-btn-scan { margin: 4px 0 10px; min-height: 48px; gap: 10px; background: var(--att-ink); color: #fff; font-weight: 700; }
+:root[data-theme="dark"] .att-btn-scan { background: #f1f5f9; color: #0f172a; }
+.att-btn-scan svg, .kt-ui .att-btn svg, .kt-sheet .att-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.att-btn-scan svg { margin-right: 2px; }
+.kt-ui .att-btn, .kt-sheet .att-btn { gap: 8px; }
+.qs-hasil { padding: 12px 14px; border-radius: 14px; font-weight: 700; font-size: 1.02rem; line-height: 1.3; animation: qs-pop .18s ease-out; }
+.qs-hasil.ok { background: #16a34a; color: #fff; }
+.qs-hasil.info { background: #2563eb; color: #fff; }
+.qs-hasil.err { background: #dc2626; color: #fff; }
+.qs-sub { font-size: .9rem; opacity: .92; }
+@keyframes qs-pop { from { transform: scale(.96); opacity: .4; } to { transform: none; opacity: 1; } }
+.kt-ui { display: flex; flex-direction: column; gap: 12px; }
+.kt-ring { margin: 0; color: var(--att-muted); }
+.kt-ring b { color: var(--att-ink); }
+.kt-ring .kt-kurang { color: var(--t-amber-ink, #b45309); }
+.kt-box { border: 1px solid var(--att-line); border-radius: var(--att-radius); padding: 14px; background: var(--att-card); display: flex; flex-direction: column; gap: 10px; }
+.kt-box h3 { margin: 0; font-size: 1rem; }
+.kt-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.kt-seg button { text-align: left; border: 1.5px solid var(--att-line); background: var(--t-surface-2, #f8fafc); color: var(--att-ink); border-radius: 12px; padding: 10px 12px; font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.kt-seg button small { color: var(--att-muted); font-size: .76rem; }
+.kt-seg button[aria-pressed="true"] { border-color: var(--att-brand); background: var(--t-red-bg, #fff1f2); box-shadow: inset 0 0 0 1px var(--att-brand); }
+.kt-ui .att-field { flex: none; }
+.kt-aksi .att-btn { flex: 1 1 150px; white-space: nowrap; }
+.kt-hint { margin: 0; font-size: .8rem; }
+.kt-hint code { font-size: .78rem; }
+.kt-listhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.kt-cek { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.kt-cek input, .kt-pick { width: 20px; height: 20px; accent-color: var(--att-brand); flex: none; }
+.kt-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.kt-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--att-line); border-radius: 12px; background: var(--att-card); }
+.kt-item.kt-sibuk { opacity: .55; pointer-events: none; }
+.kt-thumb { width: 42px; height: 56px; border-radius: 8px; overflow: hidden; background: var(--t-surface-2, #f1f5f9); display: flex; align-items: center; justify-content: center; flex: none; border: 1px solid var(--att-line); }
+.kt-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kt-thumb svg { width: 22px; height: 22px; fill: none; stroke: var(--att-muted); stroke-width: 1.8; }
+.kt-thumb.kosong { border-style: dashed; }
+.kt-foto-btn { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 8px; flex: none; }
+.kt-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.kt-info b { font-size: .92rem; overflow-wrap: anywhere; }
+.kt-info small { color: var(--att-muted); font-size: .78rem; }
+.kt-badges { display: flex; gap: 4px; flex-wrap: wrap; }
+.kt-badges:empty { display: none; }
+.kt-sheet-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.kt-sheet-head h3 { flex: 1; margin: 0; font-size: 1.05rem; }
+.kt-x { min-width: 40px; padding: 0 10px; font-size: 1.3rem; }
+.kt-bar { height: 8px; border-radius: 99px; background: var(--att-line); overflow: hidden; margin: 6px 0 12px; }
+.kt-bar i { display: block; height: 100%; width: 0; background: var(--att-brand); transition: width .2s; }
+.kt-sheet .att-alert ul { margin: 6px 0 0; padding-left: 18px; }
+.kt-sheet .att-alert { margin-bottom: 10px; }

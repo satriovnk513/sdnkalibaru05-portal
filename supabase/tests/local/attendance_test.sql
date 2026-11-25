@@ -1678,6 +1678,119 @@ begin
     execute 'reset role';
     end;
 
+    -- ======================================================== AB. Kartu siswa
+    declare
+        v_k1   jsonb; v_k2 jsonb; v_tok text; v_tok2 text; v_sid uuid; v_n1a int; v_old text;
+        v_t1   text; v_t2 text; v_t3 text;
+    begin
+    select count(*) into v_n1a from public.student_enrollments e join public.student_records s on s.id = e.student_id
+     where e.class_id = c1a and e.end_date is null and s.archived_at is null;
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_k1 := public.get_student_cards(c1a);
+    v_k2 := public.get_student_cards(c1a);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AB Kartu', 'u', 'Wali kelas membuka data kartu rombelnya; tiap siswa langsung dapat token QR 16 heksa yang tetap',
+        'ok', jsonb_array_length(v_k1 -> 'siswa') = v_n1a and v_n1a > 0
+          and (v_k1 ->> 'bisa_kelola')::boolean
+          and v_k1 -> 'kelas' ->> 'nama' = '1 A'
+          and not exists (select 1 from jsonb_array_elements(v_k1 -> 'siswa') x where x ->> 'token' !~ '^[0-9A-F]{16}$')
+          and v_k1 -> 'siswa' = v_k2 -> 'siswa');
+    v_sid := (v_k1 -> 'siswa' -> 0 ->> 'student_id')::uuid;
+    v_tok := v_k1 -> 'siswa' -> 0 ->> 'token';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AB Kartu', 'u', 'Wali kelas tidak bisa membuka kartu rombel lain; tabel kartu tidak bisa dibaca langsung',
+        'ok', public.t_try(format('select public.get_student_cards(%L)', c3a)) = '42501'
+          and public.t_try('select 1 from public.student_cards limit 1') = '42501');
+    execute 'reset role';
+
+    -- Guru mapel (PAI 1A): boleh ambil token untuk scan, tidak boleh data cetak (TTL).
+    perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AB Kartu', 'u', 'Guru mapel rombel bisa mengambil token untuk scan absensi, tapi tidak data cetak kartu',
+        'ok', jsonb_array_length(public.get_class_card_tokens(c1a)) = v_n1a
+          and public.get_class_card_tokens(c1a) @> jsonb_build_array(jsonb_build_object('student_id', v_sid, 'token', v_tok))
+          and public.t_try(format('select public.get_student_cards(%L)', c1a)) = '42501'
+          and public.t_try(format('select public.reissue_student_card(%L)', v_sid)) = '42501'
+          and public.t_try(format('select public.set_student_photo(%L, %L)', v_sid, v_sid::text || '/a.jpg')) = '42501');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AB Kartu', 'u', 'Scan kartu: token (huruf kecil/spasi pun) dikenali; token asal-asalan → null',
+        'ok', public.resolve_student_card(' ' || lower(v_tok) || ' ') ->> 'student_id' = v_sid::text
+          and public.resolve_student_card(v_tok) ->> 'kelas' = '1 A'
+          and public.resolve_student_card('0000000000000000') is null);
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', u_josua, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AB Kartu', 'u', 'Guru yang tidak mengajar rombel tidak bisa mengambil tokennya',
+        'ok', public.t_try(format('select public.get_class_card_tokens(%L)', c1a)) = '42501');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AB Kartu', 'u', 'Anon tidak bisa memakai RPC kartu sama sekali',
+        'ok', public.t_try(format('select public.get_class_card_tokens(%L)', c1a)) = '42501'
+          and public.t_try('select public.resolve_student_card(''AAAA'')') = '42501'
+          and public.t_try(format('select public.get_student_cards(%L)', c1a)) = '42501');
+    execute 'reset role';
+
+    -- Kartu hilang → terbitkan ulang; foto.
+    perform set_config('request.jwt.claims', json_build_object('sub', u_wali1a, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_k2 := public.reissue_student_card(v_sid);
+    v_tok2 := v_k2 ->> 'token';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AB Kartu', 'u', 'Terbitkan ulang: token baru, versi 2, kartu lama tidak dikenali lagi',
+        'ok', v_tok2 <> v_tok and (v_k2 ->> 'versi')::int = 2
+          and public.resolve_student_card(v_tok) is null
+          and public.resolve_student_card(v_tok2) ->> 'student_id' = v_sid::text);
+    v_t1 := public.t_try(format('select public.set_student_photo(%L, %L)', v_sid, gen_random_uuid()::text || '/a.jpg'));
+    v_t2 := public.t_try(format('select public.set_student_photo(%L, %L)', v_sid, v_sid::text || '/../x.jpg'));
+    v_old := public.set_student_photo(v_sid, v_sid::text || '/f1.jpg');
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AB Foto', 'u', 'Path foto wajib di folder siswa itu sendiri',
+        'ok', v_t1 = '22023' and v_t2 = '22023' and v_old is null);
+    v_old := public.set_student_photo(v_sid, v_sid::text || '/f2.jpg');
+    v_k1 := public.get_student_cards(c1a);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AB Foto', 'u', 'Ganti foto mengembalikan path lama (untuk dihapus) dan data kartu memuat foto baru',
+        'ok', v_old = v_sid::text || '/f1.jpg'
+          and exists (select 1 from jsonb_array_elements(v_k1 -> 'siswa') x where x ->> 'student_id' = v_sid::text
+                      and x ->> 'foto' = v_sid::text || '/f2.jpg' and (x ->> 'versi')::int = 2));
+    -- Storage: wali boleh unggah ke folder siswanya, tidak ke siswa kelas lain.
+    v_t1 := public.t_try(format($q$insert into storage.objects (bucket_id, name) values ('foto-siswa', %L)$q$, v_sid::text || '/f2.jpg'));
+    v_t2 := public.t_try(format($q$insert into storage.objects (bucket_id, name) values ('foto-siswa', %L)$q$, st4::text || '/x.jpg'));
+    v_t3 := public.t_try($q$insert into storage.objects (bucket_id, name) values ('foto-siswa', 'bukan-uuid/x.jpg')$q$);
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AB Foto', 'u', 'Wali mengunggah foto hanya untuk siswa rombelnya',
+        'ok', v_t1 = 'OK' and v_t2 = '42501' and v_t3 = '42501');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_susy, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AB Foto', 'u', 'Guru mapel rombel bisa melihat foto siswa, tapi tidak menghapus/mengunggah',
+        'ok', (select count(*) from storage.objects where bucket_id = 'foto-siswa' and name = v_sid::text || '/f2.jpg') = 1
+          and public.t_try(format($q$insert into storage.objects (bucket_id, name) values ('foto-siswa', %L)$q$, v_sid::text || '/z.jpg')) = '42501');
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_josua, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AB Foto', 'u', 'Guru di luar rombel tidak bisa melihat foto siswa',
+        'ok', (select count(*) from storage.objects where bucket_id = 'foto-siswa') = 0);
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_no := v_no + 1;
+    v_log := v_log || jsonb_build_object('no', v_no, 'k', 'AB Kartu', 'u', 'Admin bisa membuka kartu semua rombel, menerbitkan ulang, dan melepas foto',
+        'ok', public.t_try(format('select public.get_student_cards(%L)', c3a)) = 'OK'
+          and (public.reissue_student_card(v_sid) ->> 'versi')::int = 3
+          and public.set_student_photo(v_sid, null) = v_sid::text || '/f2.jpg');
+    execute 'reset role';
+    end;
+
     -- ======================================================== hasil
     insert into pg_temp.att_results
     select (x ->> 'no')::int, x ->> 'k', x ->> 'u', case when (x ->> 'ok')::boolean then 'LULUS' else 'GAGAL' end

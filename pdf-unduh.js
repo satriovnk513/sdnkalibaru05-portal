@@ -6,7 +6,7 @@
  *
  * Cara kerja: dokumen cetak (HTML yang sama dengan versi Cetak) dirender di iframe
  * tersembunyi selebar kertas, digambar ke kanvas lewat SVG <foreignObject>, lalu
- * dipotong per halaman dan dibungkus jadi PDF A4 (satu gambar JPEG per halaman).
+ * dipotong per halaman dan dibungkus jadi PDF seukuran kertas (A4, atau kartu 85,6 × 54 mm; satu gambar JPEG per halaman).
  * Ukuran & orientasi kertas dibaca dari aturan @page dokumen itu.
  *
  * Halaman ditentukan dari:
@@ -25,8 +25,10 @@
         const m = /@page\s*\{([^}]*)\}/i.exec(html);
         const isi = m ? m[1] : '';
         const lanskap = /size\s*:[^;]*landscape/i.test(isi);
-        const w = lanskap ? 297 : 210;
-        const h = lanskap ? 210 : 297;
+        // Ukuran khusus, mis. kartu PVC "size: 85.6mm 54mm".
+        const khusus = /size\s*:\s*([\d.]+)mm\s+([\d.]+)mm/i.exec(isi);
+        const w = khusus ? parseFloat(khusus[1]) : lanskap ? 297 : 210;
+        const h = khusus ? parseFloat(khusus[2]) : lanskap ? 210 : 297;
         const mg = /margin\s*:\s*([^;]+)/i.exec(isi);
         const angka = mg ? mg[1].trim().split(/\s+/).map((v) => (/mm$/.test(v) ? parseFloat(v) : /cm$/.test(v) ? parseFloat(v) * 10 : /pt$/.test(v) ? parseFloat(v) / PT : parseFloat(v) || 0)) : [10];
         const [a, b = a, c = a, d = b] = angka;
@@ -98,8 +100,8 @@
         return { doc, frame, kertas };
     }
 
-    /** Seluruh isi body → kanvas (SKALA×). */
-    async function gambarDokumen(doc) {
+    /** Seluruh isi body → kanvas (SKALA×; kertas kecil seperti kartu digambar lebih tajam). */
+    async function gambarDokumen(doc, kertas) {
         const lebar = Math.ceil(doc.documentElement.scrollWidth);
         const tinggi = Math.ceil(Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight));
         const salin = doc.documentElement.cloneNode(true);
@@ -124,7 +126,7 @@
             img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
         });
         // Batas kanvas browser (±32.000 px); dokumen sangat panjang diturunkan skalanya.
-        const skala = Math.min(SKALA, 30000 / tinggi);
+        const skala = Math.min(kertas && kertas.w < 150 ? 4 : SKALA, 30000 / tinggi);
         const kanvas = document.createElement('canvas');
         kanvas.width = Math.ceil(lebar * skala);
         kanvas.height = Math.ceil(tinggi * skala);
@@ -273,7 +275,7 @@
         const { doc, frame, kertas } = await siapkan(html);
         try {
             const bagian = potongan(doc, kertas);
-            const { kanvas, skala } = await gambarDokumen(doc);
+            const { kanvas, skala } = await gambarDokumen(doc, kertas);
             const gambar = keJpeg(kanvas, skala, bagian.length ? bagian : [{ y: 0, h: kertas.h * MM }], kertas);
             const pdf = susunPdf(gambar, kertas);
             simpan(pdf, namaFile || namaDari(html));

@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#ffffff">
     <script src="theme.js?v=1"></script>
     <link rel="stylesheet" href="theme.css?v=1">
-    <link rel="stylesheet" href="attendance.css?v=18">
+    <link rel="stylesheet" href="attendance.css?v=19">
     <style>
         /* ── Reset & Base ── */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -760,6 +760,10 @@
                     <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                     Kelola Absensi
                 </a>
+                <a class="nav-item" data-tab="tabKartu" onclick="showTab('tabKartu', this)">
+                    <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5 16c.6-1.5 1.7-2 3-2s2.4.5 3 2M14 9h5M14 12h5M14 15h3"/></svg>
+                    Kartu Siswa
+                </a>
                 <a class="nav-item" data-tab="tabTeacherAccounts" onclick="showTab('tabTeacherAccounts', this)">
                     <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     Akun Guru
@@ -1133,6 +1137,11 @@
                 </div>
 
                 <!-- ═══ TAB KELOLA ABSENSI ═══ -->
+                <div id="tabKartu" class="tab-content">
+                    <div class="section-header"><h2>Kartu Siswa</h2><p class="att-muted" style="margin:4px 0 0">Kartu pelajar ber-QR untuk absensi: upload foto siswa, cetak di kertas A4 atau printer kartu PVC. Guru men-scan kartu di lembar absensi Portal Guru → siswa otomatis Hadir.</p></div>
+                    <div class="admin-card"><div id="ktAdmHost"><div class="att-muted">Memuat…</div></div></div>
+                </div>
+
                 <div id="tabAttendance" class="tab-content">
                     <div class="section-header"><h2>Kelola Absensi</h2></div>
                     <div class="admin-card" id="attStatusCard" style="margin-bottom:16px">
@@ -1580,11 +1589,11 @@
     <script src="admin-students.js?v=6"></script>
     <script src="password-toggle.js?v=1"></script>
     <script src="admin.js?v=9"></script>
-    <script src="attendance-sheet.js?v=8"></script>
+    <script src="attendance-sheet.js?v=9"></script>
     <script src="akun-saya.js?v=1"></script>
     <script src="admin-attendance.js?v=8"></script>
     <script src="admin-akademik.js?v=5"></script>
-    <script src="pdf-unduh.js?v=1"></script>
+    <script src="pdf-unduh.js?v=2"></script>
     <script src="rekap-print.js?v=10"></script>
     <script src="admin-laporan.js?v=5"></script>
     <script src="dokumen-templates.js?v=9"></script>
@@ -1604,6 +1613,9 @@
     <script src="jurnal.js?v=2"></script>
     <script src="catatan.js?v=2"></script>
     <script src="admin-catatan.js?v=1"></script>
+    <script src="kartu.js?v=1"></script>
+    <script src="kartu-ui.js?v=1"></script>
+    <script src="admin-kartu.js?v=1"></script>
     <script src="inventaris.js?v=3"></script>
     <script src="admin-inventaris.js?v=3"></script>
     <script>
